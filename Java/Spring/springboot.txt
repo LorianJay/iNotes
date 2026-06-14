@@ -1,0 +1,911 @@
+使用Swagger来生成接口文档这样就不需要维护文档了,Swagger指的应该是前端和后端之间通过接口来交互,所以这些注解应该是标注在controller层的:下面是编写接口的时的一些用于生成文档的注解
+
+一般swagger需要的权限(需要在对应的模块进行排除):
+http://localhost:8080/swagger-resources/configuration/ui
+http://localhost:8080/swagger-resources
+http://localhost:8080/api-docs
+http://localhost:8080/swagger-ui.html				//访问该地址
+http://localhost:8080/swagger-resources/configuration/security
+registry.addResourceHandler("swagger-ui.html").addResourceLocations("classpath:/META-INF/resources/");
+registry.addResourceHandler("/webjars/**").addResourceLocations("classpath:/META-INF/resources/webjars/");
+
+Swagger2配置:
+@EnableSwagger2
+@Configuration
+public class SwaggerConfiguration {
+
+    @Bean
+    public Docket haloDefaultApi() {
+
+        return buildApiDocket("content",
+                "api.content",
+                "/api/content/**");
+    }
+
+    @Bean
+    public Docket haloAdminApi() {
+
+        return buildApiDocket("admin",
+                "api.admin",
+                "/api/admin/**");
+    }
+
+    private Docket buildApiDocket(@NonNull String groupName, @NonNull String basePackage, @NonNull String antPattern) {
+        Assert.hasText(groupName, "Group name must not be blank");
+        Assert.hasText(basePackage, "Base package must not be blank");
+        Assert.hasText(antPattern, "Ant pattern must not be blank");
+
+        return new Docket(DocumentationType.SWAGGER_2)
+                .groupName(groupName)
+                .select()
+                .apis(RequestHandlerSelectors.basePackage(basePackage))
+                .paths(PathSelectors.ant(antPattern))
+                .build()
+                .apiInfo(apiInfo());
+    }
+
+    private ApiInfo apiInfo() {
+        return new ApiInfoBuilder()
+                .title("API Documentation")
+                .description("Documentation for API")
+                .version("1.0")
+                .build();
+    }
+}
+
+
+@Api:用在类上，说明该类的作用
+String value();					//类说明,如果tags不为null则使用该参数,否则该参数不会生效
+String[] tags();					//类说明,参数是数组.
+
+@ApiOperation:用在方法上,说明该方法的作用,标注在具体请求上.
+String value();					//接口说明
+String httpMethod() default "";			//接口请求方式
+String produces() default "";			//接口返回参数类型
+String notes() default "";			//接口发布说明
+
+@ApiImplicitParam:注解用来描述一个参数,可以配置参数的中文含义,也可以给参数设置默认值,这样在接口测试的时候可以避免手动输入.如果该方法有多个参数,则需要使用多个@ApiImplicitParam注解来描述,多个@ApiImplicitParam注解需要放在一个@ApiImplicitParams注解中.
+String name;					//参数名称(这个属性名前端应该要和后端对应)
+String value;					//默认值?不太清楚
+boolean required;				//参数是否必须
+String dataType;				//参数类型Type
+
+@ApiImplicitParams:一个@ApiImplicitParam注解只能表示一个参数,如果目标方法现在有多个参数.就需要将这些参数放到该标签下
+ApiImplicitParam[] 				//具体我没细看,应该是注解内部需要一个ApiImplicitParam数组
+
+@ApiResponses:用于表示一组响应
+
+@ApiModel:
+描述一个Model的信息
+这种一般用在post创建的时候,使用@RequestBody这样的场景,请求参数无法使用@ApiImplicitParam注解进行描述时.
+表明这是一个被swagger框架管理的model,用于class上.
+
+@ApiModelProperty:描述一个model的属性,就是标注在被标注了@ApiModel的class的属性上,这里的value是对字段的描述,example是取值例子.
+
+@ApiResponse:用在@ApiResponses中,一般用于表达一个错误的响应信息
+    code:状态码
+    message:返回自定义信息
+    response:抛出异常的类
+
+@ApiIgnore:表示该接口函数不对swagger2开放展示
+
+
+
+@AliasFor(别名):该注解只能修饰方法.而且该注解的正确使用方式只能标注在注解里面的方法上.该注解有什么作用?例如在@RequestMapping注解中,看value()和path()方法,它们两个的作用是一样的,也就是说你可以随便用这两个注解中的一个来指定控制的路径.但是要避免这两个方法的冲突(因为它们的效果是一样的).所以你会看到这两个方法的@AliasFor注解里指定的值都是对方的方法名,意思代表当前方法有一个别名(这个别名就是@AliasFor指定的值),所以该注解必须成对出现,而且假设value方法的别名是"path"那么@Path方法的别名也一定是"value".而且要想@AliasFor注解生效则必须通过AnnotationUtils工具类的<A extends Annotation> synthesizeAnnotation(A annotation, AnnotatedElement annotatedElement) return A;这个方法来获得我们的注解.
+AnnotationUtils.findAnnotation(MyClass.clss,MyAnnotation.class);	//参数一:被你的注解定义的class类(也就是说MyAnnotation这个注解被定义在MyClass这个类中了)参数二:自已定义的注解的class对象,就是MyAnnotation这个注解里用了@AliasFor
+可以查看CSDN:https://blog.csdn.net/wolfcode_cn/article/details/80654730
+
+
+
+另一种注入的方式:如果不想写很多注解
+private final UserService userService;
+public 构造器(UserService userService){
+    this.userServie = userService;
+}
+通过这种方式也可以注入.
+
+BCrypt.checkpw(String, String) return boolean;		//通过该方法检查密码是否正确	agrs0:明文密码	agrs1:密文密码	
+
+在JPA框架中,对于实体类:
+@PreUpdate
+	Update之前被调用.该注释可以应用于实体类,映射超类或回调监听器类的方法,用于setter().
+
+@PrePersist
+	帮助您在持久化之前自动填充实体属性.Save 之前被调用(实体插入数据库之前).
+
+@PostPersist
+	Save 到 Datastore 之后被调用（实体插入数据库之后）.
+
+@PostLoad
+	在 Entity 被映射(数据载入实体)之后被调用.
+
+@PreRemove 和 @PostRemove
+	事件的触发由删除实体引起.@PreRemove事件在实体从数据库删除之前触发.
+
+Springboot配置大全:
+spring.servlet.multipart.max-file-size: 10240MB		设置使用mult上传或下载单个文件的最大值
+spring.servlet.multipart.max-request-size: 10240MB	单次请求的文件的总大小
+spring.datasource.type: com.zaxxer.hikari.HikariDataSource	选择连接池(有dbcp、hikar、c3p0)
+spring.output.ansi.enabled: always			是否启用彩色日志输出,always(是)、never(不)、detect(如果当前支持就用)
+logging.file.path:					日志文件的输出路径
+
+classpath:和classpath*:的区别在于,在maven多模块项目中classpath*会加载多个jar包的类路径下的资源,而classpath只会加载当前项目类路径下的资源文件.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+spring中Event事件:首先事件由应该由 监听者、事件、事件的产生者
+
+第一步创建事件:事件必须继承ApplicationEvent这个抽象类
+public class EventTest extends ApplicationEvent {
+    private String message;
+    public EventTest(Object source, String message) {
+        super(source);					
+        this.message = message;
+    }
+    public String getMessage() {
+        return message;
+    }
+    public void setMessage(String message) {
+        this.message = message;
+    }
+}
+构造器的agrs0必须是Object,而且构造器必须调用super(source);构造器的第一个参数是有说法的,往下看
+
+第二步创建监听者:监听者必须实现ApplicationListener这个接口,并且在泛型中指定你要监听的事件类
+@Component
+public class ListenerTest1 implements ApplicationListener<EventTest> {
+    public void onApplicationEvent(EventTest event) {
+        System.out.println("test1:" + event.getMessage());
+    }
+}
+监听者一定要添加到IOC容器中
+
+第三步通过ApplicationEventPublisher接口的实现发送事件:
+
+@Autowire
+ApplicationEventPublisher eventPublisher;
+
+eventPublisher.publishEvent(new EventTest(this,"message"));		
+通过ApplicationEventPublisher的publishEvent方法发送一个事件,publishEvent方法需要传入ApplicationEvent的实现,这里传入EventTest.由于ListenerTest1是添加到容器中的,而且它监听的就是EventTest,所以此时会调用ListenerTest1的onApplicationEvent方法,并且将我们new的EventTest对象传进去.注意new EventTest的构造器的第一个参数始终应该是this(也就是调用publishEvent方法的对象).
+
+另一种创建监听器的方法:
+@Component
+public class LogEventListener {
+
+    @EventListener
+    public void onApplicationEvent(EventTest event) {
+		
+    }
+}
+这种方式不需要实现接口,只需要在监听方法上标注@EventListener注解,然后springboot会自动根据方法的参数的类型来决定哪个监听器用来监听哪个事件.
+详情见:https://blog.csdn.net/tuzongxun/article/details/53637159?depth_1-utm_source=distribute.pc_relevant.none-task&utm_source=distribute.pc_relevant.none-task
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+一种精妙的设计思想,假设现在三个接口 A B C 其中B实现了A接口,C继承了B.需求:传入一个类,该类是直接实现接口A的输出true,如果该类是间接实现A的则为false.
+public boolean isExtendsInterfaceA(Class<?> interface){
+	Type[] types = interface.getGenericInterfaces();
+	for(Type type : types){
+		if(type instanceof ParameterizedType){
+			return ((ParameterizedType)type).getRawType().getTypeName().equals(A.class.getTypeNmae());
+		}
+	}
+	return false;
+}
+
+需求:给你一个实例,返回这个实例里属性值为null的属性名称
+private static Set<String> getNullPropertyNameSet(@NonNull Object source) {
+
+    Assert.notNull(source, "source object must not be null");
+    BeanWrapperImpl beanWrapper = new BeanWrapperImpl(source);				//BeanWrapperImpl,Wrapper是包装的意思相当于把我们的source包装了一层.
+    PropertyDescriptor[] propertyDescriptors = beanWrapper.getPropertyDescriptors();	//获取到当前实例的所有属性名称的集合 这里会默认添加一个class属性
+
+    Set<String> emptyNames = new HashSet<>();
+
+    for (PropertyDescriptor propertyDescriptor : propertyDescriptors) {			//遍历属性集合
+        String propertyName = propertyDescriptor.getName();				//获取当前属性的名称
+        Object propertyValue = beanWrapper.getPropertyValue(propertyName);		//根据属性名称获取该属性对应指向的对象
+
+        // if property value is equal to null, add it to empty name set
+        if (propertyValue == null) {
+            emptyNames.add(propertyName);			//如果这个属性没有被赋值则将属性名称添加到集合中
+        }
+    }
+    return emptyNames;
+}
+你需要传入一个类的实例
+
+BeanWrapper:接口
+
+BeanWrapperImpl:实现了BeanWrapper.该类的构造器需要传入一个实例对象BeanWrapper相当于是对javaBean的一层包装
+isReadableProperty(String) return boolean;			//判断对象的某个属性是否可读 args0:属性名
+setPropertyValue(String,String) return ;			//设置包装对象的属性值 args0:属性名 agrs1:(暂未知不太清楚转型问题)
+getPropertyValue(String) return ;				//得到一个属性的值 agrs0:属性名 返回值暂不清楚
+
+
+
+BeanUtils工具类:springboot的工具类,阿帕奇也有一个BeanUtils工具类
+copyProperties(Object, Object) return void;				//将第一个对象的属性值拷贝到第二个对象(该方法会拷贝两个对象相同属性名称的属性),该方法是浅克隆且不能拷贝数组和集合.
+copyProperties(Object, Object, String...) return void;			//重点是agrs2.在拷贝的时候不拷贝哪些属性.agrs2应该传入第一个类的属性的名称,传入的属性名称对应的属性就不会被拷贝.
+
+Token:
+在没有Token的时候,客户端每次想服务器请求时服务器都需要根据哟用户名和密码来查询数据库.Token是服务器生成的一串字符串,当第一次登陆时服务器就会生产该字符串,作为客户端访问服务器的一个令牌,以后就只需要根据这个令牌的内容来请求数据即可无需通过用户名和密码的方式来请求.
+
+一种灵活的泛型的指定:
+interface OutputConverter<DTO extends OutputConverter<DTO, DOMAIN>, DOMAIN>;
+这个接口有两个泛型,主要看第一个泛型,第一个泛型需要继承当前接口,一个合格的实现类class JournalDTO implements OutputConverter<JournalDTO, Journal>;第一个泛型就是当前类,当前泛型嵌套当前类是比较特殊的,尤其是里面的两个泛型是不能随便指定的.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+org.apache.commons.lang3.time.DateUtils下面的一些方法:
+addDays(final Date, final int) return Date;			//根据一个Date对象计算出该日期int天后的Date对象.
+addHours(final Date, final int) return Date;			//这个类好多这种重载的方法,只是添加的单位不同而已
+addMinutes
+addSeconds
+addMilliseconds
+
+add(final Date, final int, final int) return Date;		//实际上上述的这些方法内部都调用了这个方法,不同的地方在于第二个参数.第二个参数应该添加Calendar类的静态变量
+addDays内部调用add方法第二个参数实际上传的就是Calendar.HOUR_OF_DAY
+addHours内部调用add方法第二个参数实际上传的就是Calendar.HOUR_OF_DAY
+所以Calendar类本身支持多少种时间类型这里就支持多少种类型,而诸如像addDays这种方法都是把底层的细节屏蔽掉让你见名知意.
+
+Exception:如果int延后多长时间指定地不正确则会报IllegalArgumentException("The date must not be null");
+
+
+isSameDay(args0,args1);					//比较这两个日期是否为同一天.类中有很多这样的重载方法,可以传入Date来比较也可以传入Calendar来比较
+
+isSameInstant(args0,agrs1);				//比较这两个日期的毫秒时间是否相同
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+public class A{
+	int index;
+	public class B{
+		int index;
+	}
+}
+直接在B类中调用A.this.index就可以访问到B类的index属性.
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+com.fasterxml.jackson.databind.ObjectMapper:
+writeValueAsString(Object) return String;			//将对象转换为Json数据(字符串类型)
+writeValueAsBytes(Object) return bytes[];			//将对象转换为Json数据(字节数组类型)
+readValue(String, Class<T>) return T;				//将Json字符串转换为一个对象.agrs0:Json字符串 agrs1:要将这个Json字符串转为哪个对象.这个方法有很多的重载方法,可以自已看下
+								
+
+configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);		//如果这么设置,当json中有新增字段是实体类中不存在的情况下不报错.(反序列化时如果多了其它属性不报错)
+configure(DeserializationFeature.FAIL_ON_EMPTY_BEANS, false);			//反序列化时如果是空对象不报错
+configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)		//取消时间的默认序列化格式(默认是时间戳,可以取消,但需要设置时间的表现格式)
+setDateFormat(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"))			//设置实现的序列化格式
+setPropertyNamingStrategy(PropertyNamingStrategy) return this;			//通过这个方法来对ObjectMapper序列化和反序列化进行统一管理.详情可看https://blog.csdn.net/zhangzeyuaaa/article/details/50109107
+setSerializationInclusion(Include.ALWAYS) 					//序列化时序列化对象的所有属性
+setSerializationInclusion(JsonInclude.Include.NON_NULL) 			//属性值为null的不参与序列化
+
+Include:
+ALWAYS						//序列化时序列化所有对象
+NON_NULL					//属性值为null的不参与序列化
+
+
+利用ObjectMapper将YML转为对象:
+ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
+yamlMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);		//同理(未知属性不报错)
+yamlMapper.readValue(YAML配置文件的信息, 你的对象.class) return 你的对象;				//此时就能将YAML转为对象了.
+
+其实YML就等同于properties,而properties可以表示一个对象(当然只是字面值),YML同样可以表示一个对象.所以同样可以将YML转为一个对象.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+实际上我们不应该通过调用File对象的list方法来获得该目录下的所有目录,而是应该用Files工具类的list方法:
+list(Path) return Stream<Path>;			//该方法会返回Strem流.保证不会产生空指针异常
+readAllBytes(Path) return byte[];		//读取一个Path目录下的内容并返回该内容的字节数组.
+isRegularFile(Path) return boolean;		//判断当前Path是否是一个常规文件.什么是常规文件?首先肯定得是文件,其次该文件必须能被windows识别.比如没有后缀的文件肯定就不是常规文件,再比如一						个后缀为a的文件也不是常规文件.但是一个后缀为png的就是常规文件了.
+
+
+Paths:
+get(String,String) return Path;			//获得一个路径的Path
+get(URL) return path;
+
+Path:
+normalize() return Path;			//归一化目录,假设现在有个目录是 a/b/../c.txt	实际上我们知道../的意思就代表上级目录,调用该方法返回的Path的目录就是 a/c.txt 也就是帮我们转换						路径的逻辑.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+分页效果!!!!!!
+@ApiOperation(value = "获取所有机构信息", tags = {"机构管理"})
+@GetMapping("/orginfo/all")
+public Page<JournalWithCmtCountDTO> getAll
+(@PageableDefault(page = 0, size = 20) @SortDefault.SortDefaults({@SortDefault(sort = "name", direction = Sort.Direction.DESC), @SortDefault(sort = "id", direction = Sort.Direction.ASC)}) Pageable pageable) 
+{
+    Page<Journal> journalPage = journalService.pageBy(pageable);
+    return journalService.convertToCmtCountDto(journalPage);
+}
+这是org.springframework.data.*包下面的定义的接口,用来做分页效果的.
+
+Pageable这个参数springboot会帮你传,现在主要看如何通过注解来配置Pageable:
+
+@PageableDefault:
+int value() default 10;						//size的别名,可以暂停不管
+int size() default 10;						//每一页的大小,默认一页十条数据
+int page() default 0;						//请求第几页的数据(页数从0开始)
+String[] sort() default {};					//返回的数据根据哪些字段排序(指定的字段应该和数据库字段相同)
+Direction direction() default Direction.ASC;			//排序这些字段(sort指定的字段)时的排序规则,默认为升序.		Direction.ASC:升序 Direction.DESC:降序
+
+流程:先对数据进行排序,然后按size分页最后拿到page这一页的数据.(不是所有数据)
+
+@SortDefault.SortDefaults:假设现在我需要根据name进行升序,然后在name降序的基础上根据score进行降序.此时@PageableDefault的排序规则就不能满足,因为它指定让字段统一降序或者统一升序.
+
+public @interface SortDefault {
+    String[] value() default {};			//sort的别名
+    
+    String[] sort() default {};				//排序的字段数组
+
+    Direction direction() default Direction.ASC;	//排序的规则
+
+    public @interface SortDefaults {
+	SortDefault[] value();
+    }
+}
+
+SortDefaults是一个内部注解,该注解需要SortDefault注解数组来完成复杂的业务排序,在SortDefault注解中指定sort、direction.
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+如果在Utils工具类中产生异常,则应该将调用Utils方法的参数传给异常.例如:
+
+Class<?> aClass = null;
+try {
+    aClass = Class.forName("java.lang.String");
+} catch (Exception e) {
+    throw new RuntimeException(aClass + "...", e);
+}
+        
+捕获到Exception异常,然后抛出一个运行时异常的或运行时异常的子类RunntimeException,总之最后要调用RunntimeException的构造器.第一个是异常要打印的信息第二个是捕获到的哪个异常.
+
+以后就要注意了,不管你是通过@Bean将Bean添加到容器中还是通过@EnableConfigurationProperties还是通过配置文件,只要被添加到IOC容器中就可以在别的地方被注入.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+CORS跨域请求:如果现在有别的网站的部分资源引用我们的网站,相当于一个域名访问两个网站,那么真正的访问者不是别人的网站而是访问别人网站的哪个用户,也就是说访问别人网站的是用户,别人网站引用本站的资源在访问本站资源时访问者还是这个用户(所以两个网站的响应都给浏览器了).之前在学Servlet三大组件的时候学过,Filter的doFilter方法是在@Controller方法执行之前就执行的,所以这里控制所有访问网站资源的请求,通过过滤器来控制.实现跨域请求还可以通过WebMvcConfigurer的addCorsMappings方法来实现不过没有过滤器灵活.
+
+首先在往springboot中添加过滤器Filter:
+@Bean
+public FilterRegistrationBean<CorsFilter> corsFilter() {
+    FilterRegistrationBean<CorsFilter> corsFilter = new FilterRegistrationBean<>();
+
+    corsFilter.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
+    corsFilter.setFilter(new CorsFilter());
+    corsFilter.addUrlPatterns("/api/*");
+
+    return corsFilter;
+}
+
+控制所有的 /api/ 下面的请求,都会去调用CorsFilter过滤器
+
+public class CorsFilter extends GenericFilterBean {			//这个过滤器继承自GenericFilterBean过滤器,GenericFilterBean过滤器是spring提供的通用过滤器.
+
+    private final static String ALLOW_HEADERS = StringUtils.joinWith(",", HttpHeaders.CONTENT_TYPE, ADMIN_TOKEN_HEADER_NAME, API_ACCESS_KEY_HEADER_NAME);
+
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        HttpServletRequest httpServletRequest = (HttpServletRequest) request;				//强转每什么好说的
+        HttpServletResponse httpServletResponse = (HttpServletResponse) response;
+
+        /*
+        Set customized header 设置响应头
+        ACCESS_CONTROL_ALLOW_ORIGIN:该值只有两种情况要么是*代表任意网站,要么是具体的网站域名.这里就是具体的网站
+        域名,该域名是直接从请求参数中得到的,意思是运行请求的网站获得本站资源.
+        ACCESS_CONTROL_ALLOW_HEADERS:允许请求中携带的字段
+        ACCESS_CONTROL_ALLOW_METHODS:允许请求通过哪些方式请求
+        ACCESS_CONTROL_ALLOW_CREDENTIALS:是否允许浏览器读取读取response的内容.
+        ACCESS_CONTROL_MAX_AGE:浏览器请求本站时会分两次请求,第一次称为预检请求,第二次才是真实的请求.
+        该参数对应的值是秒数,代表发送一次预检请求后间隔多少秒后的请求才会发送预检请求.如果设置为0代表每次请求都需要发送
+        预检请求
+         */
+        httpServletResponse.setHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, httpServletRequest.getHeader(HttpHeaders.ORIGIN));
+        httpServletResponse.setHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, ALLOW_HEADERS);
+        httpServletResponse.setHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, PUT, DELETE, OPTIONS");
+        httpServletResponse.setHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+        httpServletResponse.setHeader(HttpHeaders.ACCESS_CONTROL_MAX_AGE, "3600");
+
+	/*
+        判断当前请求是否是预检请求,如果是则终止过滤链,否则继续执行过滤链.
+         */
+        if (!CorsUtils.isPreFlightRequest(httpServletRequest)) {			//CorsUtils是springboot的工具类
+            chain.doFilter(httpServletRequest, httpServletResponse);
+        }
+    }
+}
+
+
+
+关于CORS的详情内容可见:
+https://segmentfault.com/a/1190000018234763?utm_source=tag-newest#item-2-2
+https://www.jianshu.com/p/1ad4358beff7
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+之前学Filter的时候,如果一个请求被过滤了然后该请求又通过response重定向到一个请求,根据之前学的内容.只要请求一个地址就必然经过 Filter->Servlet->Handler->Controller所以新的地址又会被过滤一遍.现在的需求是不让Filter重复执行,一个请求只被过滤一次.(想想很很容易理解,在转发内的request是共享的.所以可以对这个request做记录)
+方法一:
+直接调用FilterRegistrationBean类的setEnabled(false);
+
+方法二:实现OncePerRequestFilter抽象类,这个抽象类里面有很多方法就不赘述了,看重要的.注意由于GenericFilterBean实现了Filter接口并且实现了doFilter()方法,所以我们的实现类就不需要实现该方法了
+
+shouldNotFilter(HttpServletRequest) return boolean;			//不应该过滤该请求? agrs0:本次请求的request true:不过滤	false:过滤
+doFilterInternal(HttpServletRequest,HttpServletResponse,FilterChain) return void;		
+//实际上该方法就和Filter接口的doFilter(HttpServletRequest,HttpServletResponse,FilterChain)方法是一样的.关键在于在同一次请求中只会调用该方法一次.如果你需要对当前请求进行判断是否需要过滤,那么可以调用shouldNotFilter方法,这个方法在OncePerRequestFilter抽象类中的默认实现是返回false也就是过滤当前请求.当然你可以重写该方法加上自已的判断.如果判断结果为true那么就直接调用doFilter方法不做过多的操作,如果为false再做过滤操作.实际上判断当前进行是否需要过滤也是一种过滤.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+凡是当前类不能被添加到IOC容器中的,但是又想从容器中拿Bean.可以在别的被添加到IOC容器的对象中注入想要的对象,然后通过传参的方式让不能被添加到IOC容器中的对象获得到这些Bean.
+
+Class<T> type;		//有的时候Class的类型仅仅是用来表示类型,例如
+public <T> T convertTo(String value,Class<T> type){
+	if (type.isAssignableFrom(Boolean.class)) {			//调用Class类的isAssignableFrom方法判断当前Class是否是某个类型
+            return (T)Boolean.valueOf(value);
+        }
+	if (type.isAssignableFrom(Integer.class)) {
+            return (T) Integer.valueOf(value);
+        }
+}
+
+那么我在调这个方法的时候,假设我第一个参数是 true、第二个参数是 Boolean.class	那么这里的意思就是,虽然第一个参数的类型是String,但是我通过第二个参数告知程序我的第一个参数的实际类型是Boolean请你帮我把value转为Boolean.
+那么我们在用的时候
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+java原生注解:
+
+@Entity
+@Table(name = "user")
+public class User{
+
+}
+
+@Entity表明这是个实体类,@Table表明这个实体类和哪张表进行对应.
+
+获得request的另类方式:
+ServletRequestAttributes requestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();				//getRequestAttributes是一个静态的全局方法,可以在任意地方获取.
+HttpServletRequest request = Objects.requireNonNull(requestAttributes).getRequest();
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+在springboot运行的过程中重启springboot:
+private static ConfigurableApplicationContext context;
+
+public static void main(String[] args) {
+    context = SpringApplication.run(Application.class, args);			//在启动服务的时候将run方法的返回值保存下来.
+}
+
+/**
+ * Restart Application.
+ * 调用该方法重启springboot.只要在程序的任意地方调用这个静态方法即可.
+ */
+public static void restart() {
+    ApplicationArguments args = context.getBean(ApplicationArguments.class);
+
+    Thread thread = new Thread(() -> {
+        context.close();
+        context = SpringApplication.run(Application.class, args.getSourceArgs());
+    });
+
+    thread.setDaemon(false);			//设置守护线程为false.
+    thread.start();
+}
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+如何利用RestTemplate从某个网站上下载文件夹(ZIP文件):一定是别人的网站
+ResponseEntity<byte[]> downloadResponseEntity = restTemplate.getForEntity("下载地址", byte[].class);		//通过这一步我们就能将下载的文件以字节数组的形式存放在ResponseEntity中了
+然后就是获取这个byte并将其转为InputStream输出到本地 
+InputStream zis = new InputStream(new ByteArrayInputStream(downloadResponseEntity.getBody()));
+
+现在的需要是别人点击你的网站,要从你的网站中下载内容,你的内容保存在本地该如何发送给用户?
+public ResponseEntity<Resource> download(HttpServletRequest request){
+File file = new File();
+Resource backupResource = new UrlResource(file.toUri());		//通过spring的Resource接口
+String contentType =  request.getServletContext().getMimeType(backupResource.getFile().getAbsolutePath());			
+return ResponseEntity.ok()
+    .contentType(MediaType.parseMediaType(contentType))				//这一步作用是设置当前下载的文件类型,必要!!!
+    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + backupResource.getFilename() + "\"")	//HTTPHeaders是spring的类,不要忘记导入,这一步设置当前下载的资源的地址(用于展示的)
+    .body(backupResource);
+}
+
+Resource:
+exists() return boolean;			//资源是否存在
+isOpen() return boolean;			//资源是否打开
+getURL() return URL;			//资源的URL
+getFile() return File;				//资源的File
+getInputStream() return InputStream;		//资源的InputStream流
+
+Resources采用模板方法设计模式,看一下它的实现类:
+WritableResource:可写资源接口,有两个实现类FileSystemResource和PathResource
+ByteArrayResource:二进制数组标识的资源,二进制数组资源可以在内存中通过程序构造
+ClassPathResource:类路径下的资源,资源以相对于类路径的方式标识
+FileSystemResource:文件系统资源,资源以文件系统路径的方式表示,如D:/conf/bean.xml
+InputStreamResource:以输入流返回表示的资源
+ServletContextResource:以访问Web容器上下文中的资源而设计的类,负责以相对于Web应用根目录的路径加载资源.它支持以流和URL的方式访问,在WAR解包的情况下,也可以通过File方式访问.该累还可以直接从JAR包中访问资源
+UrlResource:URL封装了java.net.URL,它使用户能够访问任何可以通过URL表示的资源,如文件系统的资源、HTTP资源、FTP资源等
+PathResource:Spring4.0提供的读取资源文件的新类.Path封装了java.net.URL、java.nio.file.Path、文件系统资源,它使用户能够访问任何可以通过URL、Path、系统文件路径表示的资源
+
+将保存在本地的内容发送给用户的另一种实现方法:
+public void download(HttpServletResponse response){
+    File localFile = new File("你的文件路径");
+    final File zipFile = ZipUtil.zip(localFile);			//如果没有ZipUtil这个类,你就要想办法把localFile打包成一个ZIP
+    byte[] zipData;
+    try (final FileInputStream inputStream = new FileInputStream(zipFile)) {		//通过IO流读取到zipFile文件的内容,
+    zipData = IOUtils.toByteArray(inputStream);				//如果没有IOUtils,你就要想办法把inputStream转为一个字节数组
+    response.setContentType("application/zip");				//这几个设置步骤和之前一样,这里不用MediaType的常量的原因在于MediaType中没有application/zip这个内容.
+    final String fileName = "halo-markdown-" + date + ".zip";		
+    response.setHeader("Content-Disposition", "attachment; filename=\"" + fileName + "\"");
+    }
+	response.getOutputStream().write(zipData);			//输出出去
+}
+
+再另外一种实现方法,通过流的方式输出给用户(OutputStream)不需要经过消息转换器,注意该类可以用于ResponseEntity的Body内容(这样就可以自定义响应码和响应头),相当于把该类包装进ResponseEntity中
+@GetMapping("/download")
+public StreamingResponseBody handle() {
+    return new StreamingResponseBody() {
+        @Override
+        public void writeTo(OutputStream outputStream) throws IOException {
+            // write...
+        }
+    };
+}
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+通过applicationContext在代码中获得application.yml的配置文件:
+
+@Autowire
+ApplicationContext applicationContext;
+
+ApplicationContext:
+getEnvironment() return Environment;			//实际上这个方法是EnvironmentCapable的方法,只是applicationContext接口继承了这个接口.调用该方法得到Environment,通过Environment我们就可以得到application.yml的配置文件的内容.
+
+Environment:该接口继承自PropertyResolver接口
+
+PropertyResolver:
+getProperty(String) return String;			//指定配置文件的Key,得到配置value.(yml实际上只是一种简化的properties) args0:配置文件的Key 
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+子类想调用父类同名方法.
+
+interface A {
+    default void test() {
+        System.out.println("A");
+    }
+}
+
+class B implements A {
+    @Override
+    public void test() {
+        System.out.println("B");
+        A.super.test();			//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!关键啊!!!关键啊!!!!此时调用的就是接口A的test方法.
+    }
+}
+
+@Test
+public void testInterface() {
+    B b = new B();
+    b.test();
+}
+
+输出BA
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+将markdown原文转为HTML:用户写的markdown是需要转换的
+
+直接拷贝:
+    private static final DataHolder OPTIONS = new MutableDataSet()
+            .set(Parser.EXTENSIONS, Arrays.asList(
+                    AttributesExtension.create(),
+                    AutolinkExtension.create(),
+                    EmojiExtension.create(),
+                    EscapedCharacterExtension.create(),
+                    StrikethroughExtension.create(),
+                    TaskListExtension.create(),
+                    InsExtension.create(),
+                    MediaTagsExtension.create(),
+                    TablesExtension.create(),
+                    TocExtension.create(),
+                    YamlFrontMatterExtension.create(),
+                    GitLabExtension.create())
+            )
+            .set(TocExtension.LEVELS, 255)
+            .set(TablesExtension.WITH_CAPTION, false)
+            .set(TablesExtension.COLUMN_SPANS, false)
+            .set(TablesExtension.MIN_SEPARATOR_DASHES, 1)
+            .set(TablesExtension.MIN_HEADER_ROWS, 1)
+            .set(TablesExtension.MAX_HEADER_ROWS, 1)
+            .set(TablesExtension.APPEND_MISSING_COLUMNS, true)
+            .set(TablesExtension.DISCARD_EXTRA_COLUMNS, true)
+            .set(TablesExtension.HEADER_SEPARATOR_COLUMN_MATCH, true)
+            .set(EmojiExtension.USE_SHORTCUT_TYPE, EmojiShortcutType.EMOJI_CHEAT_SHEET)
+            .set(EmojiExtension.USE_IMAGE_TYPE, EmojiImageType.UNICODE_ONLY)
+            .set(HtmlRenderer.SOFT_BREAK, "<br />\n");
+
+    private static final Parser PARSER = Parser.builder(OPTIONS).build();
+
+    private static final HtmlRenderer RENDERER = HtmlRenderer.builder(OPTIONS).build();
+    
+    // 传入markdown原文该方法返回markdown的HTML内容.
+    public static String renderHtml(String markdown) {
+
+        Node document = PARSER.parse(markdown);
+
+        return RENDERER.render(document);
+    }
+
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+通过Jsoup来解析HTML:https://www.open-open.com/jsoup/
+
+Jsoup:
+parse(String) return Decument;				//将HTML元数据解析为Decument对象.args0:HTML的String内容
+parse(String,String) return Decument;			//args1:baseurl用来将相对路径转为绝对路径(用法暂不明)
+parseBodyFragment(String) return Decument;		//解析一个HTML片段agrs0:片段信息
+parse(InputStram,String,String) return Decument;	//解析本地的HTML文件 agrs0:本地文件的IO流 args1:文件的编码 args2:用于解决文件中相对路径问(因为文件有的时候会引用一些资源)这个参数就填							绝对路径,如果不需要可以传一个空字符串
+connect(String) return Connection;			//和一个网站建立连接.args0:网站的URL
+
+
+Document:用来封装HTML信息的对象
+body() return Element;					//获得Document中的Body信息并封装在Element对象中.
+title() return String;					//获得Document中封装的HTML的标题(前提是Document对象中有这个信息)
+getElementByID(String) return Elements;			//类似于DOM解析XML
+
+
+Connection:调用connect方法可以将URL的数据拉下来然后放到这个对象中,证明这个对象存放的数据是最最原始的没有封装过的HTML原生数据.
+get() return Decument throws IOException;		//向Connection建立连接的网站发送一个get请求,将请求到的信息封装到Document对象中,如果获取的时候发生错误会抛出IOException异常.
+post() return Decument throws IOEception;		//发送post请求.只支持这两种请求,这两个方法应该最后调用.
+headers(String,String) return Connection;		//设置请求头数据,采用Builder模式.可以采用这种方式发送复杂的请求
+headers(Map<String,String>) return Connection;
+userAgent(String) return Connection;			//设置用户的浏览器
+cookie(String,String) return Connection;		//设置Cookie
+data(String...) return Connection;			//设置请求的数据,也许是请求体
+data(Map<String,String>) return Connection;		
+timeout(int) return Connection;				//间隔多长时间之后请求
+request() return Request;				//获得请求的request
+response() return Response;				//获得请求的response
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+如何根据地区获取当前的Calendar?
+
+Local.forLanguageTag(String) return Local;			//根据地区代码获得地区信息,例如zh就代表中国
+Calendar.getInstance(Local) return Calendar;			//根据Local对象获取当地的日期Calendar对象
+
+
+
+MultipartFile:这个类主要是做,浏览器上传文件的一些信息会封装在这个类里.
+getOriginalFilename() return String;				//得到用户上传的文件的文件名
+getInputStream() return InputStream;				//得到文件的InputStream流
+getName() return String;					//返回参数名称
+transferTo(File) return void;					//将MultipartFile对象封装的文件输出到File路径下			
+transferTo(Path) return void;
+getContentType() return String;			//获取该文件的类型(这个类型是spring自动帮你判断的,例如文件后缀是jpg -->image/jpeg)等等.这个类型可以理解为是字符串形式的MediaType!!!!!!
+isEmpty() return boolean;					//是否文空
+getSize() return long;						//文件的大小
+getBytes() return byte[];					//文件的字节数组
+
+
+MediaType:文件类型的标识
+valueOf(String) return MediaType;				//将String类型的MediaType转为对象类型,
+includes(MediaType) return boolean;				//判断方法调用者的MediaType是否包含参数的MediaType类型. 例如调用者的String类型是:images/* 参数的类型是JPG:images/jepg 
+							//此时该调用者的作用就相当于判断传入进来的MediaType是否是一个图片类型,所以这里返回true.
+URIBuilder构建URL:这是阿帕奇的东西
+
+构造器:
+URIBuilder(final String);				//args0:url地址 根据一个URL地址创建一个URLBuilder
+
+方法:
+getScheme() return String;				//获得当前URL的协议
+getUserInfo() return String;				//
+getHost() return String;				//获得URL的域名
+getPath() return Stirng;				//获得端口
+getQueryParams() return String;				//获得请求参数
+getFragment() return String;				//
+getCharset() return String;				//获得字符集编码
+
+
+以上都是这个URL的一些属性,这些都是getter方法所以就有与之对应的setter.
+
+setParameter(String,String) return URIBuilder;				//覆盖请求参数
+addParameter(String,String) return URIBuilder;				//添加请求参数
+
+这个类里面也有很多同名的set/add方法,set方法会覆盖原本同名的属性而add不会.例如:
+http://google.com?m=2
+
+此时调用setParameter("m","3"),查看URIBuilder对象内容 http://google.com?m=3
+此时调用addParameter("m","4"),查看URIBuilder对象内容 http://google.com?m=3&m=4
+
+除此之外还有很多clear方法,也就是请求对应的所有内容.
+
+网页变灰:
+<style type="text/css">html {filter: progid:DXImageTransform.Microsoft.BasicImage(grayscale=1);-webkit-filter: grayscale(100%);}</style>
+
+JsonObject:这个对象实际上也类似于一个Map,使用这个对象的好处在于它可以存放多种value类型不同的元素,虽然我们在Map中也可以将对象转为Object然后放入,但是取的时候是需要类型检查的.
+put(String,int) return JSONObject;
+put(String,long) return JSONObject;			//还有很多的重载方法,关键在于当你new出一个JsonObject之后不需要指定泛型,你可以往里丢任意的东西.
+
+optLong(String) return long;				//根据Key得到对应的元素
+optInt(String) return int;				//同理
+
+
+Yaml:这个对象可以帮助我们将Object对象转为对应的String类型的Yaml(但又不完全是Yaml的那种形式)而且它各个元素之间都换行.而且属性名和属性值间会用空格隔开
+dump(Object) return String;				//将一个Object对象的内容转为Yaml格式
+dump(Object,Write) return void;			//将一个Object对象的内容输出到一个Write对象中,Write是java的抽象类.所以可以输出到该抽象类下的所有子类.
+dumpAll(Iterator<? extends Object> data) return String;	//输出多个对象 args0:Iterator
+dumpAll(Iterator<? extends Object> data,Write) return void;		//同理
+
+如何用java从Git仓库中拉取项目内容?
+首先要知道每个项目都有与之对应的地址,例如现在要拉取这个项目:https://gitee.com/cnsukidayo/MinecraftTrackingMissiles.git
+另外一半对于GIT项目而言,https://gitee.com/cnsukidayo/MinecraftTrackingMissiles没有.git后缀的就是项目的地址,所以给你一个项目的网址,只需要去拼上.git就是该项目的仓库地址了.
+Git git = Git.cloneRepository().setURI("克隆的地址").setDirectory(File).call();
+
+Git:
+cloneRepository() return CloneCommand;				//获得CloneCommend对象
+open(File) return Git;			//打开一个本地的GIT项目,如果没有会报错IOException.git项目里都有.git这个文件夹,调用该方法相当于					获得当前git项目的信息.
+init() return InitCommand;		//获得InitCommand对象.
+
+
+CloneCommand:该对象用于克隆Git仓库内容到本地
+setURI(String) return CloneCommand;				//设置克隆的地址
+setDirectory(File) return CloneCommand;				//设置克隆后的文件存放地
+setCallback(Callback) return CloneCommand;			//设置克隆的回调函数,Callback是一个接口.
+call() return Git;						//执行(对于CloneCommand应该叫克隆)
+
+
+org.eclipse.jgit.api.Callback:克隆的回调函数的接口
+initializedSubmodules(Collection<String> submodules) return void;		//初始化时会回调该方法.至于这个参数是什么未知
+cloningSubmodule(String) return void;				//克隆中(瞎编的)
+checkingOut(AnyObjectId,String) return void;			//检查中(瞎编的)
+
+附加内容,让代码在克隆的时候不使用MMAP内存映射,直接使用read方法:这段代码一定要在GIT克隆的时候使用.
+WindowCacheConfig config = new WindowCacheConfig();
+config.setPackedGitMMAP(false);
+config.install();
+
+InitCommand:该对象用于初始化一个Git项目,是本地初始化.
+setDirectory(File) return InitCommand;			//设置Git项目的地址
+call();							//执行(对于GitCommand应该叫初始化)
+
+/**
+ * Controller advice for comment result.
+ * 控制run.halo.app.controller包下的所有响应对象都会经过此拦截器
+ * 处理正常响应的通用响应器.注意是有响应的是对象才有用(也就是响应的对象需要通过Http消息转换器转换的才会调用supports方法).
+ * 例如响应的内容指向一个页面这种肯定是不过经过该响应器的.
+ *
+ * @author johnniang
+ */
+@ControllerAdvice("run.halo.app.controller")
+public class CommonResultControllerAdvice implements ResponseBodyAdvice<Object> {
+
+    @Override
+    public boolean supports(MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
+        // 判断哪些需要拦截,如果是AbstractJackson的消息转换器就拦截.
+        return AbstractJackson2HttpMessageConverter.class.isAssignableFrom(converterType);
+    }
+
+    /**
+     * 自定义修改响应头,这里主要是修改响应码
+     *
+     * @param body          body就是响应对象response中的响应体
+     * @param returnType
+     * @param contentType
+     * @param converterType
+     * @param request
+     * @param response
+     * @return
+     */
+    @Override
+    @NonNull
+    public final Object beforeBodyWrite(@Nullable Object body,
+                                        MethodParameter returnType,
+                                        MediaType contentType,
+                                        Class<? extends HttpMessageConverter<?>> converterType,
+                                        ServerHttpRequest request,
+                                        ServerHttpResponse response) {
+        // 根据这个body获得MappingJacksonValue,或者是将body封装在MappingJacksonValue中
+        MappingJacksonValue container = getOrCreateContainer(body);
+        // The contain body will never be null
+        beforeBodyWriteInternal(container, contentType, returnType, request, response);
+        return container;
+    }
+
+    /**
+     * Wrap the body in a {@link MappingJacksonValue} value container (for providing
+     * additional serialization instructions) or simply cast it if already wrapped.
+     */
+    private MappingJacksonValue getOrCreateContainer(Object body) {
+        return (body instanceof MappingJacksonValue ? (MappingJacksonValue) body : new MappingJacksonValue(body));
+    }
+
+    private void beforeBodyWriteInternal(MappingJacksonValue bodyContainer,
+                                         MediaType contentType,
+                                         MethodParameter returnType,
+                                         ServerHttpRequest request,
+                                         ServerHttpResponse response) {
+        // Get return body 获得到响应体,body.这个body就是被封装在MappingJacksonValue中的对象,也就是上面创建的对象
+        Object returnBody = bodyContainer.getValue();
+        /*
+         有的时候在controller中会返回自定义的BaseResponse,如果这里的returnBody是BaseResponse就不使用通用的返回结果.
+         */
+        if (returnBody instanceof BaseResponse) {
+            // If the return body is instance of BaseResponse
+            BaseResponse<?> baseResponse = (BaseResponse) returnBody;
+            // 根据响应码转为其对应的HttpStatus,并将响应码设置到response中
+            response.setStatusCode(HttpStatus.resolve(baseResponse.getStatus()));
+            return;
+        }
+        /*
+        Wrap the return body 如果不是BaseResponse就创建一个响应码为200的实例
+        并且将响应体对象returnBody封装在BaseResponse中.
+         */
+        BaseResponse<?> baseResponse = BaseResponse.ok(returnBody);
+        bodyContainer.setValue(baseResponse);
+        response.setStatusCode(HttpStatus.valueOf(baseResponse.getStatus()));
+    }
+
+}
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+在springboot中将jar包里面的静态资源复制到本地:
+
+URI themeUri = ResourceUtils.getURL("静态资源目录").toURI();
+Path source;
+if ("jar".equalsIgnoreCase(themeUri.getScheme())) {			//判断当前是否是以jar包的方式进行运行的
+    FileSystem fileSystem = getFileSystem(themeUri);
+    source = fileSystem.getPath("/BOOT-INF/classes/" + "静态资源目录");
+} else {
+    source = Paths.get(themeUri);
+}
+
+//此时这个path就指代我们jar包里的静态资源目录,当然静态资源目录可以指定任意文件夹.
+
+private FileSystem getFileSystem(@NonNull URI uri) throws IOException {
+    FileSystem fileSystem;
+
+    try {
+        fileSystem = FileSystems.getFileSystem(uri);
+    } catch (FileSystemNotFoundException e) {
+        fileSystem = FileSystems.newFileSystem(uri, Collections.emptyMap());
+    }
+
+    return fileSystem;
+}
+
+ResourceUtils是spring的一个抽象工具类:这个类主要存放一些常用的静态变量
+isUrl(String) return boolean;			//判断当前这个URL格式是否正确,URL可以指代远程的资源地址也可以指代本地的一个文件 agrs0:资源地址
+getURL(String) return URL;		//如果是以classpath:开头代表获取当前资源目录的文件,如果不是就创建URL如果还不是就创建File,默认得到当前项目的根目录内容. args0:资源地址
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Spring Boot 2.0 版本中所有的事件按执行的先后顺序如下：
+
+	ApplicationStartingEvent
+
+	ApplicationEnvironmentPreparedEvent
+
+	ApplicationPreparedEvent
+
+	ApplicationStartedEvent <= 新增的事件
+
+	ApplicationReadyEvent
+
+	ApplicationFailedEvent
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+javaSystem.out.print彩色打印:
+System.out.println("\033[32m test  \033[39m 时间");
+通过\033[颜色编码m 来确认将要打印彩色日志
+
+颜色编码:
+
+ESC_START 	\033[ 	编码开始标识
+BLACK_FG 	30 	黑色
+RED_FG 		31 	红色
+GREEN_FG 	32 	绿色
+YELLOW_FG 	33 	黄色
+BLUE_FG 	34 	蓝色
+MAGENTA_FG 	35 	紫色
+CYAN_FG 	36 	青色
+WHITE_FG 	37 	白色
+DEFAULT_FG 	39 	橙色
+ESC_END 	m 	编码结束标识
+

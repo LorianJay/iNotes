@@ -1,0 +1,1052 @@
+								网络编程
+·分类:BIO、NIO、AIO(1.7)、Netty
+·介绍:
+BIO:javaSE基础的那种方式,最早的版本
+NIO:后续推出的版本
+AIO:优化的NIO
+Netty:对NIO的封装,上述的三个版本都不好用,Netty用的很多.
+
+
+1.BIO:
+·介绍:
+服务端通过一个线程不停的尝试与新客户端连接,当连接成功后开辟一个新的线程与客户端进行数据的交互,原线程不变仍然与客户端进行连接.
+·特性:
+BIO用的非常的少,连接客户端需要单独的线程(连接服务器是个阻塞方法),另外每当连接一个新的客户端的时候都需要创建一个新的线程用来进行读写操作,在读写操作的时候由于获取通过的输入输出流又是阻塞的所以又需要线程,如果长时间没有传入数据会造成资源的浪费.所以效率非常低.
+
+·服务端:
+public class Sever {
+    public static void main(String[] args) throws IOException {
+        ServerSocket ss = new ServerSocket();
+        ss.bind(new InetSocketAddress("127.0.0.1", 8888));
+        while (true) {
+            Socket s = ss.accept(); //阻塞方法
+
+            new Thread(() -> {
+                handle(s);
+            }).start();
+        }
+
+    }
+
+    static void handle(Socket s) {
+        try {
+            byte[] bytes = new byte[1024];
+            int len = s.getInputStream().read(bytes);
+            System.out.println(new String(bytes, 0, len));
+
+            s.getOutputStream().write(bytes, 0, len);
+            s.getOutputStream().flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+}
+
+·客户端:
+public class Client {
+    public static void main(String[] args) throws IOException {
+        Socket s = new Socket("127.0.0.1", 8888);
+        s.getOutputStream().write("你好".getBytes());
+        s.getOutputStream().flush();
+
+        byte[] bytes = new byte[1024];
+        int len = s.getInputStream().read(bytes);
+        System.out.println(new String(bytes, 0, len));
+        s.close();
+    }
+}
+
+
+2.NIO:单线程模型(single Thread)	NIO在javaSE里面的ByteBuffer 
+·介绍:
+通过一个Selector(类)大管家,对所有的客户端进行轮询,当有客户端需要进行连接操作或者读写操作的时候,通过这个大管家去处理.
+·特性:
+只通过一个线程就可以处理很多客户端的连接、读写操作.
+
+·客户端代码:无解释版本
+ServerSocketChannel类是对ServerSocket的一个封装,通道还是那个通道,只不过这个通道时双向的可读可写.
+
+
+package com.io.nio;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.util.Iterator;
+import java.util.Set;
+
+public class Server {
+    public static void main(String[] args) throws IOException {
+        ServerSocketChannel ssc = ServerSocketChannel.open();		
+        ssc.socket().bind(new InetSocketAddress("127.0.0.1", 8888));
+        ssc.configureBlocking(false);				//设定阻塞为false
+
+        System.out.println("server started, listening on :" + ssc.getLocalAddress());
+        Selector selector = Selector.open();			//打开一个Selector
+        ssc.register(selector, SelectionKey.OP_ACCEPT);		//为服务端添加一个Selector管家,并告知该
+
+        while(true) {
+            selector.select();
+            Set<SelectionKey> keys = selector.selectedKeys();
+            Iterator<SelectionKey> it = keys.iterator();
+            while(it.hasNext()) {
+                SelectionKey key = it.next();
+                it.remove();
+                handle(key);
+            }
+        }
+
+    }
+
+    private static void handle(SelectionKey key) {
+        if(key.isAcceptable()) {
+            try {
+                ServerSocketChannel ssc = (ServerSocketChannel) key.channel();
+                SocketChannel sc = ssc.accept();
+                sc.configureBlocking(false);
+                //new Client
+                //
+                //String hostIP = ((InetSocketAddress)sc.getRemoteAddress()).getHostString();
+
+			/*
+			log.info("client " + hostIP + " trying  to connect");
+			for(int i=0; i<clients.size(); i++) {
+				String clientHostIP = clients.get(i).clientAddress.getHostString();
+				if(hostIP.equals(clientHostIP)) {
+					log.info("this client has already connected! is he alvie " + clients.get(i).live);
+					sc.close();
+					return;
+				}
+			}*/
+
+                sc.register(key.selector(), SelectionKey.OP_READ );
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+            }
+        } else if (key.isReadable()) { //flip
+            SocketChannel sc = null;
+            try {
+                sc = (SocketChannel)key.channel();
+                ByteBuffer buffer = ByteBuffer.allocate(512);
+                buffer.clear();
+                int len = sc.read(buffer);
+
+                if(len != -1) {
+                    System.out.println(new String(buffer.array(), 0, len));
+                }
+
+                ByteBuffer bufferToWrite = ByteBuffer.wrap("HelloClient".getBytes());
+                sc.write(bufferToWrite);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                if(sc != null) {
+                    try {
+                        sc.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
+}
+
+·客户端代码解释版本:
+ServerSocketChannel类是对ServerSocket的一个封装,通道还是那个通道,只不过这个通道时双向的可读可写.
+
+package com.io.nio;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.util.Iterator;
+import java.util.Set;
+
+public class Server {
+    public static void main(String[] args) throws IOException {
+        ServerSocketChannel ssc = ServerSocketChannel.open();			//开启服务器的代码
+        ssc.socket().bind(new InetSocketAddress("127.0.0.1", 8888));		//开启服务器的代码
+        ssc.configureBlocking(false);				//设定阻塞为false
+
+        System.out.println("server started, listening on :" + ssc.getLocalAddress());
+        Selector selector = Selector.open();			//打开一个Selector
+        ssc.register(selector, SelectionKey.OP_ACCEPT);
+	//为服务端添加一个Selector管家,并告知该管家对哪件事情感兴趣,于是管家在服务器的每个管口上添加了一个key,并且设置key需要监听的事件
+可以有四种感知兴趣的状态:
+OP_READ:读取监听
+OP_WRITE
+OP_CONNECT
+OP_ACCEPT:连接监听
+
+        while(true) {
+            selector.select();		//阻塞方法,会轮询服务端,直到有一件事发生(连接服务端)才会进行处理
+            Set<SelectionKey> keys = selector.selectedKeys();//轮询服务端,找出所有发生事件的连接,将其放入Set中
+            Iterator<SelectionKey> it = keys.iterator();	//遍历这个set
+            while(it.hasNext()) {
+                SelectionKey key = it.next();
+                it.remove();				//将当前的某个连接remove,如果不remove下一次循环还出处理一次该事件
+                handle(key);
+            }
+        }
+
+    }
+总体分析:相当于Selector往服务端的每个连接上添加了一个监听器,如果监听到事件,则selector就会筛选出来这些连接进行处理,处理完毕之后还要remove掉,防止重复处理.
+
+    private static void handle(SelectionKey key) {
+//判断当前的监听属于什么类型的事件
+
+        if(key.isAcceptable()) {	//如果是建立连接事件	
+            try {
+                ServerSocketChannel ssc = (ServerSocketChannel) key.channel();		
+//给当前的key建立通道,这个key很厉害,可以通过这个key建立通道
+                SocketChannel sc = ssc.accept();					//建立连接,获取客户端
+                sc.configureBlocking(false);						//关闭阻塞
+                //new Client
+                //
+                //String hostIP = ((InetSocketAddress)sc.getRemoteAddress()).getHostString();
+
+			/*
+			log.info("client " + hostIP + " trying  to connect");
+			for(int i=0; i<clients.size(); i++) {
+				String clientHostIP = clients.get(i).clientAddress.getHostString();
+				if(hostIP.equals(clientHostIP)) {
+					log.info("this client has already connected! is he alvie " + clients.get(i).live);
+					sc.close();
+					return;
+				}
+			}*/
+
+                sc.register(key.selector(), SelectionKey.OP_READ );	
+//建立完连接之后,告知管家对当前的key实行Read监听,则下次轮询的时候就会处理read
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+            }
+        } else if (key.isReadable()) { //flip
+            SocketChannel sc = null;
+            try {
+                sc = (SocketChannel)key.channel();		//建立通道,通过这个通道就可以进行读写操作
+                ByteBuffer buffer = ByteBuffer.allocate(512);
+                buffer.clear();
+                int len = sc.read(buffer);
+
+                if(len != -1) {
+                    System.out.println(new String(buffer.array(), 0, len));
+                }
+
+                ByteBuffer bufferToWrite = ByteBuffer.wrap("HelloClient".getBytes());		//写出数据
+                sc.write(bufferToWrite);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                if(sc != null) {
+                    try {
+                        sc.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
+}
+
+·客户端代码:
+之前的客户端代码也可以使用
+
+
+
+3.NIO:reactor模式
+·特性:
+
+·介绍:
+通过一个Selector(类)大管家,对所有的客户端进行轮询,当有客户端需要进行连接操作的时候,Selector去处理它,但是它的下一个读写操作交给另外的线程池去处理,线程池就是已经存在很多线程等待着进行读写处理,但是用完之后不会关闭.
+	
+
+·服务端代码:
+public class PoolServer {
+
+    ExecutorService pool = Executors.newFixedThreadPool(50);		//设置线程池大小
+	
+    private Selector selector;
+    //中文测试
+
+    /**
+     *
+     * @throws IOException
+     */
+    public static void main(String[] args) throws IOException {
+        PoolServer server = new PoolServer();
+        server.initServer(8000);
+        server.listen();
+    }
+
+    /**
+     *
+     * @param port
+     * @throws IOException
+     */
+    public void initServer(int port) throws IOException {
+        //
+        ServerSocketChannel serverChannel = ServerSocketChannel.open();
+        //
+        serverChannel.configureBlocking(false);
+        //
+        serverChannel.socket().bind(new InetSocketAddress(port));
+        //
+        this.selector = Selector.open();
+
+        serverChannel.register(selector, SelectionKey.OP_ACCEPT);
+        System.out.println("服务端启动成功！");
+    }
+
+    /**
+     *
+     * @throws IOException
+     */
+    @SuppressWarnings("unchecked")
+    public void listen() throws IOException {
+        // 轮询访问selector  
+        while (true) {
+            //
+            selector.select();
+            //
+            Iterator ite = this.selector.selectedKeys().iterator();
+            while (ite.hasNext()) {
+                SelectionKey key = (SelectionKey) ite.next();
+                //
+                ite.remove();
+                //
+                if (key.isAcceptable()) {
+                    ServerSocketChannel server = (ServerSocketChannel) key.channel();
+                    //
+                    SocketChannel channel = server.accept();
+                    //
+                    channel.configureBlocking(false);
+                    //
+                    channel.register(this.selector, SelectionKey.OP_READ);
+                    //
+                } else if (key.isReadable()) {
+                    //
+                    key.interestOps(key.interestOps()&(~SelectionKey.OP_READ));
+                    //
+                    pool.execute(new ThreadHandlerChannel(key));
+                }
+            }
+        }
+    }
+}
+
+/**
+ *
+ * @param
+ * @throws IOException
+ */
+class ThreadHandlerChannel extends Thread{
+    private SelectionKey key;
+    ThreadHandlerChannel(SelectionKey key){
+        this.key=key;
+    }
+    @Override
+    public void run() {
+        //
+        SocketChannel channel = (SocketChannel) key.channel();
+        //
+        ByteBuffer buffer = ByteBuffer.allocate(1024);
+        //
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try {
+            int size = 0;
+            while ((size = channel.read(buffer)) > 0) {
+                buffer.flip();
+                baos.write(buffer.array(),0,size);
+                buffer.clear();
+            }
+            baos.close();
+            //
+            byte[] content=baos.toByteArray();
+            ByteBuffer writeBuf = ByteBuffer.allocate(content.length);
+            writeBuf.put(content);
+            writeBuf.flip();
+            channel.write(writeBuf);//
+            if(size==-1){
+
+                channel.close();
+            }else{
+                //
+                key.interestOps(key.interestOps()|SelectionKey.OP_READ);
+                key.selector().wakeup();
+            }
+        }catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+    }
+}
+
+·服务端代码:解释版本
+public class PoolServer {
+
+    ExecutorService pool = Executors.newFixedThreadPool(50);
+
+    private Selector selector;
+    //中文测试
+
+    /**
+     *
+     * @throws IOException
+     */
+    public static void main(String[] args) throws IOException {
+        PoolServer server = new PoolServer();
+        server.initServer(8000);
+        server.listen();
+    }
+
+    /**
+     *
+     * @param port
+     * @throws IOException
+     */
+    public void initServer(int port) throws IOException {
+        //
+        ServerSocketChannel serverChannel = ServerSocketChannel.open();
+        //
+        serverChannel.configureBlocking(false);
+        //
+        serverChannel.socket().bind(new InetSocketAddress(port));
+        //
+        this.selector = Selector.open();
+
+        serverChannel.register(selector, SelectionKey.OP_ACCEPT);
+        System.out.println("服务端启动成功！");
+    }
+
+    /**
+     *
+     * @throws IOException
+     */
+    @SuppressWarnings("unchecked")
+    public void listen() throws IOException {
+        // 轮询访问selector  
+        while (true) {
+            //
+            selector.select();
+            //
+            Iterator ite = this.selector.selectedKeys().iterator();
+            while (ite.hasNext()) {
+                SelectionKey key = (SelectionKey) ite.next();
+                //
+                ite.remove();
+                //
+                if (key.isAcceptable()) {
+                    ServerSocketChannel server = (ServerSocketChannel) key.channel();
+                    //
+                    SocketChannel channel = server.accept();
+                    //
+                    channel.configureBlocking(false);
+                    //
+                    channel.register(this.selector, SelectionKey.OP_READ);
+                    //
+                } else if (key.isReadable()) {
+                    //
+                    key.interestOps(key.interestOps()&(~SelectionKey.OP_READ));
+                    //
+                    pool.execute(new ThreadHandlerChannel(key));	
+//起一个新的线程交给线程池去处理,就相当于为这个类创建了一个新的线程,但是这个类必须要继承Thread
+                }
+            }
+        }
+    }
+}
+
+/**
+ *
+ * @param
+ * @throws IOException
+ */
+class ThreadHandlerChannel extends Thread{
+    private SelectionKey key;
+    ThreadHandlerChannel(SelectionKey key){
+        this.key=key;
+    }
+    @Override
+    public void run() {
+        //
+        SocketChannel channel = (SocketChannel) key.channel();
+        //
+        ByteBuffer buffer = ByteBuffer.allocate(1024);
+        //
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try {
+            int size = 0;
+            while ((size = channel.read(buffer)) > 0) {
+                buffer.flip();
+                baos.write(buffer.array(),0,size);
+                buffer.clear();
+            }
+            baos.close();
+            //
+            byte[] content=baos.toByteArray();
+            ByteBuffer writeBuf = ByteBuffer.allocate(content.length);
+            writeBuf.put(content);
+            writeBuf.flip();
+            channel.write(writeBuf);//
+            if(size==-1){
+
+                channel.close();
+            }else{
+                //
+                key.interestOps(key.interestOps()|SelectionKey.OP_READ);
+                key.selector().wakeup();
+            }
+        }catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+    }
+}
+
+
+4.AIO:单线程
+·介绍:
+当客户端需要连接的时候交给操作系统去(os)连接,操作系统一旦连上这个客户端,才会给Selector发送消息,有客户端需要进行连接操作,然后Selector再进行相关的处理,Selector只负责连接服务端与客户端,连接之后依然是采用线程池来处理通道信息(读写操作).
+·特性:
+之前说过AIO是NIO的升级版,原因是NIO的大管家有事没事就需要进行轮询,也就是一直需要循环即使无事发生,AIO的思想就是当你有事件的时候通知Selector.
+
+·服务端:单线程
+public class Server {
+    public static void main(String[] args) throws Exception {
+        final AsynchronousServerSocketChannel serverChannel = AsynchronousServerSocketChannel.open()
+                .bind(new InetSocketAddress(8888));
+
+        serverChannel.accept(null, new CompletionHandler<AsynchronousSocketChannel, Object>() {
+            @Override
+            public void completed(AsynchronousSocketChannel client, Object attachment) {
+                serverChannel.accept(null, this);
+                try {
+                    System.out.println(client.getRemoteAddress());
+                    ByteBuffer buffer = ByteBuffer.allocate(1024);
+                    client.read(buffer, buffer, new CompletionHandler<Integer, ByteBuffer>() {
+                        @Override
+                        public void completed(Integer result, ByteBuffer attachment) {
+                            attachment.flip();
+                            System.out.println(new String(attachment.array(), 0, result));
+                            client.write(ByteBuffer.wrap("HelloClient".getBytes()));
+                        }
+
+                        @Override
+                        public void failed(Throwable exc, ByteBuffer attachment) {
+                            exc.printStackTrace();
+                        }
+                    });
+
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void failed(Throwable exc, Object attachment) {
+                exc.printStackTrace();
+            }
+        });
+
+        while (true) {
+            Thread.sleep(1000);
+        }
+
+    }
+}
+
+
+·服务端:单线程解释
+public class Server {
+    public static void main(String[] args) throws Exception {
+        final AsynchronousServerSocketChannel serverChannel = AsynchronousServerSocketChannel.open()
+                .bind(new InetSocketAddress(8888));		//创建服务器
+	//此时这里的accept方法不是阻塞方法了,调用就结束了
+//服务器加载完之后会将这段代码保存到操作系统里,如果有客户端连接,操作系统就执行这段代码.
+//相当于观察者模式(回调),事件发生之前我直接把这段代码交给操作系统,当事件产生时操作系统自已去调用这段代码.
+        serverChannel.accept(null, new CompletionHandler<AsynchronousSocketChannel, Object>() {
+            @Override
+//如果连接成功则需要执行的代码
+            public void completed(AsynchronousSocketChannel client, Object attachment) {
+                serverChannel.accept(null, this);	//保证下一个客户端能连接
+                try {
+                    System.out.println(client.getRemoteAddress());
+                    ByteBuffer buffer = ByteBuffer.allocate(1024);
+//由于这段代码已经被保存,如果通道需要进行读写操作,同样直接调用这段读写的代码即可.
+                    client.read(buffer, buffer, new CompletionHandler<Integer, ByteBuffer>() {
+                        @Override
+                        public void completed(Integer result, ByteBuffer attachment) {
+                            attachment.flip();
+                            System.out.println(new String(attachment.array(), 0, result));
+                            client.write(ByteBuffer.wrap("HelloClient".getBytes()));		//写出数据给客户端
+                        }
+//如果读写失败则执行的代码
+                        @Override
+                        public void failed(Throwable exc, ByteBuffer attachment) {
+                            exc.printStackTrace();
+                        }
+                    });
+
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+//如果连接失败,则执行的代码
+            public void failed(Throwable exc, Object attachment) {
+                exc.printStackTrace();
+            }
+        });
+	//这里调用true只是不让mian方法结束
+        while (true) {
+            Thread.sleep(1000);
+        }
+
+    }
+}
+
+
+5.AIO:多线程
+
+·服务端:
+public class ServerWithThreadGroup {
+    public static void main(String[] args) throws Exception {
+
+        ExecutorService executorService = Executors.newCachedThreadPool();
+        AsynchronousChannelGroup threadGroup = AsynchronousChannelGroup.withCachedThreadPool(executorService, 1);
+
+        //中文测试
+        final AsynchronousServerSocketChannel serverChannel = AsynchronousServerSocketChannel.open(threadGroup)
+                .bind(new InetSocketAddress(8888));
+
+        serverChannel.accept(null, new CompletionHandler<AsynchronousSocketChannel, Object>() {
+            @Override
+            public void completed(AsynchronousSocketChannel client, Object attachment) {
+                serverChannel.accept(null, this);
+                try {
+                    System.out.println(client.getRemoteAddress());
+                    ByteBuffer buffer = ByteBuffer.allocate(1024);
+                    client.read(buffer, buffer, new CompletionHandler<Integer, ByteBuffer>() {
+                        @Override
+                        public void completed(Integer result, ByteBuffer attachment) {
+                            attachment.flip();
+                            System.out.println(new String(attachment.array(), 0, result));
+                            client.write(ByteBuffer.wrap("HelloClient".getBytes()));
+                        }
+
+                        @Override
+                        public void failed(Throwable exc, ByteBuffer attachment) {
+                            exc.printStackTrace();
+                        }
+                    });
+
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void failed(Throwable exc, Object attachment) {
+                exc.printStackTrace();
+            }
+        });
+
+        while (true) {
+            Thread.sleep(1000);
+        }
+
+    }
+}
+
+·服务端:解释
+public class ServerWithThreadGroup {
+    public static void main(String[] args) throws Exception {
+
+        ExecutorService executorService = Executors.newCachedThreadPool();	
+//一种线程池,如果不够就添加新的线程
+        AsynchronousChannelGroup threadGroup = AsynchronousChannelGroup.withCachedThreadPool(executorService, 1);
+我们可以把客户端分成好多组,而这一组可以分配多个线程池来处理,这里只用了一个线程池
+//参数一:线程池对象
+//参数二:线程池个数
+
+        //中文测试
+        final AsynchronousServerSocketChannel serverChannel = AsynchronousServerSocketChannel.open(threadGroup)
+                .bind(new InetSocketAddress(8888));
+//open(线程池)直接传入线程池其余代码不变
+
+        serverChannel.accept(null, new CompletionHandler<AsynchronousSocketChannel, Object>() {
+            @Override
+            public void completed(AsynchronousSocketChannel client, Object attachment) {
+                serverChannel.accept(null, this);
+                try {
+                    System.out.println(client.getRemoteAddress());
+                    ByteBuffer buffer = ByteBuffer.allocate(1024);
+                    client.read(buffer, buffer, new CompletionHandler<Integer, ByteBuffer>() {
+                        @Override
+                        public void completed(Integer result, ByteBuffer attachment) {
+                            attachment.flip();
+                            System.out.println(new String(attachment.array(), 0, result));
+                            client.write(ByteBuffer.wrap("HelloClient".getBytes()));
+                        }
+
+                        @Override
+                        public void failed(Throwable exc, ByteBuffer attachment) {
+                            exc.printStackTrace();
+                        }
+                    });
+
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void failed(Throwable exc, Object attachment) {
+                exc.printStackTrace();
+            }
+        });
+
+        while (true) {
+            Thread.sleep(1000);
+        }
+
+    }
+}
+
+
+6.Netty:
+·介绍:
+很像AIO(对NIO封装后很像AIO),虽然Netty是对NIO的封装(没有使用AIO),优势就在于Netty对ByteBuffer做了很好的封装.用的非常多.
+对于linux而言:
+为什么有了AIO还要使用NIO?因为AIO和NIO在linux底层都是使用的epoll.所以AIO和NIO在linux上都是用同一种模型实现的,本质上没有区别,在很多情况下AIO还多了一层封装因为epoll本身就是轮询.
+对于windows而言:
+AIO就是通过事件实现的,所以按照道理windows的AIO效率要比linux的AIO效率要高,但是很不幸的是目前世界上的大多数sever都是linux,所以netty只关心linux上的实现.
+
+AIO在windows上是有专门的实现的,但是在linux上没有.
+
+·服务端代码:注意导入的类!!!!!!!一定是netty的类
+public class HelloNetty {
+    public static void main(String[] args) {
+        new NettyServer(8888).serverStart();
+    }
+}
+
+class NettyServer {
+
+    int port = 8888;
+
+    public NettyServer(int port) {
+        this.port = port;
+    }
+
+    public void serverStart() {
+        EventLoopGroup bossGroup = new NioEventLoopGroup();
+        EventLoopGroup workerGroup = new NioEventLoopGroup();
+        ServerBootstrap b = new ServerBootstrap();
+
+        b.group(bossGroup, workerGroup)
+                .channel(NioServerSocketChannel.class)
+                .childHandler(new ChannelInitializer<SocketChannel>() {
+                    @Override
+                    protected void initChannel(SocketChannel ch) throws Exception {
+                        ch.pipeline().addLast(new Handler());
+                    }
+                });
+
+        try {
+            ChannelFuture f = b.bind(port).sync();
+
+            f.channel().closeFuture().sync();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            workerGroup.shutdownGracefully();
+            bossGroup.shutdownGracefully();
+        }
+
+
+    }
+}
+
+class Handler extends ChannelInboundHandlerAdapter {
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        //super.channelRead(ctx, msg);
+        System.out.println("server: channel read");
+        ByteBuf buf = (ByteBuf)msg;
+
+        System.out.println(buf.toString(CharsetUtil.UTF_8));
+
+        ctx.writeAndFlush(msg);
+
+        ctx.close();
+
+        //buf.release();
+    }
+
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        //super.exceptionCaught(ctx, cause);
+        cause.printStackTrace();
+        ctx.close();
+    }
+}
+
+·客户端:同样注意导入的类问题
+public class Client {
+    public static void main(String[] args) {
+        new Client().clientStart();
+    }
+
+    private void clientStart() {
+        EventLoopGroup workers = new NioEventLoopGroup();
+        Bootstrap b = new Bootstrap();
+        b.group(workers)
+                .channel(NioSocketChannel.class)
+                .handler(new ChannelInitializer<SocketChannel>() {
+
+                    @Override
+                    protected void initChannel(SocketChannel ch) throws Exception {
+                        System.out.println("channel initialized!");
+                        ch.pipeline().addLast(new ClientHandler());
+                    }
+                });
+
+        try {
+            System.out.println("start to connect...");
+            ChannelFuture f = b.connect("127.0.0.1", 8888).sync();
+
+            f.channel().closeFuture().sync();
+
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+
+        } finally {
+            workers.shutdownGracefully();
+        }
+
+    }
+
+
+}
+
+class ClientHandler extends ChannelInboundHandlerAdapter {
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        System.out.println("channel is activated.");
+
+        final ChannelFuture f = ctx.writeAndFlush(Unpooled.copiedBuffer("HelloNetty".getBytes()));
+        f.addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                System.out.println("msg send!");
+                //ctx.close();
+            }
+        });
+
+
+    }
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        try {
+            ByteBuf buf = (ByteBuf)msg;
+            System.out.println(buf.toString());
+        } finally {
+            ReferenceCountUtil.release(msg);
+        }
+    }
+}
+
+
+·服务端:解释
+public class HelloNetty {
+    public static void main(String[] args) {
+        new NettyServer(8888).serverStart();
+    }
+}
+
+class NettyServer {
+
+    int port = 8888;
+
+    public NettyServer(int port) {
+        this.port = port;
+    }
+
+    public void serverStart() {
+//这两个group可以理解为两个线程池,构造方法也是有参数的,可以传一个int,代表几个线程
+        EventLoopGroup bossGroup = new NioEventLoopGroup();			//管家Selector
+        EventLoopGroup workerGroup = new NioEventLoopGroup();			//线程池工人,上面说的专门处理读写的线程
+        ServerBootstrap b = new ServerBootstrap();		//通过该对象配置服务端启动之前的sever(配置sever)
+
+        b.group(bossGroup, workerGroup)
+                .channel(NioServerSocketChannel.class)		//参数:建立完连接的通道的类型
+                .childHandler(new ChannelInitializer<SocketChannel>() {	
+//参数:监听器(建立连接之后的监听器)有点类似面板的监听器
+                    @Override
+                    protected void initChannel(SocketChannel ch) throws Exception {
+                        ch.pipeline().addLast(new Handler());		
+//对通道加一个处理的监听器,这个监听器就是下面的Handler类,这样写的好处是:实现连接的代码和业务代码分离
+                    }
+                });
+//group():
+//参数一:第一个group负责连接
+//参数二:第二个负责IO处理(读写处理)
+
+//总结:bossGroup专门负责连接,workerGroup专门负责读写,当bossGroup连接客户端和服务端之后,就把这个通过交给workerGroup,然后workerGroup再在这个通道上注册监听,这个监听就是我们下面的那个类(Handler).
+
+        try {
+            ChannelFuture f = b.bind(port).sync();
+
+            f.channel().closeFuture().sync();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            workerGroup.shutdownGracefully();
+            bossGroup.shutdownGracefully();
+        }
+
+
+    }
+}
+
+class Handler extends ChannelInboundHandlerAdapter {
+    /**
+     * 如果该方法被调用,说明已经读取到数据了,不需要你自已读
+     * @param ctx   可以通过该对象进行读写操作
+     * @param msg   读取到的数据,类型应该是ByteBuf
+     * @throws Exception
+     */ 
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        //super.channelRead(ctx, msg);
+        System.out.println("server: channel read");
+        ByteBuf buf = (ByteBuf)msg;
+
+        System.out.println(buf.toString(CharsetUtil.UTF_8));
+
+        ctx.writeAndFlush(msg);
+
+        ctx.close();
+
+        //buf.release();
+    }
+
+    /**
+     * 如果出现了异常,就会调用该方法.
+     * 那你直接在这个方法里面处理
+     * @param ctx
+     * @param cause
+     * @throws Exception
+     */
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        //super.exceptionCaught(ctx, cause);
+        cause.printStackTrace();
+        ctx.close();
+    }
+
+·客户端:解释
+
+public class Client {
+    public static void main(String[] args) {
+        new Client().clientStart();
+    }
+
+    private void clientStart() {
+//这个方法的步骤和sever基本类似
+        EventLoopGroup workers = new NioEventLoopGroup();
+        Bootstrap b = new Bootstrap();
+        b.group(workers)
+                .channel(NioSocketChannel.class)
+                .handler(new ChannelInitializer<SocketChannel>() {
+
+                    @Override
+                    protected void initChannel(SocketChannel ch) throws Exception {
+                        System.out.println("channel initialized!");
+                        ch.pipeline().addLast(new ClientHandler());	//调用Client端的监听器	
+                    }
+                });
+
+        try {
+            System.out.println("start to connect...");
+            ChannelFuture f = b.connect("127.0.0.1", 8888).sync();
+
+            f.channel().closeFuture().sync();
+
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+
+        } finally {
+            workers.shutdownGracefully();
+        }
+
+    }
+
+
+}
+
+class ClientHandler extends ChannelInboundHandlerAdapter {
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        System.out.println("channel is activated.");
+
+        final ChannelFuture f = ctx.writeAndFlush(Unpooled.copiedBuffer("HelloNetty".getBytes()));
+        f.addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                System.out.println("msg send!");
+                //ctx.close();
+            }
+        });
+
+
+    }
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        try {
+            ByteBuf buf = (ByteBuf)msg;
+            System.out.println(buf.toString());
+        } finally {
+            ReferenceCountUtil.release(msg);
+        }
+    }
+}
+
+
+7.同步异步阻塞非阻塞:
+·阻塞和非阻塞关注的是等待消息的状态(不讨论的)
+·同步异步关注的是消息通信机制:
+根据上面的知识,应该很好理解总结
+
+同步:比如说从客户端发送消息之后还由该客户端等着叫同步
+异步:从客户端发送消息之后,接收的代码保存到操作系统中,当你需要读的时候通过操作系统在调用那个读的方法(方法回调).叫异步.
+
+同步阻塞:把两个内容的相同点结合在一起,首先方法是阻塞的,然后从客户端发送消息之后还由该客户端等着叫同步.
+同步非阻塞:方法非阻塞,然后从客户端发送消息之后还由该客户端等着叫同步.
+异步阻塞:方法阻塞,然后处理的方法以及提前写好了.这种情况很少发生.
+异步非阻塞:方法为非阻塞,然后处理的方法以及提前写好了.
+
+
+
+

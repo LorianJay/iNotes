@@ -1,0 +1,564 @@
+							网络编程
+目录:
+1.IP
+2.InetAddress类
+3.端口
+4.InetSocketAddress类
+5.URL
+6.URL类
+7.套接字Socket
+8.TCP/UDP的一些传输细节
+
+
+
+
+
+
+
+
+1.IP
+
+·介绍:
+用来标识网络中的一个通信实体的地址.通信实体可以是计算机路由器等.比如互联网的每个服务器都要有自已的IP地址,而每个局域网的计算机通信也要配备IP地址.路由器是连接两个或多个网络的网络设备.
+
+·IP地址分类:
+IPV4:32位地址,以点分十进制表示,如192.168.0.1
+IPV6:128位(16字节)写成8个16位的无符号整数,每个整数用四个16进制位表示,数之间用冒号(:)分开,如:3ffe:3201:1325:1280:c8ff:fedd:bnd3:1984
+
+·特殊IP:
+127.0.0.1 本机地址
+192.168.0.0--192.168.255.255私有地址,属于非注册地址,专门为组织机构内部使用.
+
+
+2.InetAddress类
+
+·介绍:
+该类没有构造器不可以直接new,但是提供了一些静态方法来获取InetAddress对象.
+
+·作用:
+用InetAddress类来表示一个IP地址.
+
+·简单理解DNS:
+将人类看不懂的IP地址转换为可以识别的字符串.这个字符串就是域名.	通过DNS可以将 IP和域名之间相互转换
+
+·创建对象:统一返回InetAddress对象
+InetAddress.getLocalHost();				//将当前电脑作为主机创建InetAddress对象
+InetAddress.getByName("www.baidu.com");			//根据主机域名创建InetAddress对象
+
+·InetAddress类的API:
+getHostAddress();					//返回当前主机的IP地址
+getHostName();						//返回当前主机的名称
+
+
+
+3.端口
+
+·介绍:
+通过端口来区分不同的软件.端口的标识是一个16位的二进制整数,2个字节,对应十进制的0-65535.
+
+公认端口:0-1203 比如80端口分配给www,21端口分配给FTP.
+注册端口:1024-29151 分配给用户进行或应用程序.
+动态端口/私有端口:49152-65535
+
+底层分为UDP协议和TCP协议 每个协议都有65535个端口 同一个协议下端口不可重复.
+
+
+4.InetSocketAddress类
+
+·介绍:
+创建 地址+端口 的主机.
+
+·常用方法:
+getAddress();						//返回InetAddress	返回的内容对应当前主机
+getHostName();						//获取主机名称
+getPort();						//获取主机端口号
+
+·代码:
+
+//1.创建主机
+InetSocketAddress inetSocketAddress = new InetSocketAddress("localhost",8888);
+
+
+
+
+5.URL
+
+·作用:
+用来定位软件里面的资源
+
+·IP 端口 URL:
+之前说过 IP用来定位软件 端口用来定位软件 URL 用来定位软件里面的资源.
+
+·使用URL访问的格式:
+例如 http://www.google.com:8080/index.html
+
+http://			协议
+www.google.com		主机名称
+:8080			端口
+/index.html		资源名称
+
+细节注意:如果不包含端口 那端口默认就是http的端口80
+
+
+
+
+6.URL类
+
+·作用:
+URL代表统一资源定位器,指向万维网上"资源"的指针.
+
+·代码:
+//1.创建URL
+URL url = new URL("http://www.google.com:80/index.html?age=18#a");			//指定资源路径
+
+
+·常用方法:
+getProtocol();					//获取协议		输出:http
+getHost();					//获取域名/IP		输出:www.google.com
+getPort();					//获取端口		输出:80
+getFile();					//请求资源完整路径 	输出:/index.html?age=18
+getPath();					//请求资源部分路径	输出:/index.html
+getQuery();					//获取请求参数		输出:age=18
+getRef();					//获取锚点		输出:a
+
+
+URI:在某一规则下能把一个资源独一无二地标识出来.
+URL:URL是URI的子集,用于标识web上的一个资源.但是这个资源未必要存在(请求的网站未必存在),既然是web必须要有协议所以开头得是http:// 或者https://
+
+
+
+7.套接字Socket
+我们开发的网络应用程序位于应用层,TCP和UDP属于传输层协议,在应用层如何使用传输层的服务呢?在应用层和传输层之间,则是使用套接字来分离.
+
+套接字就相当于传输层为应用层开的一个小口,应用程序通过这个小口向远程发送数据,或者接受远程发来的数据,而这个小口以内,也就是数据进入这个口之后,或者数据从这个口出来之前,是不知道也不需要知道的,也不会关系它如何传输,这属于网络其他层次的工作.
+
+
+8.TCP/UDP的一些传输细节
+
+大概的方向这里就不做讨论了,这里注重能传输什么样的数据.
+
+TCP和UDP在底层传输的时候只能传输字节数组,如果我们传输的是String对象,可以直接通过String类的getBytes()方法将字符串转换为字节数组传输出去.如果我们要传输基本数据类型,甚至是传输文件、对象该怎么办?
+
+传输基本数据类型:
+根据javaSE IO流的的知识 我在其他流的处理流那一节说过对流的具体理解 输出流永远是输出到最后一个括号里面的地址
+而ByteArrayOutputStream这个流可以将任何流里面的数据转换为字节数组.
+
+于是乎通过类似这样的流就可以完成基本数据类型转字节数组的操作: 
+ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+DataOutputStream dataOutputStream = new DataOutputStream(new BufferedOutputStream(byteArrayOutputStream));
+
+/* 写操作
+dataOutputStream.writeDouble(1.1);
+dataOutputStream.flush();
+dataOutputStream.close();
+另外:根据上面所总结出来的 输出流永远是输出到最后一个括号里面的地址 我们可以知道这里的DataOutputStream是输出到byteArrayOutputStream中的
+*/
+
+//将输出到byteArrayOutputStream中的内容转换为字节数组.
+byte[] bytes = byteArrayOutputStream.toByteArray();
+
+/*
+
+通过UDP/TCP(套接字)将数据发送出去.
+
+*/
+
+/*
+读操作
+ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
+DataInputStream dataInputStream = new DataInputStream(new BufferedInputStream(byteArrayInputStream));
+注意:字节数组流的输出流需要一个字节数组,根据总结 输入流的内容永远来自于最后一个括号的地址 所以此时DataInputStream的数据来源于byteArrayInputStream由于只有DateInputStream可以读取基本数据类型,所以这里只能通过DataInputStream来读取字节数组流里面的具体内容.
+*/
+
+传输对象:
+
+实际上就是通过序列化和反序列化来做 做法和上面类似 new ObjectOutputStream(new BufferOutputStream(new ByteArrayOutputStream()));
+
+
+
+
+
+							javaWeb
+目录:
+1.解析web.xml
+2.HTTP协议
+3.封装响应协议 	Response
+4.封装请求协议	Request
+5.servlet
+6.WebSocket协议
+
+
+
+
+
+
+
+
+1.解析web.xml
+
+·介绍:
+之前在学springMVC的时候就接触到这个文件了.
+
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
+         version="4.0">
+
+    <servlet>
+        <servlet-name>dispatcherServlet</servlet-name>
+        <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>dispatcherServlet</servlet-name>
+        <url-pattern>/</url-pattern>
+    </servlet-mapping>
+
+</web-app>
+
+·对于这些标签含义的解释,比springMVC那边解释的还要全面.
+
+首先有两个对象,servlet和servlet-mapping
+
+先看servlet-mapping,在servlet-mapping里面有两个属性,servlet-name和url-pattern.
+url-pattern标签的含义在springMVC中讲过,是拦截的请求地址.例如这里的 / 就代表拦截所有请求.
+
+再看servlet对象,也有两个属性,servlet-name和servlet-class. 注意两个对象的servlet-name是对应的.
+
+我们可以简单理解为,通过servlet-mapping里面的url-pattern标签来拦截某个请求,当这个请求被拦截时.会去寻找和当前servlet-mapping对象中servlet-name相同的值的servlet对象.然后servlet对象再通过反射去加载servlet-class标签里面指代的类.(因为是通过反射加载所以需要类的完整路径)
+
+·那么底层是如何实现,当我们访问一个网站路径时就去加载这个class文件的呢?
+
+事实上真正实际情况中的xml文件可能是:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
+         version="4.0">
+
+    <servlet>
+        <servlet-name>dispatcherServlet</servlet-name>
+        <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>dispatcherServlet</servlet-name>
+        <url-pattern>/</url-pattern>
+	<url-pattern>/login</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>reg</servlet-name>
+        <servlet-class>com.socket.Demo1</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>reg</servlet-name>
+	<url-pattern>/reg</url-pattern>
+    </servlet-mapping>
+
+</web-app>
+
+假如我们输入的网站为/reg我们要如何找到com.socket.Demo1?
+
+首先我们需要解析xml文件,用两个List容器来存储多个Servlet和ServletMapping对象.形成ORM映射关系
+
+这里采用HashMap的方式来解决 将两个List容器转为两个HashMap容器 
+
+对于ServletMapping对象而言 Key是url-pattern Value是servlet-name
+对于Servlet对象而言 Key是servlet-name Value是servlet-class
+
+这样当我们输入一个路径时 通过ServletMapping HashMap的Key找到Value 然后将Value作为Servlet HashMap的Key找到对应的Class路径.
+
+
+
+
+
+
+
+
+2.HTTP协议
+
+·介绍:
+和之前TCP/UDP一样都是一种协议 TCP/UDP是传输层的协议 HTTP是应用层的协议 称为超文本传输协议 是互联网上应用最为广泛的一种网络协议 所有的www文件都必须遵守这个标准 但是HTTP底层传输的时候还是使用的TCP/IP协议(不是UDP协议)
+然后返回内容的时候选择具体的哪种协议
+
+·分类:
+HTTP协议分为 请求协议(request)和响应(response)协议 分两块!!!
+
+请求协议是浏览器请求服务器时会发送的数据信息 通过socke的输入流获取
+响应协议是服务器返回给浏览器时会发送的数据信息 通过socket的输出流响应
+
+目录:
+2.1请求协议
+2.2响应协议
+
+
+
+
+
+
+
+2.1请求协议
+
+·介绍:
+//1.请求行:方法(GET/POST)、URI、协议/版本
+//2.请求头:(Request Header)			
+//3.请求正文					就是HTML代码
+
+请求协议根据请求方式的不同,请求协议的内容也是不同的.
+
+GET /[URI]?name=test&pwd=123456 HTTP/1.1		//其中[URI]代表请求的地址,此时请求参数放在URL中
+/*
+请求头由浏览器自已封装
+*/
+
+
+POST /[URI] HTTP/1.1
+/*
+请求头由浏览器自已封装
+*/
+							//这里必须空一行
+name=test&pwd=123456					//和GET的请求不一样,POST请求的参数放到最后
+
+
+·区别:
+GET:提交 	基于HTTP协议不同 量大 请求参数URL可见 不安全
+POST:获取(默认)	基于HTTP协议不同 量小 请求参数URL不可见 安全
+
+
+
+
+
+
+
+
+
+2.2响应协议:
+
+·介绍:
+//1.状态行:协议/版本 状态码 状态描述
+//2.响应头:(Response Headler)
+//3.响应正文					就是HTML代码
+
+
+·状态码:
+		状态码				说明
+		1xx				指示信息:	表示请求已接受,继续处理
+		2xx				成功:		表示请求已被成功接受、理解、接受.如200 OK 客户端请求成功
+		3xx				重定向:		要完成请求必须进行更进一步的操作
+		4xx				客户端错误:	请求有语法错误或请求无法实现.如404 NOT Found 请求的资源不存在 例如错误的URI
+		5xx				服务器错误:	服务器未能实现合法的请求
+
+
+HTTP/1.0 200 OK
+/*
+响应头需要自已写
+*/
+							//这里必须空一行
+/*
+响应正文
+*/
+
+
+·实现思路:
+实际上浏览器和服务器的连接就可以直接通过ServerSocket来进行连接 因为传输协议是TCP/IP协议
+
+·代码:
+ServerSocket sever = new ServerSocket(8888);
+Socket socket = sever.accept();    
+
+此时在浏览器中输入 localhost:8888 就可以连接到服务器了.
+
+然后通过socket的输出流来返回响应内容
+
+
+        ServerSocket sever = new ServerSocket(8888);
+        Socket socket = sever.accept();
+        /*
+        拼接响应正文
+        */
+        StringBuilder content = new StringBuilder();
+        content.append("<html>");
+        content.append("<head>");
+        content.append("<title>");
+        content.append("响应成功");
+        content.append("</title>");
+        content.append("</head>");
+        content.append("<body>");
+        content.append("欢迎回来");
+        content.append("</body>");
+        content.append("</html>");
+        /*
+        响应正文的字节数组的大小 固定写法
+         */
+        int length = content.toString().getBytes().length;
+        
+        StringBuilder responseInfo = new StringBuilder();
+        String blank = " ";
+        String CRLF = "\r\n";
+
+        //1.响应行 HTTP/1.1 200 OK
+        responseInfo.append("HTTP/1.1").append(blank);
+        responseInfo.append(200).append(blank);
+        responseInfo.append("OK").append(CRLF);
+        //2.响应头
+        responseInfo.append("Data:").append(new Date()).append(CRLF);
+        responseInfo.append("Sever:bjsxt Sever/0.0.1;charset=GBK").append(CRLF);
+        responseInfo.append("Content-type:text/html").append(CRLF);
+        responseInfo.append("Content-length:").append(length).append(CRLF).append(CRLF);
+        //3.响应正文
+        responseInfo.append(content.toString());
+        //写出到客户端
+        OutputStream outputStream = socket.getOutputStream();
+        outputStream.write(responseInfo.toString().getBytes());
+        outputStream.flush();
+        outputStream.close();
+
+
+
+
+
+
+3.封装响应协议
+
+·介绍:
+使用到2的知识点 只关注内容本身 其余的一些协议的内容不做关注 你自已封装好
+
+·代码:我这里封装的版本是直接将一个html文件返回到浏览器
+
+//1.使用的类
+public class Response {
+
+    Socket socket = null;
+
+    public Response() {
+
+    }
+
+    public Response(Socket socket) {
+        this.socket = socket;
+    }
+
+    public void send(int code, String file) {
+        BufferedReader reader = null;
+        StringBuilder stringBuilder = null;
+        try {
+            reader = new BufferedReader(
+                    new InputStreamReader(
+                            new FileInputStream(
+                                    new File(file)), "UTF-8"));
+            String str = null;
+            stringBuilder = new StringBuilder();
+            while ((str = reader.readLine()) != null) {
+                stringBuilder.append(str + "\n");
+            }
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+        int length = stringBuilder.toString().getBytes().length;
+
+        StringBuilder responseInfo = new StringBuilder();
+        String blank = " ";
+        String CRLF = "\r\n";
+
+        //1.响应行 HTTP/1.1 200 OK
+        responseInfo.append("HTTP/1.1").append(blank);
+        responseInfo.append(code).append(blank);
+        switch (code) {
+            case 200:
+                responseInfo.append("OK").append(CRLF);
+                break;
+            case 404:
+                responseInfo.append("NOT FOUND").append(CRLF);
+                break;
+            case 505:
+                responseInfo.append("SERVER ERROR").append(CRLF);
+                break;
+        }
+
+        //2.响应头
+        responseInfo.append("Data:").append(new Date()).append(CRLF);
+        responseInfo.append("Sever:bjsxt Sever/0.0.1;charset=GBK").append(CRLF);
+        responseInfo.append("Content-type:text/html").append(CRLF);
+        responseInfo.append("Content-length:").append(length).append(CRLF).append(CRLF);
+        //3.响应正文
+        responseInfo.append(stringBuilder);
+        //写出到客户端
+        try {
+            OutputStream outputStream = socket.getOutputStream();
+            outputStream.write(responseInfo.toString().getBytes());
+            outputStream.flush();
+            outputStream.close();
+        } catch (IOException e) {
+            System.out.println("IO异常");
+            e.printStackTrace();
+        } finally {
+        }
+    }
+
+
+}
+
+//2.测试代码
+ServerSocket sever = new ServerSocket(8888);
+Socket socket = sever.accept();
+Response response = new Response(socket);
+response.send(404,"D:\\java工程大全\\javacore\\src\\test\\resources\\login.html");		//只关注状态码和内容
+
+
+
+
+4.封装请求协议	Request
+
+也就是根据请求方式的不同 从GET何POST请求内容中分别获得请求所带来的参数
+
+
+
+5.Servlet
+
+
+6.WebSocket协议
+WebSocket是一种协议,WebSocket主要特性就是长连接,服务器可以主动发送消息,只建立一次连接等等 详情看https://www.zhihu.com/question/20215561
+
+经典的WebSocket握手
+//1.请求行:方法(GET/POST)、URI、协议/版本
+//2.请求头:(Request Header)			
+//3.请求正文
+
+GET /chat HTTP/1.1					请求行(HHTP仅代表握手,WebSocket的握手协议和HTTP握手一致)
+
+这些全是请求头:
+Host: server.example.com						
+Upgrade: websocket					// 表明当前是websocket协议而不是Http协议
+Connection: Upgrade					// Upgrade翻译为升级 同样表明当前是WebSocket协议 或者叫使用Upgrade这种连接方式
+Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==		// BASE64编码后的值,浏览器随机生成
+Sec-WebSocket-Protocol: chat, superchat			// 用户定义的字符串,用来区分同URL下,不同的服务所需要的协议
+Sec-WebSocket-Version: 13				// 表明当前协议的版本 13这个协议比较好(别的协议可能太混乱)
+Origin: http://example.com
+
+服务器响应内容:返回以下内容表明成功建立WebSocket
+HTTP/1.1 101 Switching Protocols
+Upgrade: websocket					// 表明当前是WebSocket协议
+Connection: Upgrade					// Upgrade翻译为升级同样表明当前是WebSocket协议
+Sec-WebSocket-Accept: HSmrc0sMlYUkAGmm5OPpG2HaGWk=	// 经过服务器确认并且加密后的Sec-WebSocket-Key
+Sec-WebSocket-Protocol: chat				// 表示最终使用的协议
+
+
+
+
+
+
+
+
+
+
+

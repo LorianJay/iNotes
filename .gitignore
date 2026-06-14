@@ -1,72 +1,64 @@
 *
 !.gitignore
 !LICENSE
-!Markdown.md
 !README.md
 
-!大前端
-!大前端/resources
-!大前端/resources/**
-!大前端/Electron.md
-!大前端/HTML.md
+# AI
+!AI
+!AI/**
 
-!分布式
-!分布式/resources
-!分布式/resources/**
-
-!计算机基础
-!计算机基础/resources
-!计算机基础/resources/**
-
-!项目实战
-!项目实战/谷粒商城
-!项目实战/谷粒商城/resourcesSelected
-!项目实战/谷粒商城/resourcesSelected/*
-!项目实战/谷粒商城/谷粒商城精选笔记.md
-!项目实战/尚上优选
-!项目实战/尚上优选/**
-
-!业务杂项
-
+# Android
 !Android
 !Android/**
 
+# Career
+!Career
+!Career/Planning
+!Career/Planning/**
+
+# CLang
 !CLang
 !CLang/**
 
-!CodeTool
-!CodeTool/**
-
+# config
 !config
 !config/**
+config/avator
 
-!JavaLang
-!JavaLang/resources
-!JavaLang/resources/**
-!JavaLang/领域模型(杂项).md
-!JavaLang/DDD.md
-!JavaLang/深入理解Java高并发编程.md
-!JavaLang/Java类大全.md
-!JavaLang/JUC.md
-!JavaLang/JVM-simple.md
-!JavaLang/JVM.md
-!JavaLang/Python.md
-!JavaLang/Tomcat.md
-!JavaLang/Maven.md
+# CSBasic
+!CSBasic
+!CSBasic/**
+CSBasic/计算机组成原理/Quartus
 
+# FrontEnd
+!FrontEnd
+!FrontEnd/**
+
+# Java
+!Java
+!Java/分布式
+!Java/分布式/**
+!Java/项目实战
+!Java/项目实战/谷粒商城
+!Java/项目实战/谷粒商城/resourcesSelected
+!Java/项目实战/谷粒商城/resourcesSelected/**
+!Java/项目实战/谷粒商城/谷粒商城精选笔记.md
+!Java/项目实战/尚上优选
+!Java/项目实战/尚上优选/**
+!Java/CodeTool
+!Java/CodeTool/**
+!Java/JavaLang
+!Java/JavaLang/**
+!Java/Spring
+!Java/Spring/**
+!Java/sql
+!Java/sql/**
+
+# Linux
 !Linux
 !Linux/**
 
-!Spring
-!Spring/resources
-!Spring/resources/**
-!Spring/spring-logging.md
-!Spring/Spring.md
-!Spring/SpringBoot3.md
-
-
-!sql
-!sql/resources
-!sql/resources/**
-!sql/MySQL.md
+# PostGraduate
+!PostGraduate
+!PostGraduate/读研知识小科普.md
 

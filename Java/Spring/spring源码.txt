@@ -1,0 +1,2007 @@
+
+·ProtocolResolver:顶级接口,协议解析器.
+resolve(String,ResourceLoader) return Resource;			//args0:本地资源 agrs1:传给你一个资源加载器这个地方应该是回调该方法
+
+
+·Lifecycle:容器生命周期接口
+start() return void;			//开启容器
+stop() return void;			//关闭容器
+isRunning() return boolean;		//获取到容器是否正在运行当中
+
+
+LifecycleProcessor该接口继承自Lifecycle扩展了,当application onRefresh和onClose是会回调.
+onRefresh() return void;	//刷新application时回调
+onClose() return void;		//正在关闭application
+
+SmartLifecycle:对于auto-startup的bean需要单独实现该接口,不可以直接使用上述接口.该接口继承自Lifecycle、Phased
+isAutoStartup() return booolen;
+stop(Runnable) return void;		//任何该接口的实现类,完成shutdown之后就会调用Runnable的run方法完成回调.
+
+
+DefaultLifecycleProcessor(默认的容器生命周期实现):实现了LifecycleProcessor、BeanFactoryAware接口
+
+
+
+·ResourceLoader:顶级接口,资源加载器.通过实现该接口获取Resource对象.该接口类似ApplicationContext可以直接注入
+getResource(String location) return Resource;		//agrs0:资源位置 获得到一个资源并将其封装在Resource.但不确保该资源真的存在,支持系统的绝对路径、classpath:、WEB-INF/
+getClassLoader() return ClassLoader;			//得到ResourceLoader的classLoader
+
+ResourcePatternResolver接口:ResourceLoader的子接口
+getResources(String) return Resource[];			//args0:资源位置 获取到一个资源并将其封装在Resource[]中
+
+·EnvironmentCapable:顶级接口
+getEnvironment() return Environment;			//返回与当前组件关联的Environment
+
+·MessageSource:顶级接口
+
+·ApplicationEventPublisher:顶级接口,事件的发送者
+publishEvent(ApplicationEvent) return void;		//发送一个事件
+publishEvent(Object) return void;			//发送一个事件
+
+·InitializingBean:顶级接口,Bean的初始化
+afterPropertiesSet() return void;			//在配置设置完后调用该接口
+
+
+ApplicationContext:继承自EnvironmentCapable、ListableBeanFactory(下方)、HierarchicalBeanFactory(下方)、MessageSource、ApplicationEventPublisher、ResourcePatternResolver接口
+getParent() return ApplicationContext;			//得到当前容器的父容器
+getDisplayName() return String;				//返回此上下文的友好名称?没懂什么意思可以直接看实现
+getApplicationName() return String;	//对于已经部署的程序会返回程序的名称,如果没有就返回空串(不返回null)
+getId() return String;					//获取当前应用程序上下文的唯一ID
+getStartupDate() return long;				//获取当前应用程序从开始到现在运行的时间
+getAutowireCapableBeanFactory() return AutowireCapableBeanFactory;		//获取AutowireCapableBeanFactory工厂
+
+
+ConfigurableApplicationContext:继承ApplicationContext、Lifecycle、Closeable接口
+setId(String) void;							//设置当前应用程序上下文的ID 
+setParent(ApplicationContext) return void;			//设置当前容器的父容器
+setEnvironment(ConfigurableEnvironment) return void;		//为这个应用程序上下文设置ConfigurableEnvironment
+getEnvironment() return ConfigurableEnvironment;		//返回当前应用程序的ConfigurableEnvironment
+addBeanFactoryPostProcessor(BeanFactoryPostProcessor) return void;	//添加BeanFactoryPostProcessor(这个和BeanPostProcessor的作用类似)
+addApplicationListener(ApplicationListener<?>) return void;		//添加监听器
+setClassLoader(ClassLoader) return void;			//添加类加载器
+addProtocolResolver(ProtocolResolver) return void;		//添加协议解析器
+refresh() return void;						//刷新容器
+registerShutdownHook() return void;				//注册关闭时的构造函数.这样在关闭的时候即使不调用close方法也可以执行close方法(自动执行).
+close() return void;				//关闭容器
+isActive() return boolean;			//获取当前容器是否是激活的状态
+getBeanFactory() return ConfigurableListableBeanFactory;		//得到Bean工厂
+
+
+DefaultResourceLoader:实现ResourceLoader接口.默认的资源加载器实现
+addProtocolResolver(ProtocolResolver) return void;		//添加协议解析器
+getProtocolResolvers() return Collection<ProtocolResolver>;	//得到所有的资源解析器
+getResourceCache(Class<T>) return Map<Resource,T>;		//暂定,貌似是从缓存中拿数据
+clearResourceCaches() return void;				//清除当前资源加载器的所有资源缓存
+getResource(String) return Resource;			//实现接口方法.内部会首先回调所有的协议解析器的resolve方法.传(String,this)
+getResourceByPath(String) return Resource;		//返回一个静态内部类ClassPathContextResource
+
+PathMatchingResourcePatternResolver:ResourcePatternResolver接口的实现类
+getResources() return Resource[];			//args0:资源位置 获取到一个资源并将其封装在Resource[]中避免获取重复的资源.
+
+
+AbstractApplicationContext:抽象类,继承自DefaultResourceLoader.实现ConfigurableApplicationContext接口.这个模板提供了很多很重要的实现,比如refresh()方法
+setId(String) return void;			//设置当前应用程序上下文的ID 
+getId() return String;				//获取当前应用程序上下文的唯一ID
+getApplicationName() return String;			//在web环境下默认调用ServletContext的getContextPath()方法.也就是当前项目的根路径,如果没有就返回空串.
+getDisplayName() return String;				//默认返回当前应用程序的地址.(类的全限定名+@+对象的16进制地址)
+setDisplayName(String) return void;				//设置当前应用程序上下文的友好名称
+getParent() return ApplicationContext;			//得到当前应用程序的父容器
+setEnvironment(ConfigurableEnvironment) return void;	//设置ConfigurableEnvironment.在修改ConfigurableEnvironment之前最好先调用refresh方法
+getEnvironment() return ConfigurableEnvironment;	//得到ConfigurableEnvironment.如果没有设置会创建一个默认的StandardEnvironment对象
+createEnvironment() return ConfigurableEnvironment;	//创建一个默认的ConfigurableEnvironment实现StandardEnvironment
+getAutowireCapableBeanFactory() return AutowireCapableBeanFactory;		//获取AutowireCapableBeanFactory工厂.该方法默认通过调用getBeanFactory()方法实现.
+getStartupDate() return long;				//获取当前应用程序从开始到现在运行的时间
+publishEvent(ApplicationEvent) return void;		//发送一个事件
+publishEvent(Object) return void;			//发送一个事件
+publishEvent(Object,ResolvableType) return void;	//发送一个事件.上面两个方法的内部都调用了该方法.	args0:事件 args1:
+getApplicationEventMulticaster() return ApplicationEventMulticaster;		//得到ApplicationEventMulticaster
+getLifecycleProcessor() return LifecycleProcessor;		//得到LifecycleProcessor接口的实现(spring生命周期回调)
+getResourcePatternResolver() return ResourcePatternResolver;	//默认返回一个新的PathMatchingResourcePatternResolver对象
+setParent(ApplicationContext) return void;			//设置当前容器的父容器.该方法内部会合并父容器封装的ConfigurableEnvironment(调用该接口的merge方法)
+addBeanFactoryPostProcessor(BeanFactoryPostProcessor) return void;	//添加BeanFactoryPostProcessor(这个和BeanPostProcessor的作用类似)
+getBeanFactoryPostProcessors() return List<BeanFactoryPostProcessor>;	//得到当前容器所有的BeanFactoryPostProcessor
+addApplicationListener(ApplicationListener<?>) return void;		//添加监听器
+getApplicationListeners() return Collection<ApplicationListener<?>>;	//获取监听器集合
+refresh() return void;						//刷新容器
+registerShutdownHook() return void;				//注册关闭时的构造函数.这样在关闭的时候即使不调用close方法也可以执行close方法(自动执行).
+destroy() return void;					//相当于close方法
+close() return void;				//关闭容器
+isActive() return boolean;				//获取当前容器是否处于激活的状态
+assertBeanFactoryActive() return void;			//如果当前容器的没有被激活,激活的状态为false则抛出运行时异常.protected方法
+
+//还有实现BeanFactory接口的一些方法.内部都是通过调用DefaultListableBeanFactory的实现方法来实现的.有些方法可以能在调用之前先调用assertBeanFactoryActive()方法.
+
+//还有实现ListableBeanFactory接口的一些方法,这些方法都是通过调用DefaultListableBeanFactory的方法来实现的.有些方法可以能在调用之前先调用assertBeanFactoryActive()方法.
+
+getParentBeanFactory() return BeanFactory;		//获取父容器的BeanFactory,实际上内部通过调用getParent()方法完成.因为ApplicationContext接口间接继承了BeanFactory
+containsLocalBean(String) return boolean;					//实际上内部是通过调用DefaultListableBeanFactory的containsLocalBean方法来实现的.
+
+//还有实现MessageSource接口的一些方法.内部都是通过调用DelegatingMessageSource的实现方法来实现的.
+
+getResources(String) return Resource[];			//实际上该方法内部封装了一个PathMatchingResourcePatternResolver对象,这里是调用了该对象的getResources()方法.
+start() return void;			//启动应用程序上下文
+stop() return void;			//关闭应用程序上下文
+isRunning() return void;		//获取当前应用程序是否正在运行.内部封装了一个DefaultLifecycleProcessor,默认调用该方法的isRunning()方法得到返回值.这里特定说个好玩的内容,isRunning()方法是Lifecycle接口的方法,然而真正在实现的时候却是调用其子接口LifecycleProcessor的实现类来完成的,所以虽然AbstractApplicationContext间接实现了Lifecycle接口,但是它不一定具备实现该方法的能力.
+refreshBeanFactory() return void;//抽象方法.刷新Bean工厂.该方法是在refresh方法之前调用的,来完成任何初始化工作,该方法只能被调用一次,如果多次调用会产生IllegalStateException异常.protected方法
+closeBeanFactory() return void;			//抽象方法.关闭Bean工厂
+getMessageSource() return MessageSource;		//获取MessageSource
+getBeanFactory() return ConfigurableListableBeanFactory;			//抽象方法.获取ConfigurableListableBeanFactory.protected方法
+cancelRefresh(BeansException) return void;				//将当前容器的激活状态设置为false
+assertBeanFactoryActive() return void;			//如果当前容器的没有被激活,激活的状态为false则抛出运行时异常.
+destroyBeans() return void;			//内部通过调用DefaultListableBeanFactory的destroySingletons方法实现
+
+
+
+AbstractRefreshableApplicationContext:AbstractApplicationContext的子类,主要提供refresh这类方法的支持.
+customizeBeanFactory(DefaultListableBeanFactory) return void;			//定制Bean工厂,内部设置当前应用程序上下文的BeanFactory的setAllowBeanDefinitionOverriding方法设置是否覆盖Bean定义,是否支持循环引用.注意这两个设置是从下面方法继承过来的,你可以传任意的工厂进来,但是具体的设置取决于当前对象的设置.(这些设置就是下面的这两个设置)所以针对工厂的设置还是要调用工厂的具体方法
+setAllowBeanDefinitionOverriding(boolean) return void;				//设置Bean定义信息是否可以被覆盖.
+setAllowCircularReferences(boolean) return void;				//设置是否支持循环引用
+refreshBeanFactory() return void;		//该方法是在refresh方法之前调用的,来完成任何初始化工作,该方法只能被调用一次,如果多次调用会产生IllegalStateException异常.
+createBeanFactory() return DefaultListableBeanFactory;		//创建一个默认的Bean工厂(DefaultListableBeanFactory类实现了ConfigurableListableBeanFactory接口)
+getBeanFactory() return ConfigurableListableBeanFactory;	//得到Bean工厂,默认的工厂就是DefaultListableBeanFactory.
+hasBeanFactory() return boolean;				//获取当前上下文是否已经有一个工厂(即当前上下文已经刷新过一次并且尚未关闭)
+closeBeanFactory() return void;					//关闭Bean工厂,实则调用DefaultListableBeanFactory的setSerializationId(null)方法.该方法不可被重写
+
+
+
+
+AbstractRefreshableConfigApplicationContext:抽象类,继承自AbstractRefreshableApplicationContext.实现了BeanNameAware、InitializingBean接口
+
+AbstractXmlApplicationContext:抽象类,继承自AbstractRefreshableConfigApplicationContext抽象类
+
+ClassPathXmlApplicationContext:继承自AbstractXmlApplicationContext
+
+
+·InputStreamSource:顶级接口,这个接口好像和Resources有很大的关联
+getInputStream() return InputStream;			//得到一个资源的InputStream,每次调用该方法都会返回一个新的流.
+
+
+Resource:接口,继承自InputStreamSource.用于表达一个资源
+exists() return boolean;				//判断该资源是否真实存在
+isReadable() return boolean;				//判断资源是否可读,如果返回false代表一定不可读.如果返回true也有可能读取失败
+isOpen() return boolean;				//暂定
+isFile() return boolean;				//判断当前资源是否为一个文件
+getURL() return URL;					//
+getURI() return URI;					
+getFile() return File;
+readableChannel() return ReadableByteChannel;		//得到当前资源的channel通道(设计NIO)
+contentLength() return long;				//确定此资源的长度
+lastModified() return long;				//确定此资源最后修改的时间戳
+createRelative(String) return Resource;			//根据当前资源创建一个相对资源
+getFilename() return String;				//得到资源名称
+getDescription() return String;				//得到资源描述
+
+ContextResource:接口继承自Resource.
+getPathWithinContext() return String;			//暂定
+
+AbstractResource:Resource的抽象实现
+
+AbstractFileResolvingResource:抽象类继承AbstractResource
+
+各种内置的实现:
+UrlResource:继承自AbstractFileResolvingResource.用来访问URL资源,例如file开头的是本地资源,http开头的是网络资源
+
+ClassPathResource:继承自AbstractFileResolvingResource.用于访问类路径下的资源
+
+FileSystemResource:访问系统资源
+
+InputStreamResource:读取一个InputStream不推荐使用.用于多次读取输入流.
+
+ByteArrayResource:用于代替InputStreamResource,需要一个字节数组.每次读取都从字节数组中读取.
+
+ClassPathContextResource:继承自ClassPathResource,实现ContextResource接口
+
+
+·PropertySources:顶级接口,该接口继承自Iterable<PropertySource<?>>接口
+stream() return Stream<PropertySource<?>>;
+contains(String) return boolean;
+get(String) return PropertySource<?>;
+
+MutablePropertySources:PropertySources接口的实现类,目测目前PropertySources只有这一个实现类.这个接口主要是用来存放PropertySource对象们的.
+
+
+·PropertySource:顶级抽象类
+
+·PropertyValues:顶级接口,该接口继承自Iterable<PropertyValue>
+
+PropertyValue:继承自BeanMetadataAttributeAccessor
+
+
+·PropertyResolver:这个接口就复杂了
+getProperty(String) return String;			//指定配置文件的Key,得到配置value.(yml实际上只是一种简化的properties) args0:配置文件的Key.该方法待定//todo
+
+
+ConfigurablePropertyResolver:继承自PropertyResolver接口
+validateRequiredProperties() return void throws MissingRequiredPropertiesException;		
+//验证必要的配置是否存在,如果有不存在的配置则这些不存在的配置信息全部都封装到MissingRequiredPropertiesException这个异常抛出.AbstractEnvironment实现了这个方法,但内部实际调用的时候是调用的PropertySourcesPropertyResolver对象的validateRequiredProperties方法(因为AbstractEnvironment内部有PropertySourcesPropertyResolver对象的引用).
+
+setRequiredProperties(String...) return void;			//调用该方法设置需要验证的必要的配置(现在还差一步,虽然设置了我需要哪些,但是没有设置我有哪些.)
+
+setPlaceholderPrefix(String) return void;			//设置占位符前缀
+
+setPlaceholderSuffix(String) return void;			//设置占位符后缀
+
+setValueSeparator(String) return void;				//设置分隔符
+
+setIgnoreUnresolvableNestedPlaceholders(boolean) return void;	//是否忽略无法解析的占位符.如果设置为false则当无法解析的时候会产生异常.设置为true后面再看看.
+
+setConversionService(ConfigurableConversionService) return void;	//设置ConfigurableConversionService(这个类再看)
+
+getConversionService() return ConfigurableConversionService;		
+//得到ConfigurableConversionService的实现,如果没有设置默认的实现类是DefaultConversionService.PropertySourcesPropertyResolver(AbstractPropertyResolver)实现了该方法.关于DefaultConversionService见下方
+
+
+Environment:继承自PropertyResolver接口
+
+ConfigurableEnvironment:继承自ConfigurablePropertyResolver、Environment接口
+
+merge(ConfigurableEnvironment) return void;		//将一个ConfigurableEnvironment合并到当前ConfigurableEnvironment. args0:被合并的ConfigurableEnvironment
+
+AbstractEnvironment:ConfigurableEnvironment接口的抽象实现,这个类内部有PropertySourcesPropertyResolver对象的引用(spring自已创建的)
+
+StandardEnvironment:继承自AbstractEnvironment
+
+AbstractPropertyResolver:ConfigurablePropertyResolver接口的抽象实现
+
+PropertySourcesPropertyResolver:继承自AbstractPropertyResolver,该类的构造器需要PropertySources的实现类.该类也和解析占位符有关,和PropertyPlaceholderHelper有关.
+
+·ResolvableType:实现了Serializable接口,这个类表明封装一个java类型
+
+·ApplicationEventMulticaster:顶级接口,这个接口是真正的事件播报器
+
+AbstractApplicationEventMulticaster:ApplicationEventMulticaster、BeanClassLoaderAware、BeanFactoryAware接口的抽象实现
+作用:看到Aware接口就想到这个类很有可能是被spring容器创建的,事实也确实如此,spring在初始化ApplicationEventMulticaster的时候确实会先从Bean工厂中获取ApplicationEventMulticaster Bean.如果获取不到则再手动new一个.
+
+SimpleApplicationEventMulticaster(简单的事件播报器实现):继承AbstractApplicationEventMulticaster抽象类.也应该是spring默认创建的事件播报器
+
+·BeanDefinitionReader:顶级接口
+getRegistry() return BeanDefinitionRegistry;		//获取BeanDefinition注册器
+getResourceLoader() return ResourceLoader;		//
+getBeanClassLoader() return ClassLoader;		//得到类加载器
+getBeanNameGenerator() return BeanNameGenerator;
+loadBeanDefinitions(Resource) return int;
+loadBeanDefinitions(Resource...) return int;
+loadBeanDefinitions(String) return int;
+loadBeanDefinitions(String...) return int;
+
+AbstractBeanDefinitionReader:BeanDefinitionReader、EnvironmentCapable接口的抽象实现
+
+XmlBeanDefinitionReader:AbstractBeanDefinitionReader抽象类的实现
+
+
+·Converter<S,T>:顶级接口,spring内置了很多实现.
+convert(S source) return T;				//把S类型转为T类型
+
+·ConverterFactory:顶级接口,转换工厂,通过这种工厂生产一个Converter 这个类适用于批量转换类型的场景,具体妙用详见springboot入门
+getConverter(Class<T>) return Converter<S, T>;
+
+·GenericConverter:
+getConvertibleTypes() return Set<ConvertiblePair>;
+convert(Object,TypeDescriptor,TypeDescriptor) return Object;
+
+
+·ConverterRegistry:顶级接口,类型转换器注册表.用来登记转换器的
+addConverter(Converter<?, ?>) return void;		//将一个简单的转换器添加到列表
+
+addConverter(Class<S>,Class<T>,Converter<? super S, ? extends T>) return void;		//注册一个简单的转换器.但是可以指定类型
+
+addConverter(GenericConverter) return void;		//注册转换器,注意类型
+
+addConverterFactory(ConverterFactory<?,?>) return void;	//注册转换器,注意类型
+
+
+·ConversionService:顶级接口
+canConvert(Class<?>,Class<?>) return boolean;			//判断args0类型是否可以转为args1类型
+canConvert(TypeDescriptor,TypeDescriptor) return boolean;	//判断args0类型是否可以转为args1类型
+convert(Object,Class<T>) return T;				//将args0转为args1 args0:待转换的实例 agrs1:转换后的类型
+convert(Object,TypeDescriptor,TypeDescriptor) return Object;	//将args0类型转换 args0:待转换的实例 args1:待转换的实例的类型 agrs2:目标类型
+
+·TypeDescriptor:顶级类,貌似用于表示一个类型
+
+·ConfigurableConversionService:继承自ConversionService、ConverterRegistry接口没有新增方法.(在spring文档中指出,大多数ConversionService的实现也会同时实现ConverterRegistry接口)
+
+GenericConversionService:实现了ConfigurableConversionService接口
+
+DefaultConversionService:继承自GenericConversionService,全是新增方法没有重写任何方法.
+
+
+·DataBuffer:顶级接口 Spring5新增 用来提取不同的字节缓冲区表示形式
+
+
+----------------------------------------------------------------------------------Spring Bean----------------------------------------------------------------------------------------------
+
+·SingletonBeanRegistry:顶级接口,单例Bean的注册器
+registerSingleton(String,Object) return void;		//注册一个单例Bean.通过这种方式注册的Bean的初始化、销毁方法将不会被调用
+getSingleton(String) return Object;			//根据BeanName得到一个单例Bean
+containsSingleton(String) return boolean;		//判断是否有这个单例Bean
+getSingletonNames() return String[];			//得到所有单例Bean的BeanName
+getSingletonCount() return int;				//获得所有单例Bean的个数
+getSingletonMutex() return Object;			//返回此注册表(外部合作者)使用的单互斥
+
+
+DefaultSingletonBeanRegistry:继承自SimpleAliasRegistry类,实现了SingletonBeanRegistry接口,默认的单例Bean注册器
+
+·BeanFactory:顶级接口,大名鼎鼎的Bean工厂接口
+getAliases(String) return String[];			//根据BeanName获取到该Bean所有的别名String数组
+getType(String,boolean) return Class<?>;
+getType(String) return Class<?>;			//根据BeanName得到它的类型			
+isTypeMatch(String,Class<?>) return boolean;
+isTypeMatch(String,ResolvableType) return boolean;
+isSingleton(String) return boolean;			//根据BeanName判断该Bean是否是单例的
+containsBean(String) return boolean;			//根据BeanName判断当前Bean是否存在(注意只是定义上的存在),比如有个Bean定义是abstract的.这个Bean是获取不到的但是调用该方法任然返回true
+getBeanProvider(ResolvableType) return ObjectProvider<T>;
+getBeanProvider(Class<T>) return ObjectProvider<T>;
+getBean(Class<T>,Object...) retrun T;			//args0:返回值类型
+getBean(Class<T>) return T;				//根据类型从工厂中得到Bean
+getBean(String,Object...) return Object;
+getBean(String,Class<T>) return T;			//根据BeanName从工厂中得到Bean.并且会将类型转为T
+
+
+
+
+
+HierarchicalBeanFactory:继承了BeanFactory接口
+getParentBeanFactory() return BeanFactory;		//获得父工厂
+containsLocalBean(String) return boolean;			//根据BeanName判断当前容器是否拥有该Bean(该方法会忽略父容器)
+
+
+AutowireCapableBeanFactory:继承了BeanFactory接口
+
+ConfigurableBeanFactory:继承了SingletonBeanRegistry、HierarchicalBeanFactory接口
+setParentBeanFactory(BeanFactory) return void;		//设置当前工厂的父工厂(注意工厂和应用程序上下文要区分下来)
+setBeanClassLoader(ClassLoader) return void;		//设置Bean被加载时的类加载器.默认使用线程上下文类加载器(系统类加载器)
+getBeanClassLoader() return ClassLoader;		//得到当前类的类加载器
+setTempClassLoader(ClassLoader) return void;		//设置临时类加载器.只是为了让Bean懒加载.一旦工厂初始化完成则该类加载将被删除.
+getTempClassLoader() return ClassLoader;		//得到临时类加载器
+setCacheBeanMetadata(boolean) return void;		//设置是否缓存Bean的元数据
+isCacheBeanMetadata() return boolean;			//获取当前是否缓存Bean的元数据
+setBeanExpressionResolver(BeanExpressionResolver) return void;	//设置一个Bean的EL策略(暂定)
+getBeanExpressionResolver() return BeanExpressionResolver;	//获取Bean的EL策略(暂定)
+setConversionService(ConversionService) return void;		//设置ConversionService
+getConversionService() return ConversionService;		//得到ConversionService
+addPropertyEditorRegistrar(PropertyEditorRegistrar) return void;
+registerCustomEditor(Class<?>,Class<? extends PropertyEditor>) return void;
+copyRegisteredEditorsTo(PropertyEditorRegistry) return void;
+setTypeConverter(TypeConverter) return void;
+getTypeConverter() return TypeConverter;
+addEmbeddedValueResolver(StringValueResolver) return void;		//添加字符串解析器
+hasEmbeddedValueResolver() return boolean;		//确定字符串解析器是否已经注册到当前工厂中
+resolveEmbeddedValue(String) return String;
+addBeanPostProcessor(BeanPostProcessor) return void;	//添加BeanPostProcessor
+getBeanPostProcessorCount() return void;		//得到BeanPostProcessor的数量
+registerScope(String,Scope) return void;				//注册一个作用域 args0:作用域名称 args1:作用域
+getRegisteredScopeNames() return String[];		//返回当前注册的所有作用域的名称.内置的作用域 singleton、prototype不会被公开(不会添加到返回值中)
+getRegisteredScope(String) return Scope;		//根据作用域的Name得到Scope
+getAccessControlContext() return AccessControlContext;
+copyConfigurationFrom(ConfigurableBeanFactory) return void;		//从给定的工厂复制相关的设置,比如所有的标准设置以及BeanPostProcessor、作用域.但是不涉及Bean的定义.
+registerAlias(String,String) return void;		//注册别名 args0:原名 args1:别名
+resolveAliases(StringValueResolver) return void;	//解决别名,这个方法目前设想也是注册一个StringValueResolver.到时候回调这个接口的resolveStringValue方法,传入一个原名你返回给我一个别名
+getMergedBeanDefinition(String) return BeanDefinition;	//根据BeanName得到合并的BeanDefinition
+isFactoryBean(String) return boolean throws NoSuchBeanDefinitionException;	//根据一个BeanName判断这个Bean是否是一个工厂Bean
+setCurrentlyInCreation(String,boolean) return void;
+isCurrentlyInCreation(String) return void;
+registerDependentBean(String,String) return void;	//对于给定的Bean注册依赖的Bean,指定的Bean被销毁之前先销毁依赖Bean.args0:依赖的BeanName args1:被依赖的BeanName
+getDependentBeans(String) return String[];		//根据BeanName返回当前Bean被哪些Bean依赖的所有BeanName
+getDependenciesForBean(String) return String[];		//根据BeanName返回当前Bean依赖的所有BeanName
+destroyBean(String,Object) return void;			//根据BeanName和实例销毁当前的Bean.该方法不会抛出受检异常,如果期间有任何异常都会被记录
+destroyScopedBean(String) return void;		//破坏当前作用域内指定的BeanName的Bean
+destroySingletons() return void;		//销毁当前工厂的所有单例Bean
+
+
+
+AutowireCapableBeanFactory:继承了BeanFactory接口
+
+ListableBeanFactory:继承了BeanFactory接口
+
+ConfigurableListableBeanFactory:继承了ListableBeanFactory、AutowireCapableBeanFactory、ConfigurableBeanFactory接口
+
+·AliasRegistry(别名注册器):顶级接口
+registerAlias(String,String) return void;			//给定一个名称注册一个别名.如果注册的名称和别名相同则功能相当于remove.
+removeAlias(String) return void;				//删除一个别名
+isAlias(String) return void;					//判断是否是别名
+getAliases(String) return String[];				//以一个名称开始得到所有相关的别名,比如A的别名是B,B的别名是C.则传入A,返回B、C
+
+
+BeanDefinitionRegistry(BeanDefinition的注册器):继承自AliasRegistry接口
+registerBeanDefinition(String,BeanDefinition) return void;		//args0:BeanName args1:BeanDefinition	注册一个BeanDefinition
+removeBeanDefinition(String) return void;				//根据BeanName删除一个BeanDefinition
+getBeanDefinition(String) return BeanDefinition;			//根据BeanName得到一个BeanDefinition
+containsBeanDefinition(String) return boolean;				//根据BeanName判断是否存在一个BeanDefinition
+getBeanDefinitionNames() return String[];				//得到所有BeanDefinition的BeanName
+getBeanDefinitionCount() return int;					//返回在注册表中BeanDefinition的数量
+isBeanNameInUse(String) return boolean;
+
+
+SimpleAliasRegistry(简单的别名注册实现):实现了AliasRegistry接口
+功能:spring支持别名应该就是通过这个接口(实现)完成的
+hasAlias(String,String) return boolean;				//返回当前这个别名是否存在,理解可能存在偏差
+checkForAliasCircle(String,String) return void;			//检查当前别名是否有环,如果有环则产生异常.
+
+DefaultSingletonBeanRegistry(默认的单例Bean注册器):继承自SimpleAliasRegistry类,实现了SingletonBeanRegistry接口
+功能:
+这个类就厉害了,内部有单例Bean的缓存Map,Map的K是BeanName,Map的V是Object.
+内部有单例Bean工厂的缓存Map,之前说过单例工厂本身也是一个Bean,Map的K是工厂的Name,Map的V就是ObjectFactory.
+内部有早期单例的缓存Map.
+存放单例BeanName的缓存Set,并且这个Set有Bean登记的顺序.
+一次性Bean的集合
+
+
+
+
+
+FactoryBeanRegistrySupport(工厂Bean注册到容器中的支持):继承自DefaultSingletonBeanRegistry类
+功能:
+内部有一个Map,这个Map缓存由工厂创建出来的单例Bean,Map的K是工厂创建的单例Bean的BeanName,V是创建出来的对象.
+
+
+AbstractBeanFactory:继承自FactoryBeanRegistrySupport抽象类,实现了ConfigurableBeanFactory接口(接口信息在上面)
+功能:
+内部有StringValueResolver的List集合,StringValueResolver估计是用来将字符串解析为对应的值(比如浮点值、布尔值、null等等这些)
+内部有BeanPostProcessor的List集合,存放插件的集合,对于插件到时候遍历这个集合就可以了.
+内部有字符串到作用域的映射Map(暂定)
+内部有Map<String, RootBeanDefinition>,所有根Bean的映射集合
+containsLocalBean(String) return boolean;			//根据BeanName判断当前容器是否有这个Bean(该方法会忽略父工厂)
+
+
+
+AbstractAutowireCapableBeanFactory(看名称估计是和自动装配有关的工厂):继承自AbstractBeanFactory抽象类,实现了AutowireCapableBeanFactory接口(接口信息在上面)
+作用:
+内部有一个集合,该集合存储被忽略的类型(也就是该类型不作为自动装配的候选者)
+内部有一个集合,该集合存储被忽略的接口(也就是该接口不会被自动注入)默认情况下只有BeanFactory被忽略.
+未完成的factoryBean(工厂Bean)的BeanWrapper缓存
+内部有Map<Class<?>,Method[]>,该集合缓存将要创建创建单例Bean的工厂的方法(Method对象),工厂的候选方法缓存.
+setAllowCircularReferences(boolean) return void;		//设置是否支持循环依赖,子类特有方法.
+ignoreDependencyInterface(Class<?>) return void;		//添加一个需要忽略的自动装配的接口
+
+
+DefaultListableBeanFactory:spring内部创建的Bean工厂(默认的Bean工厂),继承自AbstractAutowireCapableBeanFactory抽象类.实现了ConfigurableListableBeanFactory、BeanDefinitionRegistry、Serializable接口
+作用:
+含有Map<String, BeanDefinition>的缓存
+含有所有Bean所有名称的缓存,K是类型V是该类型所有名称的String数组(因为一个bean可以有多个Name)
+含有单例Bean所有名称的缓存,K是类型V是该类型所有名称的String数组(因为一个bean可以有多个Name),注意这个是单例Bean
+含有所有beanDefinitionNames的Name的List集合,包含登记的顺序.
+含有一个序列化信息的Map,Map的Key存放序列化ID,Map的V存放DefaultListableBeanFactory对象的虚引用(也就是把这个对象包装在WeakReference中).
+
+setSerializationId(String) return void;		//将传入的String作为序列化的ID存放到序列化信息Map的Key中,value就是调用者不过会包装在一个WeakReference(虚引用)对象中.如果传入一个null,则删除上一个序列化信息,也就是删除Map的上一个信息.
+getSerializationId() return String;		//得到上一次序列化的ID
+
+setAllowBeanDefinitionOverriding(boolean) return void;		//设置Bean定义信息是否可以被覆盖.相当于Map是否允许被覆盖一样,如果不允许设置一次就是固定了.默认是允许
+isAllowBeanDefinitionOverriding() return boolean;		//获取当前Bean定义信息是否可以被覆盖
+setAllowEagerClassLoading(boolean) return void;			//是否允许急切地加载Bean,甚至是对于懒加载Bean而言.false为不允许但是好像很难生效
+isAllowEagerClassLoading() return boolean;			//获取当前加载的策略是不是想要急切地去加载Bean,甚至是懒加载Bean.
+
+
+
+
+·BeanMetadataElement:顶级接口,好像是携带源信息对象的接口
+getSource() return Object;		//返回该配置(BeanDefinition)包装的源对象
+
+BeanDefinitionHolder:实现BeanMetadataElement接口
+
+·AttributeAccessor:顶级接口
+作用:
+暂未知
+setAttribute(String,Object) return void;
+getAttribute(String) return Object;
+removeAttribute(String) return Object;
+hasAttribute(String) return boolean;
+attributeNames() return String[];
+
+AttributeAccessorSupport:AttributeAccessor接口的抽象实现
+作用:
+内部封装一个Map<String, Object>来完成这些功能
+
+copyAttributesFrom(AttributeAccessor) return void;		//将一个AttributeAccessor里面的Map信息拷贝到当前AttributeAccessor对象中.
+
+BeanMetadataAttributeAccessor:继承AttributeAccessorSupport类,实现了BeanMetadataElement接口
+
+
+BeanDefinition:代表一个SpringBean,继承自AttributeAccessor、BeanMetadataElement接口
+作用:
+springBean有这些特性:作用域、是否懒加载、beanName、beanClass.那么这些特性都被封装在BeanDefinition当中,所以一个BeanDefinition就代表一个springBean,真正被spring new出来的对象也是被包装在BeanDefinition中的.
+
+setParentName(String) return void;		//设置这个Bean的父Name(之前讲过Bean的可以继承自一个Bean)
+getParentName(String) return String;		//得到这个Bean的父Name(之前讲过Bean的可以继承自一个Bean,这里指的应该就是这个父Bean的Name)
+setBeanClassName(String) return void;		//指定该Bean定义的Bean的类全限定名,类名(可能是类的全限定名)可以在Bean工厂的后置处理器中被修改.
+getBeanClassName() retrun String;		//得到该Bean指定的类全限定名
+setScope(String) return void;			//设置当前Bean的作用域,注意参数是String类型的
+getScope() return String;			//得到当前Bean的作用域,此时也许AbstractBeanFactory类中的字符串到作用域的映射的Map就会起作用.
+setLazyInit(boolean) return String;		//设置这个Bean是否应该被延迟初始化.args0:true为延迟初始化 false:为不延迟初始化
+isLazyInit() return boolean;			//当前Bean是否是延迟初始化的
+setDependsOn(String...) return void;		//设置当前Bean初始化之前需要强制初始化的Bean
+getDependsOn() return String[];			//得到当前Bean初始化之前需要强制初始化的BeanName的String数组
+setAutowireCandidate(boolean) return void;	//设置当前Bean的依赖是否自动按照类型进行装配
+isAutowireCandidate() return void;		//得到当前Bean是否是自动根据类型装配的
+setPrimary(boolean) return void;		//设置当前Bean为主候选Bean
+isPrimary() return boolean;			//得到当前Bean是否是主候选Bean
+setFactoryBeanName(String) return void;		//设置当前工厂Bean的Name
+getFactoryBeanName() return String;		//得到当前工厂Bean的Name
+setFactoryMethodName(String) return void;	//设置工厂方法(应该是工厂将要被调用的方法)
+getFactoryMethodName() return String;		//得到工厂方法
+getConstructorArgumentValues() return ConstructorArgumentValues;		//得到封装Bean构造方法参数的ConstructorArgumentValues实例
+hasConstructorArgumentValues() return boolean;	//判断当前构造方法是否有参数(有可能是空构造)
+isSingleton() return boolean;			//是否单例
+isPrototype() return boolean;			//是否是原型
+isAbstract() return boolean;			//Bean的定义是否是abstract的
+getResourceDescription() return String;		//返回Bean的资源描述(这个可以通过注解指定)暂定
+getDescription() return String;			//返回Bean的描述信息(这个可以通过注解指定)
+setDescription() return String();		//设置Bean的描述信息
+getDestroyMethodName() return String();		//得到Bean销毁时调用的方法名称
+setDestroyMethodName(String) return void;	//设置Bean销毁时调用的方法
+getInitMethodName() return String;		//得到Bean初始化调用的方法名称
+setInitMethodName() return String;		//设置Bean初始化调用的方法(就算设置了应该也不会对生命周期产生什么影响吧?包括上面的销毁,再看看)
+
+
+AbstractBeanDefinition:继承BeanMetadataAttributeAccessor类,实现了BeanDefinition接口
+
+RootBeanDefinition:继承AbstractBeanDefinition抽象类
+
+ChildBeanDefinition:继承AbstractBeanDefinition抽象类
+
+
+
+
+·InstantiationStrategy:顶级接口,实例化Bean的策略
+
+SimpleInstantiationStrategy:InstantiationStrategy接口的实现,默认的实例化Bean策略
+
+CglibSubclassingInstantiationStrategy:继承SimpleInstantiationStrategy类,CGLIB实例化策略
+
+
+·Aware:顶级接口,没有方法,注意了该接口是一个标识,所有该接口的子接口都充当回调的作用.
+
+ApplicationContextAware:
+setApplicationContext(ApplicationContext) return void;		//你的Bean去实现该接口,spring会回调该方法给你传入ApplicationContext这个参数.然后你就可以拿到IOC容器,那么这接口的作用就是让你在任何地方得到IOC容器.所以这些Aware接口都是给你组件的.
+
+ApplicationEventPublisherAware:
+setApplicationEventPublisher(ApplicationEventPublisher) return void;	// 给你事件发送者
+
+BeanClassLoaderAware:
+setBeanClassLoader(ClassLoader) return void;			//给你Bean的类加载器
+
+BeanFactoryAware:
+setBeanFactory(BeanFactory beanFactory) return void;		//给你Bean工厂
+
+BeanNameAware;
+setBeanName(String) return void;				//给你Bean的name(大概是当前Bean的名称吧)
+
+BootstrapContextAware:暂时没有引入(资源适配器BootstrapContext容器运行.通常仅在JCA感知ApplicationContext中可用)
+
+LoadTimeWeaverAware:
+setLoadTimeWeaver(LoadTimeWeaver) return void;			//给你LoadTimeWeaver
+
+MessageSourceAware:
+setMessageSource(MessageSource) return void;			//给你MessageSource貌似是做国际化的
+
+NotificationPublisherAware:
+setNotificationPublisher(NotificationPublisher) return void;	//给你NotificationPublisher	JMS消息发布者(消息中间件)
+
+PortletConfigAware:当在PortletConfig容器运行.仅在 web-aware Spring ApplicationContext中有效
+
+PortletContextAware:当在PortletContext容器运行.仅在 web-aware Spring ApplicationContext中有效
+
+
+ResourceLoaderAware:接口,继承自Aware.
+setResourceLoader(ResourceLoader) return void;			//给你ResourceLoader,然后你就可以通过这个ResourceLoader获取资源.
+根据文档,实现该接口并添加到IOC容器中spring会回调该方法,并将spring的applicationContext传入该方法.然后我们就可以调用这个ResourceLoader的getResource方法获得到Resource的实现类.
+
+ServletConfigAware:
+setServletConfig(ServletConfig) return void;			//给你ServletConfig(这个之前将servlet的时候学过)
+
+ServletContextAware:
+setServletContext(ServletContext) return void;			//直接给你ServletContext
+
+·BeanPostProcessor:顶级接口,作用已知,可以参考spring.
+postProcessBeforeInitialization(Object,String) return Object;			//前方法
+postProcessAfterInitialization(Object,String) return Object;			//好方法
+
+这连个回调方法的运行时机在init-method指定的方法之前运行.
+
+ApplicationContextAwareProcessor:该类是BeanPostProcessor接口的实现,用于标记ResourceLoader接口
+
+·BeanFactoryPostProcessor:顶级接口
+postProcessBeanFactory(ConfigurableListableBeanFactory) return void;		//实现该接口,和上面一样会回调该方法把ConfigurableListableBeanFactory的实现类传入.
+
+·Mergeable:顶级接口,用于集合合并的.
+
+ManagedSet、ManagedArray、ManagedList、ManagedMap、ManagedProperties都是Mergeable的实现类,分别用户对List、Set、Map、Properties集合的合并.
+
+
+
+
+工具类:
+·PathMatcher:基于字符串(String)的路径匹配策略接口(采用策略模式)
+match(String,String) return boolean;		//测试两个路径是否能匹配(判断通配符能不能和路径匹配) args0:通配符 args1:路径
+matchStart(String,String) return boolean;
+extractPathWithinPattern(String,String) return String;
+extractUriTemplateVariables(String,String) return Map<String,String>;
+getPatternComparator(String) return Comparator<String>;			//返回值就是Java的比较接口 通过返回的Comparator<String>实例寻找一个和目标路径最匹配的一个路径 args0:目标路径 这个方法一般用于当有多个Controller能匹配同一个请求路径时调用(包括多个异常控制器可以同时匹配一个异常时,具体调用哪个异常控制器)
+combine(String,String) return String;					//
+
+AntPathMatcher:PathMatcher接口的实现类,意名基于Ant风格的路径匹配策略
+AntPathMatcher();			//默认会以/作为通配符结尾
+AntPathMatcher(String);			//通过构造器指定以什么作为通配符结尾(这个构造器一般用不到)
+
+setPathSeparator(String) return void;	//通过设置指定结尾通配符,一般也用不到 该方法相当于上面的第二个构造器里的参数 只不过通过set方法设置而已
+setCaseSensitive(boolean) return void;	//是否区分大小写
+setCachePatterns(boolean) return void;	//是否设置缓存
+
+
+SpringProperties:默认会加载项目resources资源文件下的spring.properties配置文件,实际上内部封装了一个Properties来实现的.
+setProperty(String,String) return void;			//设置配置,调用该方法如果agrs1(value)设置为null,则会根据agr0删除配置.
+getProperty(String) return String;			//获取配置,首先从spring.properties中获取配置,如果获取不到则再从系统变量(JVM变量)中获取配置.
+setFlag(String) return void;				//设置一个配置Key-TRUE
+getFlag(String) return boolean;				//根据Key拿到value,并判断这个value的值是不是TRUE.(正好和上面的方法对应起来)
+
+StringUtils:String类的工具类
+toStringArray(Collection<String>) return String[];	//将一个String类型的集合转换为String[]数组.
+
+·StringValueResolver:一个顶级接口,String类型的转换器,支持lambda.
+resolveStringValue(String) return String;		//解析给定的字符串
+
+·ConstructorArgumentValues:Bean构造参数的值都被封装在这个类里
+
+·ReflectionUtils:
+isPublicStaticFinal(Field) return boolean;		//判断当前Field是否是公开的静态的常量属性
+
+·BeanFactoryUtils:
+static beansOfTypeIncludingAncestors(ListableBeanFactory,Clss<T>,boolean,boolean) return Map<String, T>;		//从一个ListableBeanFactory(BeanFactory)中拿到指定类型的所有Bean并封装在Map中 args0:指定从哪个工厂获取Bean agrs1:指定获取哪种类型的Bean args2:是否包括非单例Bean args3:是否急于初始化(这个值一般是false) 该方法内部貌似是通过ListableBeanFactory的getBeansOfType方法完成(封装了getBeansOfType方法)
+
+
+--------------------------------------------------------------------------SpringMVC--------------------------------
+
+HttpServletBean:该类继承自HttpServlet实现了EnvironmentCapable、EnvironmentAware接口
+
+FrameworkServlet:该类继承自HttpServletBean实现了ApplicationContextAware接口(回调接口)
+
+·DispatcherServlet:巨TM重要这个类,这些方法不一定都能调用,但是能方便我们去理解 注意该类间接继承HttpServlet(所以它也是一个Servlet!) 该类继承自FrameworkServlet
+resolveViewName(String,Map<String, Object>,Locale,HttpServletRequest) return View;			//该方法内部就会遍历所有的视图解析器 并调用它们的resolveViewName()方法
+render(ModelAndView,HttpServletRequest,HttpServletResponse) return void;				//这是处理整个请求的最后阶段 该方法做了很多事情,详情可见源码
+doService(HttpServletRequest,HttpServletResponse) return void;						//实现HttpServlet的doService方法,该方法无法调用 但是每一个请求都会经过该方法
+doService方法会通过请求的HttpServletRequest的setAttribute方法对每一个请求添加K-V(添加一个LocaleResolver国际化解析器) 这也就是为什么RequestContextUtils的getLocaleResolver方法能得到LocaleResolver的原因了(不是通过BeanFactoryUtils拿的)
+
+
+·HandlerAdapter:顶级接口
+
+ApplicationObjectSupport:抽象类,实现ApplicationContextAware接口(回调接口)
+
+WebApplicationObjectSupport:抽象类,继承ApplicationObjectSupport实现ServletContextAware接口
+
+WebContentGenerator:抽象类,继承WebApplicationObjectSupport
+
+AbstractHandlerMethodAdapter:抽象类,继承WebContentGenerator,实现HandlerAdapter、Ordered接口
+
+RequestMappingHandlerAdapter:抽象类,继承AbstractHandlerMethodAdapter,实现BeanFactoryAware、InitializingBean接口
+setSynchronizeOnSession(boolean) return void;			//会话访问不是线程安全的,调用该方法设置为true即可解决(这个会话访问不是安全的不懂什么意思,这一块是在@ControllerAdvice处理异常中涉及的)
+
+·HandlerMapping:顶级接口
+getHandler(HttpServletRequest) return HandlerExecutionChain;
+
+AbstractHandlerMapping:抽象类继承自WebApplicationObjectSupport 实现了HandlerMapping、Ordered、BeanNameAware接口
+
+AbstractHandlerMethodMapping<T>:抽象类继承自AbstractHandlerMapping 实现了InitializingBean
+
+RequestMappingInfoHandlerMapping:抽象类继承自AbstractHandlerMethodMapping<RequestMappingInfo>
+
+RequestMappingHandlerMapping:继承自RequestMappingInfoHandlerMapping实现了MatchableHandlerMapping、EmbeddedValueResolverAware接口
+该类可以处理路径匹配规则(详情见PathMatchConfigurer)
+
+·ResponseBodyAdvice<T>:顶级接口
+
+·Model:顶级接口 该接口实例可以直接作为Controller的入参
+addAttribute(String,Object) return Model;
+
+·ModelMap:继承自LinkedHashMap<String,Object> 该类可以直接作为Controller的入参 Model和ModelMap都是用于页面跳转带数据的(后端数据传给前端)实则就是通过调用View的render方法传入这个Model或ModelMap让View自已去解析数据
+
+ExtendedModelMap:继承自ModelMap实现了Model接口 注意虽然ModelMap表面上没有实现Model接口但是却提供了相关的实现方法(这种模式有点类似 有个类它能是抽象类 但它还需要实现某个接口的部分方法 那么就可以不实现这个接口,但是提供该方法 通过该类的子类来继承该类并且实现对应接口)
+addAttribute(String,Object) return ExtendedModelMap;
+addAttribute(Object) return ExtendedModelMap;			//这个类内部的方法就是这样 直接调用父类方法 这里类似一种Builder模式
+
+RedirectAttributes:继承Model接口 在重定向后还能拿到数据的Map(通过FlashMap也可以拿到重定向后的数据)
+addAttribute(String,Object) return RedirectAttributes;		//重写了父接口所有方法 这些接口好像全是Builder模式的尿性
+
+RedirectAttributesModelMap:继承自ModelMap并且实现RedirectAttributes接口
+
+·ModelAndView:顶级类 
+这几个类的关系搞清楚 ModelAndView需要自已手动创建(而且包含跳转页面)ModelAndView和Model、ModelMap是真没什么关系 虽然Model和ModelMap没用直接的关系
+所以ModelAndView封装了跳转页面带数据的Model和View和本次响应的HttpStatus(响应码)
+getViewName() return String;					//得到当前ModelAndView所代表的逻辑视图名称
+getModelMap() return ModelMap;					//实际上ModelMap/Model就是封装在ModelAndView中的 
+getModel() return Map<String,Object>;				//该方法同上
+setStatus(HttpStatus) return void;				//设置本次响应码
+getStatus() return HttpStatus;					//得到本次响应码
+addObject(String,Object) return ModelAndView;			//实际上内部调用ModelMap的addAttribute方法来实现(因为ModelAndView封装了Model/ModelMap)
+
+不要看具体的方法和抽象类,只看顶级接口和类关系图
+SpringMVC全流程:
+Controller层返回值->ModelAndView(Controller层返回值即时ModelAndView)->视图解析器(ViewResolver)->视图(View)
+过程中遇到异常->DispatcherServlet委托给HandlerExceptionResolver异常处理解析器链->ModelAndView->视图解析器(ViewResolver)->视图(View)
+
+国际化:先走DispatcherServlet的doService方法->doService方法通过调用request的addAttribute添加LocaleResolver->调用LocaleChangeInterceptor的preHandle方法从而一次设置多次使用(详情可看preHandle方法)->在后续的运行过程中通过RequestContextUtils来得到Locale和TimeZone(如果是扩展的话才有)(能得到是因为doService方法)->最终调用DispatcherServlet的render方法时会得到应用上下文中唯一的LocaleResolver然后调用其resolveLocale方法得到Locale后作为ViewResolver的resolveViewName方法的入参.
+
+视图解析器:每一个ViewResolver的实现类基本上都会间接实现Ordered接口 Sring支持同时定义多个ViewResolver视图解析器,这些视图解析器将会形成一条链 当我们在Controller层返回一个视图名称后 Spring会根据这些ViewResolver(视图解析器)中Order的返回值来依次调用视图解析器链的resolveViewName方法,将回调参数传入(视图名称和Local),如果该方法的返回值不为null则表明当前视图解析器可以解析该视图则终止解析器链.其中InternalResourceViewResolver解析器会最后一个解析(因为它能解析所有视图),但假设由于某种原因这个视图压根就找不到(既然没有就无法被解析器解析),那么Spring就会抛出一个异常也就是页面找不到异常 如果没有AdviceController则会来到/error页面(多次强调不再解释)
+视图:每一个View就是最终要输出到浏览器的内容
+在SpringMVC启动时每一个@RequestMapping方法都会通过HandlerMethodMappingNamingStrategy分配一个默认的名称,规则是当前方法所在类的所有大写字母+方法名(例如LoginController中有一个loginInfo方法则该方法的名称是LC#loginInfo)如果方法重名可以通过@RequestMapping(name="..")分配一个明确的名称
+
+·WebMvcConfigurer:该类的所有方法皆为回调方法,也就是在Springboot中使用那个特别吊的回调接口.
+configurePathMatch(PathMatchConfigurer) return void;							//PathMatchConfigurer(详情见下方)
+configureContentNegotiation(ContentNegotiationConfigurer) return void;					//自定义请求的Content Type解析
+configureAsyncSupport(AsyncSupportConfigurer) return void;						//设置Servlet3.0之后的异步请求配置(详情见下方)
+configureDefaultServletHandling(DefaultServletHandlerConfigurer) return void;				//详情看下面
+addFormatters(FormatterRegistry) return void;								//格式化注册器
+addInterceptors(InterceptorRegistry) return void;							//拦截器注册器
+addResourceHandlers(ResourceHandlerRegistry) return void;						//静态资源映射	
+addCorsMappings(CorsRegistry) return void;								//跨域请求
+addViewControllers(ViewControllerRegistry) return void;							//请求映射注册器
+configureViewResolvers(ViewResolverRegistry) return void;						//视图解析器注册器
+addArgumentResolvers(List<HandlerMethodArgumentResolver>) return void;					//自定义参数解析器(详情见springboot入门)
+addReturnValueHandlers(List<HandlerMethodReturnValueHandler>) return void;
+configureMessageConverters(List<HttpMessageConverter<?>>) return void;					//消息转换器
+extendMessageConverters(List<HttpMessageConverter<?>>) return void;					//这两个方法的效果解释↓
+configureHandlerExceptionResolvers(List<HandlerExceptionResolver>) return void;				//调用该方法时Spring会传入一个List<HandlerExceptionResolver>空集,然后自已调用add方法添加元素
+extendHandlerExceptionResolvers(List<HandlerExceptionResolver>) return void;				//该方法在上面的方法调用完后调用(传入同一个对象) 不过在这之间Spring会添加一些默认的HandlerExceptionResolver到集合中 你可以通过该回调去对添加完后的集合做进一步操作 上面的几个传入集合而不是注册器的方法道理也一致
+getValidator() return Validator;									//实现该方法自定义全局的Validator实例
+
+可以看到这个类里有大量和Registry(注册器)的回调,这些注册器内部一般都包含一个集合,通过这些注册器注册我们自定义的组件(比如注册各种视图解析器).当注册完成之后在后续的使用中,spring会从注册器中遍历注册到注册器中的组件.
+
+·WebMvcConfigurerComposite:实现了WebMvcConfigurer接口 Composite翻译为综合
+由于一个项目可能存在多个WebMvcConfigurer接口的实现,所以我们应当对每一个WebMvcConfigurer接口的实现进行回调. 给类内部封装一个List<WebMvcConfigurer>旨为所有WebMvcConfigurer接口实现的集合,只需要遍历该集合并调用该接口的方法传入回调的类即可.
+addWebMvcConfigurers(List<WebMvcConfigurer>) return addWebMvcConfigurers;		//新增方法 调用该方法传入所有WebMvcConfigurer的实现类集合(该方法被@Autowired注解修饰,所以会自动注入该集合 也就是从容器中拿到List<WebMvcConfigurer>集合)
+configureViewResolvers(ViewResolverRegistry) return void;		//该方法入参本身还是回调,只不过在该类中对所有的WebMvcConfigurer接口的实现方法,内部都是遍历List<WebMvcConfigurer>集合并调用集合中的每个元素的对应方法,并把当前方法的入参作为形参传入(这就保证了每一个WebMvcConfigurer接口的实现类的方法的入参对应都是同一个对象)
+
+·WebMvcConfigurationSupport:该类实现ApplicationContextAware、ServletContextAware接口(这两个接口是回调接口)
+对于每一个WebMvcConfigurer接口的方法,该类都会提供对应的两个方法
+configureViewResolvers(ViewResolverRegistry) return void;		//空方法(被下面的类实现) 那么这条链路该方法的ViewResolverRegistry到底是由谁传进来的?
+mvcViewResolver(ContentNegotiationManager) return ViewResolver;		//agrs0:这个参数不用管它(自动注入的) 该方法被@Bean注解修饰 就是由该方法内部来创建ViewResolverRegistry的然后将该对象作为形参传入上面的方法(别的方法也类似) 创建好了之后这个注册器不能浪费要重复利用,但是这里没有直接将其添加到容器中,而是得到ViewResolverRegistry中封装的所有ViewResolver添加到ViewResolverComposite对象中(为什么这么干?我怀疑就是Spring用的时候只需要ViewResolverComposite(视图解析器综合),而暴露给程序员的是ViewResolverRegistry这个类,也有一种原因是不能乱)
+requestMappingHandlerMapping(ContentNegotiationManager,FormattingConversionService,ResourceUrlProvider) return RequestMappingHandlerMapping;		//定制路径匹配规则 最终交给RequestMappingHandlerMapping处理
+
+所以大致可以理解为由@Bean注解去驱动WebMvcConfigurer中的每个回调方法,再将注册后的每个组件添加到容器中.
+
+·DelegatingWebMvcConfiguration:该类继承自WebMvcConfigurationSupport 该类内部组合WebMvcConfigurerComposite 该类被@Configuration注解修饰 虽然该类被@Configuration注解修饰,但是该类并不会被扫描到不会添加到Spring容器中,除非通过@Import等别的方式将该配置类能被添加到容器中发挥作用.SpringBoot的自动配置类很方便地完成了这一点
+configureViewResolvers(ViewResolverRegistry) return void;		//该类同样提供了WebMvcConfigurer接口中的每一个方法的实现(但这些方法全都是重写的父类WebMvcConfigurationSupport的方法),对于每一个实现内部就是调用WebMvcConfigurerComposite类的实现方法.当前方法的入参作为形参传入
+
+
+·ViewResolverRegistry:顶级类,用于注册ViewResolver 该注册器正如上面所说,内部封装一个List<ViewResolver>集合
+viewResolver(ViewResolver) return void;					//注册一个自定义视图解析器
+jsp() return UrlBasedViewResolverRegistration;				//创建支持JSP的视图解析器 该方法内部通过创建InternalResourceViewResolver来完成并指定视图解析器解析时自动拼接的前缀和后缀为:/WEB-INF/XXX.jsp 并将ViewResolver添加到集合中,并将InternalResourceViewResolver封装在UrlBasedViewResolverRegistration中返回
+jsp(String,String) return UrlBasedViewResolverRegistration;		//重载方法 args0:前缀 args1:后置
+freeMarker() return UrlBasedViewResolverRegistration;			//内部创建了一个FreeMarkerViewResolver并包装在UrlBasedViewResolverRegistration中,创建完毕后会将ViewResolver添加到集合中
+getViewResolvers() return List<ViewResolver>;				//获得当前注册器注册的所有视图解析器ViewResolver
+
+·ViewResolverComposite:实现了ViewResolver、Ordered、InitializingBean、ApplicationContextAware、ServletContextAware接口 Composite翻译成综合 该类内部封装一个List<ViewResolver>为所有视图解析器的集合
+
+·ViewResolver:顶级接口,视图解析器 
+每一个ViewResolver的实现类基本上都会间接实现Ordered接口 Sring支持同时定义多个ViewResolver视图解析器,这些视图解析器将会形成一条链 当我们在Controller层返回一个视图名称后 Spring会根据这些ViewResolver(视图解析器)中Order的返回值来依次调用视图解析器链的resolveViewName方法,将回调参数传入(视图名称和Local),如果该方法的返回值不为null则表明当前视图解析器可以解析该视图则终止解析器链.其中InternalResourceViewResolver解析器会最后一个解析(因为它能解析所有视图),但假设由于某种原因这个视图压根就找不到(既然没有就无法被解析器解析),那么Spring就会抛出一个异常也就是页面找不到异常(会抛出ServletException异常) 如果没有AdviceController则会来到/error页面(多次强调不再解释) 也就是DispatcherServlet类的resolveViewName方法
+resolveViewName(String,Locale) return View;						//args0:要解析的视图名称() agrs1:支持国际化的Local对象(这个Local是java原生类,用于支持国际化的 这个类可以通过application.yml去配置 该参数Spring会回调传入,Spring会从容器中得到LocaleResolver然后调用其resolveLocale方法得到Local对象)
+
+·View:顶级接口,视图(由视图解析器解析得到)
+getContentType() return String;								//返回视图的内容类型 比如ThymeleafView、JstView返回的就是"text/html;charset=ISO-8859-1" 表明当前View视图返回的是一个HTML页面 比如MappingJackson2JsonView返回的就是"application/json"表明当前视图返回的是JSON数据
+render(Map<String, ?>,HttpServletRequest,HttpServletResponse) return void;		//springMVC会回调ViewResolver解析出来的View的render方法.该View就可以通过HttpServletResponse将View中的内容输出到浏览器 Spring是在DispatcherServlet类的render方法里调用具体View的render方法
+
+常用视图解析器和视图:
+视图类型			视图类型					简介
+
+URL视图资源图		InternalResourceView			将jsp或其他资源封装成一个视图.被视图解析器InternalResourceViewResolver默认使用 和redirect重定向不同的是,如果Controller的逻辑视图返回forward转发则会由该视图View去处理,它会通过ServletRequest的getRequestDispatcher方法得到RequestDispatcher,然后通过调用RequestDispatcher的forward方法进行转发(详情在springboot中说过,所有的转发的都是靠RequestDispatcher完成的)
+			JstView					InternalResourceView的子类.在解析的过程中如果发现JSP使用了JSTL国际化标签就会自动转为该视图
+			ThymeleafView				ThymeleafView		
+
+文档视图			AbstractExcelView			Excel文档视图的抽象类
+			AbstractPdfView				PDF文档视图的抽象类
+
+报表视图			ConfigurableJasperReportsView		常用的JasperReports报表视图
+			JasperReportsHtmlView			同上
+			JasperReportsPdfView			同上
+			JasperReportsXlsView			同上
+
+Json视图			MappingJackson2JsonView			将数据通过Jackson框架的ObjectMapper对象,以Json方式输出(该视图应该是最特殊的了,因为它不需要输入页面,输出的内容就是JSON 这个JSON就封装在当前对象中)
+			MappingJackson2XmlView			将数据通过Jackson框架的ObjectMapper对象,以XML方式输出 这两个视图也许是通过HTTPMessageConveter得到的(这里配合Springboot MappingJackson2HttpMessageConverter食用)
+
+特殊视图			RedirectView  				当逻辑视图中返回redirect也就是重定向时,视图解析器会将其解析为RedirectView(代表重定向视图)		
+
+			XsltView				由XsltViewResolver视图解析器得到
+
+视图解析器类型		视图解析器类型				简介
+		
+解析为Bean		BeanNameViewResolver			将视图解析后,映射成一个bean,视图的名字就是bean的ID
+
+解析为映射文件		InternalResourceViewResolver		将视图解析后,映射成一个资源文件 继承自UrlBasedViewResolver
+			JasperReportsViewResolver		将视图解析后,映射成一个报表文件 
+			XsltViewResolver			该视图解析器感觉用少,是用于XML解析的,如果有XML视图则可以用该视图解析器
+
+解析为模板文件		FreeMarkerViewResolver			FreeMarker模板引擎 继承自AbstractTemplateViewResolver而AbstractTemplateViewResolver又继承自UrlBasedViewResolver
+			ThymeleafViewResolver			Thymeleaf模板引擎 继承自AbstractCachingViewResolver
+
+特殊视图解析器		ContentNegotiatingViewResolver		在Springboot中该视图解析器会默认添加到容器中 该视图本身并不解析视图 它会从请求头中的Accept(Accept中的内容包含当前浏览器支持哪些格式的响应)中得到内容并选择最适合处理当前请求的视图解析器 Accept同样支持通配符,比如请求头中指定Accept为text/* 那么text/html的视图解析器就会成功
+
+			
+
+这些模板引擎的作用如下:例如部分JSP、FreeMarker、Thymeleaf语法浏览器本身并不支持,浏览器本身只支持HTML、CSS、JS所以势必要把前端写的灵活的标签解析为浏览器能直接显示的HTML或者拼接视图的前缀和后缀以及对"redirect:"、"forward:"逻辑上的支持(所以视图解析器简单说下来就干这个事)最终再通过调用各种View的实现的render方法将内容输出到浏览器.
+
+另外说明的两个类:
+UrlBasedViewResolver:该类继承自AbstractCachingViewResolver 基本上Spring自已实现的视图解析(InternalResourceViewResolver、FreeMarkerViewResolver)都继承了该类 通过该类你就可以指定视图解析器要拼接的前缀和后缀以及当前返回的格式是text/html还是JSON等功能
+AbstractCachingViewResolver:Thymeleaf支持缓存的原因就是通过继承AbstractCachingViewResolver来完成的(FreeMarker和JSP同理) 之前一直说的视图解析器需要添加到Spring容器中才能使用 对于Thymeleaf而言它需要通过视图解析器注册器向容器中注册ThymeleafViewResolver 再创建视图解析器之前,需要先从application.yml中对应的配置绑定类中读取当前应用程序是否支持缓存(ThymeleafProperties) 然后再通过调用setCache(boolean)方法设置当前视图解析器的缓存支持设置
+setCache(boolean) return void;					//设置当前是否允许缓存
+
+·InterceptorRegistry:顶级类,拦截器注册表,正如上述所说内部封装一个List<InterceptorRegistration>
+addInterceptor(HandlerInterceptor) return InterceptorRegistration;		//注册一个HandlerInterceptor拦截器 因为返回值是InterceptorRegistration,所以通过返回值就可以进一步定制该拦截器的 拦截路径和排除路径
+getInterceptors() return List<Object>;						//HandlerInterceptor没有Composite综合 但是该方法充当了Composite综合类的功能 该方法内部通过遍历List<InterceptorRegistration>并调用每个元素的getInterceptor()方法得到所有的MappedInterceptor实例并返回
+
+·MappedInterceptor:实现HandlerInterceptor接口 内部封装HandlerInterceptor实例以及该实例对应的 拦截目标地址的List<String>、排除的目标地址List<String> 以及一个AntPathMatcher
+matches(String,PathMatcher) return boolean;			//当一个请求过来时Spring需要做的就是回调所有的拦截器 在回调之前spring应该判断当前请求能否被当前某个拦截器拦截 所以就需要调用该方法来匹配拦截器 该方法内部通过AntPathMatcher、和两个List<String>组合实现该功能 如果判断成功了那么该拦截器就会被添加到HandlerExecutionChain(拦截器链)中做进一步操作
+那么Spring是如何获取到所有MappedInterceptor的呢?(有了MappedInterceptor就相当于有了所有HandlerInterceptor) 之前说过WebMvcConfigurationSupport会通过@Bean方法回调所有WebMvcConfigurer接口的实现类的addInterceptors方法,它会传入InterceptorRegistry实例 当回调完成后Spring会调用该实例的getInterceptors方法得到所有的MappedInterceptor并返回(会封装为List<Object>)添加到容器中 之后spring就通过BeanFactoryUtils的静态方法获得所有的MappedInterceptor实例
+
+·InterceptorRegistration:拦截器注册,内部组合一个HandlerInterceptor实例、一个List<String>所有被会被拦截的地址、List<String>所有不被拦截的地址
+addPathPatterns(String...) return InterceptorRegistration;			//添加当前拦截器要拦截的请求 这里相当于使用了一种Builder模式
+excludePathPatterns(String...) return InterceptorRegistration;			//添加当前拦截器要排除的请求 这里相当于使用了一种Builder模式
+pathMatcher(PathMatcher) return InterceptorRegistration;			//设置路径匹配器
+order(int) return InterceptorRegistration;					//同样可以设置当前拦截器的优先级
+getInterceptor() return Object;							//将当前对象内部的HandlerInterceptor实例、拦截目标地址的List<String>、排除的目标地址List<String>封装在MappedInterceptor中并返回
+
+·HandlerInterceptor:顶级接口(拦截器),用于在目标请求执行各个阶段执行命令(该接口和InterceptorRegistry、InterceptorRegistration的关系自已得理清楚)
+preHandle(HttpServletRequest,HttpServletResponse,Object) return boolean;			//目标方法执行前,如果该方法返回true则继续执行链,否则终止.
+postHandle(HttpServletRequest,HttpServletResponse,Object,ModelAndView) return void;		//执行目标方法后(该方法对被@ResponeBody修饰的Controller作用不大)不过你可以实现ResponseBodyAdvice或者直接在RequestMappingHandlerAdapter上进行配置
+afterCompletion(HttpServletRequest,HttpServletResponse,Object,Exception) return void;		//完成完整的请求后(此处应该理解为此时Client已经和服务端没有任何瓜葛时的回调?)
+
+AsyncHandlerInterceptor:该拦截器用于支持Servlet3.0的异步响应
+afterConcurrentHandlingStarted(HttpServletRequest,HttpServletResponse,Object) return void;	//在启动异步处理的初始请求时调用该方法(具体也有点懵逼,用在DeferredResult上)
+
+
+·HandlerExceptionResolverComposite:实现HandlerExceptionResolver、Ordered接口 Composite翻译成综合 如上所说内部封装一个List<HandlerExceptionResolver>
+对于configureHandlerExceptionResolvers和extendHandlerExceptionResolvers这两个方法比较特殊,它们没有所有的注册器(Registry),Spring回调的时候是直接传入一个List<HandlerExceptionResolver>.
+在WebMvcConfigurationSupport回调configureHandlerExceptionResolvers和extendHandlerExceptionResolvers之间Spring会往List<HandlerExceptionResolver>中添加几个默认的解析器,最后将该List封装到HandlerExceptionResolverComposite中并添加到容器中
+
+·HandlerExceptionResolver:顶级接口 如果在请求到整个Controller层中发生异常(包括Controller外的异常比如参数校验异常等) 则DispatcherServlet将会委托HandlerExceptionResolver链来处理该异常
+resolveException(HttpServletRequest,HttpServletResponse,Object,Exception) return ModelAndView;		//args2:执行当前异常的处理程序(可能为null,一般是HandlerMethod实例) 对于返回值,如果是自定义异常处理器就可以自已创建一个ModelAndView 然后Spring会通过视图解析器得到该ModelAndView指向的错误视图 如果该ModelAndView返回null则代表当前异常处理解析器无法处理需要继续执行解析器链
+
+AbstractHandlerExceptionResolver:抽象类实现HandlerExceptionResolver、Ordered(也就是说所有继承当前类的子类的异常处理解析器的优先级是最低的)接口
+
+AbstractHandlerMethodExceptionResolver:抽象类继承自AbstractHandlerExceptionResolver 提供了对HandlerMethod的支持
+
+·HandlerMethod:提供对方法参数、方法返回值、方法注释等便捷访问
+
+·DefaultHandlerExceptionResolver:继承自AbstractHandlerExceptionResolver抽象类 Spring会默认创建该异常处理解析器
+该类解决了SpringMVC引发的异常,并将错误映射到响应码
+
+·ResponseStatusExceptionResolver:继承自AbstractHandlerExceptionResolver抽象类,实现MessageSourceAware接口 Spring会默认创建该异常处理解析器
+该类完成@ResponseStatus注解表明的响应码(@ResponseStatus注解详情可见springboot入门中的异常)
+
+·ExceptionHandlerExceptionResolver:继承自AbstractHandlerMethodExceptionResolver抽象类,实现ApplicationContextAware、InitializingBean接口 该异常处理解析器Spring会默认创建并添加到容器中HandlerExceptionResolverComposite
+该类通过调用被@Controller、@ControllerAdvice注解修饰的类中被@ExceptionHandler注解修饰的方法来解决异常(也就是说@ExceptionHandler注解能生效得益于该类)
+
+SimpleMappingExceptionResolver:继承自AbstractHandlerExceptionResolver Spring不会创建使用
+
+·DefaultErrorAttributes:实现了HandlerExceptionResolver接口 这个类很眼熟(详情见springboot入门异常)
+
+
+·LocaleResolver:顶级接口 一个应用程序中应该只支持有一个LocaleResolver实例 并且通过@Bean向容器中注册的时候保证方法名是localeResolver 因为spring在使用的时候是根据BeanName来得到容器中的LocaleResolver的 详情请看DispatcherServlet的initLocaleResolver方法
+resolveLocale(HttpServletRequest) return Locale;			//对于每一个请求spring都会调用国际化解析器的该方法 传入request得到一个Local 该Local就会作为ViewResolver(视图解析器)resolveViewName方法的入参 详情见DispatcherServlet的render方法 记住所有的国际化都是调用该方法得到的Locale完成的(不管是不是LocalContext接口)
+setLocale(HttpServletRequest,HttpServletResponse,Locale) return void;	//对一个请求设置Local 这个方法很关键,有定制化的内容
+
+AcceptHeaderLocaleResolver:实现LocaleResolver接口,在springboot中如果我们没有通过@Bean向容器中注册LocaleResolver(国际化解析器)则springboot的自动配置会帮我们注册该Bean 该Bean内部封装一个Locale defaultLocale(默认的国际化)、List<Locale> supportedLocales(支持的国际化集合) 其中默认的国家化可以application.yml来配置
+
+·LocalContext:顶级接口,封装Local 国际化上下文
+getLocale() return Local;				//得到国际化Local(不同的LocalContext可以得到不同的Local,比如获取到用户的时区信息等)
+
+TimeZoneAwareLocaleContext:该接口继承自LocaleContext(这个就是所说的不同的LocalContext,该LocalContext可以获取客户端的时区)当拿到LocalContext的时候判断它是否是TimeZoneAwareLocaleContext类型,如果是则调用该接口的getTimeZone()方法得到TimeZone(时区信息)
+getTimeZone() return TimeZone;				//获得当前客户端的国际化时区
+
+·LocaleContextResolver:继承自LocaleResolver接口 该接口的特点和LocaleResolver一模一样,并且该接口和LocaleResolver接口只能二选一 该接口更灵活的在于调用resolveLocaleContext方法后可以返回不同的LocalContext,根据该LocalContext可以得到定制的Local 通过@Bean向容器中注册的时候保证方法名是localeResolver(原因详情见DispatcherServlet的initLocaleResolver方法)
+resolveLocaleContext(HttpServletRequest) return LocalContext;		//
+resolveLocale(HttpServletRequest) return Locale;			//想想对于LocaleContextResolver接口的该方法应该怎么实现?Spring在操作的时候并不管你是LocaleContextResolver还是LocaleResolver,都是直接以LocaleResolver来操作的,那么该方法的实现就应该是return resolveLocaleContext(HttpServletRequest).getLocale();(这是我猜的)
+
+CookieGenerator:Cookie产生器,通过该产生器可以定制化Cookie 这个类应该是要被继承的
+setCookieName(String) return void;					//设置当前Cookie的Key
+getCookieName() return String;						//得到当前Cookie的Key
+setCookiePath(String) return void;					//设置当前Cookie在网站的特定部分才可见 该cookie仅对设置的路径可见(有点蒙) 
+getCookiePath() return String;
+setCookieMaxAge(Integer) return void;					//设置当前Cookie在客户端上的保留时间 默认是Servlet容器的默认时间 如果-1代表该Cookie不会保留
+getCookieMaxAge() return Integer;					//得到当前Cookie在Client客户端上的保留时间
+setCookieSecure(boolean) return void;					//设置Cookie安全
+isCookieSecure() return boolean;					//Cookie是否安全
+setCookieHttpOnly(boolean) return void;					//设置Cookie是否应该是HttpOnly的
+isCookieHttpOnly() return boolean;					//得到Cookie是否是HttpOnly的
+addCookie(HttpServletResponse,String) return void;			//为当前响应的Client添加响应Cookie args0:response args1:Cookie的Value(Cookie的Key通过setCookieName方法设置)
+removeCookie(HttpServletResponse) return void;				//删除一个respone的Cookie(内部实现的时候是将Key为getCookieName的Cookie的value设置为"" 也就相当于删除Cookie)
+createCookie(String) return Cookie;					//该方法是protected方法 根据一个Cookie的value创建一个Cookie(Cookie的Key通过getCookieName得到 也就是通过setCookieName方法设置)
+
+CookieLocaleResolver:该类继承自CookieGenerator实现了LocaleContextResolver接口 如果配置了该国际化解析器则该解析器会为每一个请求添加一个Cookie,这个Cookie里就包含了当前使用哪个国际化解析器 那么下一次只需要从Cookie中就能得到对应的Locale了
+setLocale(HttpServletRequest,HttpServletResponse,Locale) return void;	
+//实现LocaleResolver接口的方法 不一样的地方在于该方法会在Cookie中设置国际化和时区信息的字符串形式 那么之后的请求只要从Cookie中直接拿到代表Locale和TimeZone的字符串并解析即可(如果有的话) 这个方法应该是回调方法,会在LocaleChangeInterceptor类中回调,Locale会先从request的Parameter中得到代表Locale的字符串,然后再将其转为Locale实例后作为该方法的第三个参数的入参 而这个Cookie的Key正是来自getCookieName方法,该类的构造器调用了setCookieName方法
+//这样的好处是一次设置到处使用?(至少是在一次Cookie有效期内) 如果Locale参数是null代表删除当前请求Cookie中保存的国际化信息(别的也一样 包括SessionLocaleResolver、CookieThemeResolver)
+
+SessionLocaleResolver:该类继承自AbstractLocaleContextResolver 将目标请求的国际化和时区信息保存到session中(即一次Http回话中)
+
+FixedLocaleResolver:该类继承自AbstractLocaleContextResolver 该类返回JVM默认的Locale和TimeZone 该类不支持setLocaleContext方法
+
+·LocaleChangeInterceptor:该类继承自HandlerInterceptorAdapter是一个拦截器 每一个请求都会经过该拦截器,在该拦截器的preHandle方法中会调用当前应用程序的LocaleResolver的setLocale方法 setLocale方法的第三个参数会先从request的Parameter中得到代表Locale的字符串,然后再将其转为Locale实例后传入
+看过源码就知道,应该会先走DispatcherServlet的doService方法再走拦截器的方法
+
+·RequestContext:顶级类,请求上下文
+getTimeZone(HttpServletRequest) return TimeZone;			//得到代表当前用户所在时区的TimeZone对象 该方法的实现和RequestContextUtils的getTimeZone基本一致
+
+·RequestContextUtils:工具类,请求上下文工具类
+static getLocaleResolver(HttpServletRequest) return LocaleResolver;		//根据HttpServletRequest拿到其对应的国际化解析器(该方法能实现的原因详情DispatcherServlet的doService方法)
+static getLocale(HttpServletRequest) return Local;				//内部通过调用getLocaleResolver方法实现
+static getTimeZone(HttpServletRequest) return TimeZone;				//得到当前请求的国际化时区对象,内部通过调用getLocaleResolver方法并判断类型实现
+static getThemeResolver(HttpServletRequest) return ThemeResolver;		//根据HttpServletRequest拿到其对应的主题解析器(该方法能实现的原因详情DispatcherServlet的doService方法)
+static getThemeSource(HttpServletRequest) return ThemeSource;
+static getOutputFlashMap(HttpServletRequest) return FlashMap;			//得到本次输出的FlashMap(该FlashMap也就是被重定向后的请求使用)另外这里或许还要考虑多次重定向的问题,例如 第一次请求(输入FlashMap为null,输出为新Map并在该Map添加数据,给下一次重定向请求)->重定向->第二次请求(得到上一次的FlashMap拿到数据,输出为新输出为新Map并在该Map添加数据,给下一次重定向请求)->重定向->第三次请求(得到上一次的FlashMap拿到数据,输出为新输出为新Map并在该Map添加数据,给下一次重定向请求)->没有重定向 删除输出的FlashMap
+static getInputFlashMap(HttpServletRequest) return Map<String, ?>;		//得到上次重定向请求后输出的FlashMap(也就是这次请求的输入Map)
+static getFlashMapManager(HttpServletRequest) return FlashMapManager;		//得到FlashMapManager(这些方法能生效全部得益于DispatcherServlet的doService方法)
+
+·ThemeSource:顶级接口,主题资源
+getTheme(String) return Theme;							//根据主题名称返回主题
+
+HierarchicalThemeSource:继承自ThemeSource接口分层主题源
+
+·Theme:顶级接口,主题
+getName() return String;							//返回当前主题名称
+getMessageSource() return MessageSource;					//返回特定的MessageSource
+
+ResourceBundleThemeSource:实现HierarchicalThemeSource、BeanClassLoaderAware(回调接口)接口
+Spring默认委托该实现类实现主题设置,如果想要使用自定义的ThemeSource或者配置ResourceBundleThemeSource的前缀,和LocaleResolver一样可以通过@Bean 向容器中添加该Bean(BeanName为themeSource)
+
+·ThemeResolver:顶级接口,模板解析器 该接口的用法和LocaleResolver用法如出一辙
+resolveThemeName(HttpServletRequest) return String;				//根据请求request得到主题名称
+setThemeName(HttpServletRequest,HttpServletResponse,String) return void;	//对一个请求设置主题名称 该方法会被
+
+CookieThemeResolver:继承自CookieGenerator实现了ThemeResolver接口 就是将用户的主题信息设置到Cookie中(和CookieLocaleResolver如出一辙)
+resolveThemeName(HttpServletRequest) return String;				//会尝试先从request中获取主题信息,如果没有再从Cookie中获取
+
+SessionThemeResolver:继承自AbstractThemeResolver 主题名称保存在一次HTTP消息回话期内
+
+FixedThemeResolver:继承自AbstractThemeResolver 永远返回默认的主题名称theme 该类不支持调用setThemeName方法(会报错)
+
+·ThemeChangeInterceptor:继承自HandlerInterceptorAdapter是一个拦截器 该类的作用和LocaleChangeInterceptor大体相似 都是回调ThemeResolver实例的setThemeName方法
+
+·MultipartResolver:多部分解析器 顶级接口 该解析器通过@Bean向容器中注册时保证方法名为multipartResolver(也就是BeanName)Spring会在Controller方法入参时自动传入(和Model一样) 当收到请求类型(Content Type)是multipart/form-data时spring会将HttpServletRequest封装成MultipartHttpServletRequest 通过该解析器解析出MultipartHttpServletRequest后使用
+isMultipart(HttpServletRequest) return boolean;					//判断当前请求是否包含更多的内容(内部实现时是判断Content Type是否以multipart开头)
+resolveMultipart(HttpServletRequest) return MultipartHttpServletRequest;	//将给定的Request转换成MultipartHttpServletRequest 通过MultipartHttpServletRequest就可以拿到文件的很多信息
+cleanupMultipart(MultipartHttpServletRequest) return void;			//清理用于分段处理,像上传文件的任何存储资源
+
+CommonsMultipartResolver:继承自CommonsFileUploadSupport抽象类 实现了MultipartResolver、ServletContextAware接口
+
+StandardServletMultipartResolver:实现了MultipartResolver接口 springboot会自动配置该类实例
+
+·MultipartRequest:顶级接口 提供了很多关于得到上传文件的操作
+getFileNames() return Iterator<String>;						//得到本次上传的所有文件的文件名(有可能是上传多个文件)
+getFile(String) return MultipartFile;						//根据文件名获得其对应的MultipartFile(实际上内部通过调用getFileMap方法完成) args0:文件名
+getFiles(String) return List<MultipartFile>;					//根据文件名获得其对应的MultipartFile集合(为什么是集合?可能是因为一个文件名能拿到多个文件?内部通过调用getMultiFileMap方法完成) Servlet3.0新增方法,用这个
+getFileMap() return Map<String,MultipartFile>;					//得到本次request上传的所有文件的Map(因为一次可能上传多个文件,所以按照K为文件名V为MultipartFile封装在Map中)
+getMultiFileMap() return MultiValueMap<String, MultipartFile>;			//这个方法的返回值是MultiValueMap也就是多值Map,代表一个文件名可能背后对应多个文件.将所有的文件封装在MultiValueMap中 Servlet3.0新增方法,用这个
+
+·MultipartHttpServletRequest:该接口继承自HttpServletRequest、MultipartRequest接口 该实例通过MultipartResolver得到(这个接口的实例或许也可以直接作为Controller的入参)
+getRequestMethod() return HttpMethod;						//得到当前request的请求方式,并将结果封装在HttpMethod中
+getRequestHeaders() return HttpHeaders;						//得到当前request的所有请求头(关于HttpHeaders类详情见springboot入门)
+getMultipartHeaders(String) return HttpHeaders;					//得到代表文件的Part实例的所有请求头内容 args0:POST提交的name 详情见源码(内部实现是用过调用ServletRequest的getPart方法完成的)
+
+StandardMultipartHttpServletRequest:MultipartHttpServletRequest接口的实现类继承自AbstractMultipartHttpServletRequest抽象类
+
+·MultipartFile:继承自InputStreamSource接口 该类的实例代表一个上传的文件(是一个) 该接口的实现类StandardMultipartFile内部基本上是委托Part对象来完成的 该接口实例可以直接从controller层作为入参接收,详情看springMVC文件上传(也可以是Part,因为servlet3.0之后委托Part来实现,这里和springboot入门也有联动)
+getName() return String;							//得到本次上传请求的请求参数
+getOriginalFilename() return String;						//得到该实例对应的上传的文件名称
+getContentType() return String;							//得到ContentType(该文件的媒体类型)
+isEmpty() return boolean;							//当前文件是否是空的
+getSize() return long;								//得到当前文件的大小
+getBytes() return byte[];							//得到当前文件的字节数组
+getInputStream() return InputStream;						//得到当前文件的输入流
+transferTo(File) return void;							//直接将当前文件写到服务器磁盘上 Spring5方法
+transferTo(Path) return void;							//直接将当前文件写到服务器磁盘上 Spring5方法
+
+·FormatterRegistry:该接口继承自ConverterRegistry 格式化注册器
+我们都知道@RequestBody是通过HttpMessageConveter来实现Json的反序列化的 那么像@RequestParam、@SessionAttributes、@RequestAttribute的值是怎么转换的呢?对于浏览器而言万物都是String 假设现在有个请求参数ID=1对于浏览器而言它是字符串 但是我们的Controller是@RequestParam("ID") long id 那么spring是如何类型转换的呢?实际上Spring就是通过Formatter<T>来完成的 如果匹配到一个Formatter是String转Long类型的则调用该转换器(前提是该转换器要注册)
+同样如果@RequestAttribute指定的值是Date类型,那么如何将String类型转为Date?Spring提供了DateFormatter(Spring在DefaultConversionService中注册了大量的Converter)
+那么假设现在@RequestAttribute指定的值是Student类型,那么如何将字符串类型的请求参数转为Student?那么就需要添加格式化器/转换器 之后Spring会得到controller层需要的入参的String并选择合适的格式化器/转换器调用它的parse/conveter方法得到目标值后作为入参回调传入Controller
+另外还可以通过@InitBinder注解对特定的Controller方法定制格式化器(详情见springboot入门)
+addFormatter(Formatter<?>) return void;						//添加格式化器(实际上FormattingConversionService的实现是将Formatter包装成PrinterConverter和ParserConverter所以用的还是Converter)
+addConverter(Converter<?,?>) return void;					//添加转换器(效果和格式化器一样,这两个用谁都行,只不过Formatter更灵活一点)
+
+FormattingConversionService:继承自GenericConversionService抽象类,实现了FormatterRegistry、EmbeddedValueResolverAware接口 只有该类实现了FormatterRegistry接口的所有方法
+
+·Formatter<T>:泛型指定转换的目标类型,格式化器是一个双向转换器即String->T 也可以T->String 该接口继承自Printer、Parser 实际上所有的Formatter最后都将被转为Converter使用
+print(T,Locale) return String;					//将泛型类型转为String args0:泛型参数 args1:国际化
+parse(String,Locale) return T;					//将String类型转为泛型类型 args0:请求参数等String字面值 args1:国际化 返回值是转换后的类型
+
+·PathMatchConfigurer:路径匹配的配置类 内部封装一个PathMatcher、UrlPathHelper 我们可以通过该类定制全局的路径匹配规则,但是Configurer类只是一个配置类(就和前面讲的ViewResolverRegistry是一个注册器一样)最后该配置类的配置需要转交给RequestMappingHandlerMapping来实现功能,并且最终也是该类被添加到容器中
+setUseSuffixPatternMatch(boolean) return PathMatchConfigurer;			//设置是否使用后缀匹配 如果设置为true则 /xx和/xx.*是等效的 springboot默认设置为false 也可以在application.yml中通过spring.mvc.pathmatch.use-suffix-pattern: true指定(下面的几个设置也一样) (原因见WebMvcAutoConfiguration)
+setUseTrailingSlashMatch(boolean) return PathMatchConfigurer;			//是否采用尾斜线匹配 默认为true代表 /xx和/xx/是等效的
+addPathPrefix(String,Predicate<Class<?>>) return PathMatchConfigurer;		//设置路径前缀 args0:前缀 args1:对什么有效 例如HandlerTypePredicate.forAnnotation(RestController.class)代表对@RestController注解有效
+getUrlPathHelper() return UrlPathHelper;			//获得该类组合的UrlPathHelper
+
+UrlPathHelper:
+setRemoveSemicolonContent(boolean) return void;			//通过调用该方法让spring路径匹配支持矩阵变量(关于矩阵变量详情见springboot入门)
+
+·FlashMapManager:顶级接口 用于存储FlahMap以及得到上次的重定向后的FlashMap 该接口的实例和ThemeResolver、LocaleResolver添加的用法一致
+retrieveAndUpdate(HttpServletRequest,HttpServletResponse) return FlashMap;		//得到上次重定向的FlashMap(这个方法不需要我们调,让spring自已掉,如果想获取上次重定向的Map就用RequestContextUtils来得到)该方法会在DispatcherServlet的doService期间调用
+saveOutputFlashMap(FlashMap,HttpServletRequest,HttpServletResponse) return void;	//存储本次重定向的FlashMap用于重定向请求进行获取
+
+·UriBuilder:顶级接口
+scheme(String) return UriBuilder;				//设置scheme
+userInfo(String) return UriBuilder;				//设置
+host(String) return UriBuilder;
+port(int) return UriBuilder;
+port(String) return UriBuilder;					//重载方法 一个指定字符串一个指定int
+path(String) return UriBuilder;
+replacePath(String) return UriBuilder;
+pathSegment(String...) return UriBuilder;
+query(String) return UriBuilder;
+replaceQuery(String) return UriBuilder;
+queryParam(String,Object...) return UriBuilder;
+queryParam(String,Collection<?>) return UriBuilder;
+queryParams(MultiValueMap<String,String>) return UriBuilder;
+replaceQueryParam(String,Object) return UriBuilder;
+replaceQueryParam(String,Collection) return UriBuilder;
+replaceQueryParams(MultiValueMap<String, String>) return UriBuilder;
+fragment(String) return UriBuilder;
+build(Object) return URI;				//构建URI
+build(Map<String, ?>) return URI;			//构建URI
+
+·UriComponentsBuilder:实现UriBuilder接口 通过该构建起可以构建一个URI
+fromUriString(String) return UriComponentsBuilder;	//构建模板URI
+encode() return UriComponentsBuilder;			//对URI模板进行预编码 如果URI模板中有分号;则此时如果编码会将其编码为％3B(这是和UriComponents编码的区别)
+build() return UriComponents;				//构建出UriComponents(真正构建URI还是得靠UriComponents)
+buildAndExpand(Map<String, ?>) return UriComponents;
+buildAndExpand(Object...) return UriComponents;		//也就是先调用build方法后紧接着调用返回值(UriComponents)的expand方法
+build(Object) return URI;				//实现父接口
+build(Map<String, ?>) return URI;			//实现父接口 先调用encode()再调用buildAndExpand()后直接调用toUri()方法 这些调用顺序看看下面的示例就能懂
+
+·UriComponents:抽象类实现了Serializable接口
+expand(Object...) return UriComponents;			//将占位符按照顺序设值(有点类似JDBC中防止SQL注入的那段)
+expand(Map<String, ?>) return UriComponents;		//按照Map的K-V的形式设值占位符
+encode() return UriComponents;				//对扩展URI进行严格编码(也就是那些设置的占位符)但是如果占位符的value中有分号;则spring不会将其编码为URI编码即％3B
+toUri() return URI;					//得到URI
+
+看一个示例就懂
+UriComponents uriComponents = UriComponentsBuilder
+        .fromUriString("http://example.com/hotels/{hotel}")		//构建模板URI{hotel}是占位符(预编译请求)
+        .queryParam("q", "{q}")						//添加URI请求参数{q}占位符
+        .encode()							//URI编码
+        .build();							//build
+
+URI uri = uriComponents.expand("Westin", "123").toUri();		//设置占位符并得到最终URI地址
+
+·UriBuilderFactory:该接口继承自UriTemplateHandler接口 该接口的作用和UriBuilder提供的作用相同 可以使用UriBuilderFactory和UriBuilder为RestTemplate和WebClient自定义URI准备
+
+DefaultUriBuilderFactory:UriBuilderFactory的唯一实现类 Spring5后添加 内部封装了一个UriComponentsBuilder
+uriString(String) return UriBuilder;					//该方法不是静态方法 可以通过该类的实例调用该方法同样可以构建一个URI
+setEncodingMode(EncodingMode) return void;				//设置编码模式
+
+下面展示如何使用DefaultUriBuilderFactory来构建RestTemplate
+String baseUrl = "http://example.org";
+DefaultUriBuilderFactory factory = new DefaultUriBuilderFactory(baseUrl);
+factory.setEncodingMode(EncodingMode.TEMPLATE_AND_VARIABLES);		//设置编码模式
+
+RestTemplate restTemplate = new RestTemplate();
+restTemplate.setUriTemplateHandler(factory);
+
+EncodingMode:编码模式,一共有四种模式
+TEMPLATE_AND_VALUES							//如果使用该模式则使用UriComponentsBuilder(DefaultUriBuilderFactory组合了该类)来预编译URI模板 之后对扩展URI(即那些占位符)使用严格编码
+VALUES_ONLY								//不对URI模板进行编码 而是直接进行严格编码
+URI_COMPONENT								//
+NONE									//未应用编码
+
+·ServletUriComponentsBuilder:继承自UriComponentsBuilder 用于对一个request构件URI
+static fromRequest(HttpServletRequest) return ServletUriComponentsBuilder;	//根据一个request构件URI
+static fromCurrentContextPath() return ServletUriComponentsBuilder;		//根据当前上下文构件URI(这个用法比较刁钻 可能要集合MvcUriComponentsBuilder使用,详情看springMVC1.4的官方文档)
+
+以下示例:
+ServletUriComponentsBuilder ucb = ServletUriComponentsBuilder.fromRequest(request)
+        .replaceQueryParam("accountId", "{id}").build()
+        .expand("123")
+        .encode();
+
+·MvcUriComponentsBuilder:还可以根据controller的方法来构建URI,这个看个例子就懂(详情见springMVC官方文档)
+
+·Callable<T>:相较于DeferredResult<T>而言Callable更简单,Controller直接创建后直接返回,不需要真的去调用Service层,而是将回调接口返回后SpringMVC帮我们回调该接口 而DeferredResult是需要我们自已维护一个结果的处理线程调用其setResult方法 但是DeferredResult更灵活更麻烦 如果想要设置Callback超时回调,可以使用WebAsyncTask代替(Springboot入门中有写)
+
+·DeferredResult<T>:返回该实例就代表是一层包装,这个泛型应该指代返回值,返回该实例代表会从线程异步返回泛型类型实例对象(该对象的构造器看看就懂了)该方法的返回值就和普通的Controller没什么两样 用于支持servlet3.0异步响应支持 这个类可以用于Controller层的返回(springboot入门有介绍) 
+DeferredResult处理过程如下:Controller返回DeferredResult并包装在一个队列中->SpringMVC调用request.startAsync()->DispatcherServlet和所有过滤器退出请求处理线程->应用程序从某个线程(我们自已维护的线程)调用DeferredResult的setResult(),SpringMVC将请求分派回Servlet容器->再次调用DispatcherServlet并使用异步产生的返回值恢复处理(调用getResult得到返回值)但是这一步将返回值写回给浏览器时还是阻塞的!
+关于我们自已维护的线程到底该怎么维护?
+public DeferredResult<String> getWashHistory() {   
+    DeferredResult<String> defResult = new DeferredResult<String>();
+    线程池.execute();// 这里通过线程池去执行一个Task(任务)所以最终还是很类似于Callable用一个线程去执行任务 只不过这里执行的时候并不会阻塞(也就是说execute调用完毕后这里应该会立即执行下一行代码即返回DeferredResult) 那么我们只要在这个任务里调用setResult(T)方法就能接上上面说的步骤了 更灵活的地方在于DeferredResult能设置超时回调等等
+    return defResult;
+}
+最后有一点不好的是,SpringMVC中的Controller不支持异步或@RequestBody、@RequestPart等注解 但是Spring WebFlux支持!
+
+DeferredResult(Long,Supplier<?>);			//args0:超时回调时长 agrs1:超时的返回值
+setResult(T) return boolean;				//设置返回值 一旦调用该方法
+getResult() return Object;				//得到返回值
+
+setErrorResult(Object) return boolean;			//设置错误返回值
+onTimeout(Runnable) return void;			//设置超时的任务回调
+onCompletion(Runnable) return void;			//设置任务完成后的回调
+
+对于异步响应它还可以配合AsyncHandlerInterceptor拦截器使用
+
+·CallableProcessingInterceptor:用于Servlet3.0 Spring3.2新增顶级接口 该接口和DeferredResultProcessingInterceptor接口一样,用于整个异步请求的生命周期回调
+
+·DeferredResultProcessingInterceptor:顶级接口 用于异步请求生命周期回调
+beforeConcurrentHandling(NativeWebRequest,DeferredResult<T>) return void;		//并发处理之前
+preProcess(NativeWebRequest,DeferredResult<T>) return void;				//预处理
+postProcess(NativeWebRequest,DeferredResult<T>,Object) return void;			//后续处理
+handleTimeout(NativeWebRequest,DeferredResult<T>) return boolean;			//处理超时的回调
+handleError(NativeWebRequest,DeferredResult<T>,Throwable) return boolean;		//处理异常的回调 args2:产生的异常
+afterCompletion(NativeWebRequest,DeferredResult<T>) return void;			//整个请求完成后的回调
+
+·AsyncSupportConfigurer:异步请求的配置类(该类和WebMvcConfigurer对应)
+setDefaultTimeout() return AsyncSupportConfigurer;								//设置异步请求的默认超时时间(也就是不要为每一个DeferredResult设置) Tomcat默认超时时间为10s
+setTaskExecutor(AsyncTaskExecutor) return AsyncSupportConfigurer;						//args0:异步任务执行器(间接继承自java的Executor接口) 默认情况下是SimpleAsyncTaskExecutor 该执行器(线程池)用于处理Controller返回的Callback回调和ResponseBodyEmitter(生成流对象,这个类没记录 但是可以看SpringMVC官方文档 也是异步的 就是说可以把响应的对象按照流来写出还是啥的) 
+registerCallableInterceptors(CallableProcessingInterceptor...) return AsyncSupportConfigurer;			//注册多个Callback异步请求生成周期回调
+registerDeferredResultInterceptors(DeferredResultProcessingInterceptor...) return AsyncSupportConfigurer;	//注册多个DeferredResult异步请求生命周期回调
+
+·CacheControl:该类描述了响应头中Cache-Control所有可能的结果 关于这些值到底有什么作用(详情看看火狐的文档吧) HTTP缓存 在Springboot入门中可以在ResponseEntity(响应报文中设置HTTP缓存) 您应该为静态资源提供Cache-Control和条件响应Headers(这个后面再说)
+static maxAge(long,TimeUnit) return CacheControl;				//意味max-age args0:时间值 args1:时间单位 
+static noStore() return CacheControl;						//意味no-store(貌似是不缓存?)
+static noTransform() return CacheControl;					//意味no-transform
+static cachePublic() return CacheControl;					//意味public
+
+当请求 /static/style.css 时，返回的头信息中会多两条信息:
+Cache-Control:max-age=600, private
+Last-Modified:Sun, 04 Oct 2016 15:08:22 GMT
+浏览器会将该信息连同资源储存起来，当再次请求该资源时,会取出Last-Modified并添加到在请求头If-Modified-Since中:
+If-Modified-Since:Sun, 04 Oct 2016 15:08:22 GMT
+Spring MVC 在收到请求,发现存在If-Modified-Since,会提取出来该值,并与资源的修改时间比较,如果发现没有改变,则仅仅返回状态码 304,无需传递资源内容.浏览器收到状态码304,明白资源从上次请求到现在未被改变,http 缓存依旧可用.
+
+·ContentNegotiationConfigurer:自定义请求的Content Type解析 内部封装一个Map<String, MediaType>来实现
+mediaType(String,MediaType) return ContentNegotiationConfigurer;		//例如 args0:json args1:MediaType.APPLICATION_JSON 也就是说将json解析为application/json 内部通过调用Map的put方法实现Map<String,MediaType>
+mediaTypes(Map<String, MediaType>) return ContentNegotiationConfigurer;		//也是解析Content Type 这里的参数是Map效果和上面的如出一辙
+
+·DefaultServletHandlerConfigurer:该类配合springboot入门静态资源(在这个文件里搜索"添加静态资源访问规则")食用 这个类就下面两个方法
+enable() return void;					//让DispatcherServlet直接可以访问到静态资源 调用该方法后Spring MVC对资源的处理与Servlet方式相同
+enable(String) return void;				//args0:Servlet容器名称 
+
+
+
+
+-------------------------------------------------------------------SpringFlux----------------------------------------------------------
+
+·Publisher<R>:消息发布者
+subscribe(Subscriber<? super T>) return void;		//当执行该方法时,发布者会回调订阅者的onSubscribe方法 并传入Subscriber 
+
+·Subscriber<T>:消息订阅者
+onSubscribe(Subscription) return void;		//借助发布者传入的Subscription向发布者请求N个数据(通过调用Subscription的request()方法实现)
+onNext(T) return void;				//过程信号 发布者会不断调用订阅者的该方法向订阅者发布N个数据 !!!上游调用下游的方法(上游传递数据给下游调用该方法)
+onError(Throwable) return void;			//终止信号(错误信号) 如果期间产生异常会调用该方法
+onComplete() return void;			//终止信号(完成信号) 当数据全部发送完毕后会调用该方法告知订阅者
+
+如果没有终止信号(没有onComplete和onNext)就是一个无限数据流,不是代表订阅者没有这两个方法,而是发布者不会调用者两个方法.
+如果发布者没有发出任何一个数据,而是直接调用完成信号(没有onComplete和onNext),表示这是一个空数据流.数据链还是会先subscribe->request->再按照数据流从上到下
+很重要的一个思想,在订阅之前什么都不会发生!!!!
+但是一个数据流被订阅者消耗完后并不代表该数据流就没有了,如果这时候再调用subscribe方法设置一个新的订阅者会将数据流从头再消费一遍.(这个叫冷发布者)
+一个数据流可以同时被多个订阅者订阅(就相当于观察者模式),如果生产者生产完的消息被所有订阅者消费后,再来一个新的订阅者也不会消费被消费的数据(这个叫热发布者)
+在Reactor中数据的生产归生产,消费归消费 生产不必刻意关照消费情况 而且生产的速度和消费的速度不一定就是相同的(只不过在同线程中是这样 但不要被迷惑了) 生成和消费可以是两个线程(通过调度器实现/线程池)
+Controller异步调用Service->Service正常处理业务逻辑->Service异步调用DAO
+在SpringFlux中,也可以直接接收@RequestBody Flux<T> 也就是代表请求的时候上传一个数据流到服务器(请求的媒体类型是:text/event-stream、application/stream+json) 所以请求的时候请求的数据就必须是一个数据流(那么该怎么请求一个数据流呢?详情见WebClient 也只能窥探一二)
+一般如果返回Mono<Void>就代表返回一种信号
+
+·Subscription:订阅 通过该类向发布者索要消息
+request(long n) return void;				//调用该方法向发布者索要消息 !!!下游调用上游的方法(下游想要索取上游的数据调用该方法)
+cancel() return void;					//取消订阅 调用该方法后如果订阅者再调用request方法后将不会受到数据
+
+·Processor<T, R> extends Subscriber<T>, Publisher<R>:该接口即可以作为订阅者又可以作为发布者,这个接口用好不容易 只适用一些特殊的场景
+
+
+·CorePublisher<T>:继承自Publisher接口
+
+·Mono<T>:单值发布实现了CorePublisher<T>接口
+fromCallable(Callable<? extends T>) return Mono<T>;			//创建一个基于回调的数据流 API会自动回调该方法并拿到返回值作为数据流
+static justOrEmpty(Optional<? extends T>) return Mono<T>;		//基于一个Optional中的元素创建数据流(Optional貌似是单值的)
+static fromSupplier(Supplier<? extends T> return Mono<T>;		//懒创建
+static fromFuture(CompletableFuture<? extends T>) return Mono<T>;	//
+
+操作符:
+flatMapMany(Function<? super T, ? extends Publisher<? extends R>>) return Flux<R>;		//由于Mono的特性是值包装一个元素 调用该方法的意思就是,该API会通过Function回调该元素,我们通过该元素返回一个新的数据流(多指数据流Flux) 也就是说经过该方法后原来的单值数据流会被完全替换为多值数据流(原来的那个值也没有了)
+
+·Flux<T>:多值发布 可用于@RequestBody Flux<Part>用来接收Client上传的文件 实现了CorePublisher<T>接口
+static just(T) return Flux<T>;					//工厂方法用于创建一个Flux
+static just(T...) return Flux<T>;				//工厂方法用于创建一个Flux args0:创建的时候可以传入多个元素 不过该方法指定完元素就没有后续了(只是指定了数据流的所有元素)
+static never() return Flux<T>;					//什么都不做
+static defer(Supplier<? extends Publisher<T>>) return Flux<T>;	//订阅时才做决定(Supplier接口是生产者) 也就是说数据流一开始并不指定,只有当调用subscribe有订阅者的时候才会回调该函数接口的方法 得到数据流(看泛型正好就是发布者,也就是说该函数接口的生产方法应该是返回一个数据流)
+static empty() return Flux<T>;					//只有完成信号的空数据流
+static error(Throwable) return Flux<T>;				//只有错误信号的数据流
+static range(int,int) return Flux<Integer>;			//创建简单数据流 range翻译为范围 该方法明确返回的泛型为Integer代表当前的数据流一定是int类型的 args0:Integer从哪个值开始 args1:有多少个Integer(从args0开始往后自增)
+static fromArray(T) return Flux<T>;				//创建简单数据流,该方法根据数组创建数据流 args0:数组
+static fromIterable(Iterable<? extends T>) return Flux<T>;	//创建简单数据流,该方法根据迭代器创建数据流
+static fromStream(Stream<? extends T>) return Flux<T>;		//创建简单数据流,该方法根据Stream流创建数据流
+static interval(Duration) return Flux<Long>;			//每隔一段时间数据流生产一个新的元素 该方法可以和map这种操作符配合 每隔一段时间产生一个新的元素,然后经过map方法的时候将该元素设置为我们想返回的元素,最终订阅者拿到该元素.
+static using(Callable<? extends D>,Function<? super D, ? extends Publisher<? extends T>>,Consumer<? super D>) return Flux<T>;		//创建可回收的数据流
+
+
+static generate(Consumer<SynchronousSink<T>>) return Flux<T>;						//创建一个无限数据流(直至调用complete方法) 传入Consumer的实现 generate不支持异步只能立即处理完数据流 SynchronousSink实例会回调给我们,也就是该API会根据subscribe中请求的数据个数进行回调该方法,但是该方法内部需要手动调用next方法,订阅者才能接受到该参数(next方法每次回调的时候只能调用一次,也就是该回调函数实现只能调用一次next方法 这和无限数据流并不冲突)
+static generate(Callable<S>,BiFunction<S, SynchronousSink<T>, S>) return Flux<T>;			//创建一个无限数据流(直至调用complete方法) args0:该方法的返回值作为第二个参数的apply方法的第一个入参 args1:和上述同理(不过会得到第一个方法的返回值,这个返回值可以用于一些计数的操作)
+static generate(Callable<S>,BiFunction<S, SynchronousSink<T>, S>,Consumer<? super S>) return Flux<T>;	//创建一个无限数据流(直至调用complete方法) args2:该参数的回调方法在数据流执行完之后执行(如果Flux涉及到数据库连接或者IO操作,该参数可以用于最后释放资源相当于finally)
+
+static create(Consumer<? super FluxSink<T>>) return Flux<T>;				//创建自定义数据流 与generate不同的是,create不需要状态值,另一方面,它可以在回调中触发多个事件(什么意思呢?)在generate方法里必须调用SynchronousSink的next方法(相当于还是同步的) 但是在create方法里你可以不调用next方法而是在未来的某个时刻因为某些原因调用next方法(例如监听事件) 调用next方法就相当于调用监听者的onNext方法 而且通过该方法创建的Flux的订阅者和订阅者可以不再同一个线程内(通过publishOn方法指定订阅者线程)
+static create(Consumer<? super FluxSink<T>>,OverflowStrategy) return Flux<T>;		//创建自定义数据流 该方法提供了回压策略(上面的重载方法采用默认的策略即缓存策略) args1:回压策略枚举值
+
+static push(Consumer<? super FluxSink<T>>) return Flux<T>;				//该方法和create类似都可以异步调用 不过该方法调用next、complete、error必须是同一个线程(也就是生产者和订阅者得在一个线程内)
+static push(Consumer<? super FluxSink<T>>,OverflowStrategy) return Flux<T>;		//args1:指定回压策略 (有没有那种就算是在一个线程内,但每次因为生产者生产的内容比消费者消费的多,而导致的回压策略?)
+
+操作符:数据流->操作符->订阅者
+map(Function<? super T, ? extends V>) return Flux<V>;						//遍历数据源并对每一个元素调用Function并得到新元素
+flatMap(Function<? super T, ? extends Publisher<? extends R>>) return Flux<R>;			//遍历数据源并对每一个元素调用Function并得到新的数据源(这是我们要做的事情,Function函数最终要返回一个数据流即Flux) 该方法最终会将Funtcion返回的所有的数据流合并为一个数据流(合并成一个大的数据流,再通过这个大的数据流对每一个元素进行操作,这就是该方法的妙用),注意该方法是异步的不能保证数据源顺序
+flatMapSequential(Function<? super T, ? extends Publisher<? extends R>>) return Flux<R>;	//效果和flatMap一样 不过该方法保证每个元素得到的数据源最后有序
+static zip(Publisher<? extends T1>,Publisher<? extends T2>) return Flux<Tuple2<T1, T2>>;	//注意该方法是静态方法 用于将两个数据源合并为一个数据源(和flatmap不同的是,flatmap是遍历原先的数据流中的元素后一个元素返回一个新数据流,将这些所有新数据流合并的操作)这里只是静态方法将两个数据源合并为一个数据源 该方法能一对一地将两个或多个元素对其发出 Tuple2<T1,T2>有两个方法,getT1和getT2代表分别获取这两个元素
+filter(Predicate<? super T>) return Flux<T>;							//过滤数据源的每一个元素
+ofType(Class<U>) return Flux<T>;								//过滤数据源的每一个元素为指定的类型 args0:指定过滤后的类型 该方法执行完后数据源只能存在该类型的元素
+ignoreElements() return Mono<T>;								//忽略所有元素
+distinct() return Flux<T>;									//对整个数据源去重
+distinctUntilChanged() return Flux<T>;								//去掉连续重复的元素
+delayElements(Duration) return Flux<T>;								//设置每个元素的延迟(那么每个元素只有经过该延迟后才会到达订阅者)
+transform(Function<? super Flux<T>, ? extends Publisher<V>>) return Flux<T>;			//打包操作符 有的时候如果嫌操作符太多,可以单独将操作符打包为一个Function 该方法入参实现的Function的apply方法的入参就是Flux数据流的回调(也就是API传给我们的)我们可以直接在这个apply方法里面调用Flux的操作符并最终将该Flux返回(最终将数据流返回) 有个Demo在下面(搜打包操作符)
+compose(Function<? super Flux<T>, ? extends Publisher<V>>) return Flux<T>;			//打包操作符 该方法和上面这个方法的区别在于该方法打包的操作符是有状态的 详情看下面的Demo
+transformDeferred(Function<? super Flux<T>, ? extends Publisher<V>>) return Flux<T>;		//compose方法实际上已经过时了,改用现在这个方法 道理实际上是一样的(换了个方法名)
+cast(Class<E>) return Flux<E>;									//遍历数据源并对每一个元素进行转型 args0:转型后的类型
+startWith(T...) return Flux<T>;									//往当前数据流的开头添加数据 (该方法还有一些重载方法)
+concatWith(Publisher<? extends T>) return Flux<T>;						//往当前数据流的结尾添加数据(该方法没有重载,这里含义是直接添加一个数据流)
+concat(Iterable<? extends Publisher<? extends T>>) return Flux<T>;				//拼接数据源 和startWith方法不一样的地方在于 startWith是直接拼接元素,而这里是拼接多个数据源
+concat(Publisher<? extends Publisher<? extends T>>) return Flux<T>;				
+concat(Publisher<? extends T>...) return Flux<T>;						//这些方法都是拼接多个数据源(把数据源当做元素)
+concatDelayError(Publisher<? extends T>...) return Flux<T>;					//该方法提供和concat类似的重载方法 即使在拼接的时候有错误也会等所有的数据源拼接完(而上面的貌似一旦有错误就终止拼接了)
+merge(Publisher<? extends Publisher<? extends T>>) return Flux<T>;				//该方法提供和concat类似的重载方法 不过该方法拼接的时候无论是哪个数据流,元素先到的先合并
+mergeWith(Publisher<? extends T>) return Flux<T>;						//该方法没有重载方法 好像就是单独合并一个数据源
+
+collectList() return Mono<List<T>>;								//将数据流转为List
+collectSortedList() return Mono<List<T>>;							//将数据流转为有序集合 采用默认的排序算法
+collectSortedList(Comparator<? super T>) return Mono<List<T>>;					//将数据流转为有序集合 args0:排序算法
+collectMap(Function<? super T, ? extends K>) return Mono<Map<K, T>>;				//将数据流转为Map args0:API会遍历数据源得到每个元素后回调Function将元素作为入参传入 该Function的返回值会作为Map的Key 而Map的V就是该元素(看泛型自已定义定义就行了)
+collectMap(Function<? super T, ? extends K>,Function<? super T, ? extends V>) return Mono<Map<K, V>>;	//将数据流转为Map args0:该Function的返回值作为Map的Key args1:该Function的返回值作为Map的value
+collect(Supplier<E>,BiConsumer<E, ? super T>) return Mono<E>;					//将数据流转为自定义集合
+count() return Mono<Long>;									//统计当前数据流中的元素个数并将其转为Mono<Long>数据源 通过这个Mono的元素就可以拿到统计的数量
+reduce(BiFunction<T, T, T>) return Mono<T>;							//将上个元素的reduce结果与当前元素值作为输入执行reduce方法 Function的返回值就是Mono<T>中包装的元素
+scan(BiFunction<T, T, T>) return Flux<T>;							//将每次reduce的值立即发出
+all(Predicate<? super T>) return Mono<Boolean>;							//遍历数据源并对每个元素执行Predicate 判断每个元素是否都为true 如果每个元素都为true则最终Mono的结果为true 如果一个元素为false则Mono为false
+any(Predicate<? super T>) return Mono<Boolean>;							//类似于all 只要有一个元素为true则最终结果就是true
+hasElements() return Mono<Boolean>;								//判断数据源是否有元素(并且不为空元素)
+hasElement(T) return Mono<Boolean>;								//判断数据源是否有某个指定的元素
+first(Publisher<? extends I>...) return Flux<I>;						//只取每个数据源的第一个元素
+repeat() return Flux<T>;									//重复一个数据源
+
+
+subscribe(Consumer<? super T>) return Disposable;					//最终操作 设置订阅者(处理发布的数据 该方法不管是同步还是异步都只是一个最终处理的方法,不管你数据是从哪来的) 处理数据流中的每一个数据(从上至下) 该方法就相当于onNext方法(只包含过程信号) args0:中间方法
+subscribe(Consumer<? super T>,Consumer<? super Throwable>) return Disposable;		//最终操作 设置订阅者 args0:中间方法 args1:终止信号(错误信号)
+subscribe(Consumer<? super T>,Consumer<? super Throwable>,Runnable) return Disposable;	//最终操作 设置订阅者 args0:中间方法 args1:终止信号(错误信号) args2:完成信号(数据流正常消耗完毕的回调方法 相当于onComplete()方法)
+subscribe(Consumer<? super T>,Consumer<? super Throwable>,Runnable,Consumer<? super Subscription>) return Disposable;		//最终操作 设置订阅者 args0:中间方法 args1:终止信号(错误信号) args2:完成信号(数据流正常消耗完毕的回调方法 相当于onComplete()方法) args3:当订阅发生时的回调(注意该泛型是中间人接口) 该方法的入参会回调传入
+subscribe(Subscriber<? super T>) return Disposable					//实现父接口方法 最终操作 我们可以将实现类传入(是上述四个方法的四合一)
+
+checkpoint() return Flux<T>;								//对当前数据链开启调试模式(和Hooks类的方法相比该方法只针对单个链不会有很多的性能损耗) 该方法会打印当前的整个堆栈信息
+checkpoint(String) return Flux<T>;							//该方法可以传入一个独特的字符串 方便在调试信息中进行识别 该方法比上面的方法有更低的执行成本(该方法不会打印堆栈信息,但是只通过独特字符串来定位也足够 )
+checkpoint(String,boolean) return Flux<T>;						//如果第二个参数传入true 则该方法调试的时候会打印整个堆栈信息+独特字符串信息
+
+publish() return ConnectableFlux<T>;							//调用该方法生成的ConnectableFlux会尝试满足不同订阅者的需求 并综合这些请求返回给数据源(假设有某个订阅者的需求为0,则发布者会暂停向所有订阅者发布元素)
+replay() return ConnectableFlux<T>;							//将对第一个订阅者发布的数据进行缓存 它会对后续接入的订阅者重写发送数据
+
+无副作用的窥探方法:这些偷窥方法只是读取,不会对数据流产生异常
+doOnNext(Consumer<? super T>) return Flux<T>;						//该方法是个偷窥方法 有点类似于onNext方法只不过该方法不消耗元素(元素会自动回调传参)
+doOnError(Consumer<? super Throwable>) return Flux<T>;					//该方法也是窥探方法 有点类似于onError方法(异常会自动回调传参) 该方法可以读取当前调用链中的异常
+doOnComplete(Runnable) return Flux<T>;							//数据源完成时回调该方法
+doOnSubscribe(Consumer<? super Subscription>) return Flux<T>;				//数据源被订阅时回调该方法
+doOnCancel(Runnable) return Flux<T>;							//数据源被取消时调用该方法
+doOnEach(Consumer<? super Signal<T>>) return Flux<T>;					//数据源每一次有信号时会回调Signal接口对应的方法(不管是什么信号,都会回调对应的方法) Signal接口在下方
+doOnRequest(LongConsumer) return Flux<T>;				//有一种情况是发布者主动发送数据(之前一直讲的是接受主动接收数据) 对于发布者主动发送数据,而订阅者并不一定每次都能消化该数据的情况(订阅者必须主动调用request方法才会得到数据!这和之前一样也就是订阅者请求数据)如果发布者数据不消耗完订阅者会一直阻塞 每次订阅者调用request方法时就会调用该方法
+
+log() return Flux<T>;						//该方法没有参数 效果类似doOnNext也是对当前数据流的元素进行窥探 只不过该方法是以一种日志形式的记录当前数据流的元素(相当于直接打印不能对元素做更定制化的操作) 该方法也是窥探方法不会改变数据流
+
+用于线程调度的方法:
+publishOn(Scheduler) return Flux<T>;					//设置订阅者的执行器(如果不设置则订阅者和发布者还是相当于同线程内执行) 调用该方法会设置后续的操作符和订阅者(也就是订阅者里的所有方法)都单独运行在设置的执行器(线程)上
+publishOn(Scheduler,int) return Flux<T>;				//设置订阅者的执行器(如果不设置则订阅者和发布者还是相当于同线程内执行) args2:第二个参数是预选个数(也就是订阅者每次请求的个数,设置了该参数后request的值好像就不准了,如果值设置的很大并不代表每次就真的请求那么多个,首先发布者得有那么多的数据,其次订阅者得处理得过来,或者可以理解为当订阅者的onNext方法被调用多少次之后(而且这里还要考虑回压),下一次请求数据才会调用doOnRequest方法) 该参数也会作为doOnRequest方法的入参
+subscribeOn(Scheduler) return Flux<T>;					//和publishOn的第一个区别是该方法只影响源头的执行线程 如果该方法之前是publishOn则该方法还是会执行在publishOn上(该方法只针对源头的执行线程直到第一个publishOn) 数据源(执行器0)->publishOn(执行器1)->map操作符继承自执行器1->publishOn(执行器2)->filter操作符继承自执行器2->subscribeOn(该方法定义了数据源的执行器为0 但是执行该方法的执行器还是2)->执行器2
+
+parallel() return ParallelFlux<T>;					//
+parallel(int) return ParallelFlux<T>;					//让当前数据流的任务均匀分布在不同的工作线程上执行(Worker)该方法后续需要进一步处理 args0:并行性(执行的线程个数)
+
+
+用于数据流转换的方法:
+
+
+
+用于过滤/拣选的方法:
+take(long) return Flux<T>;						//取出当前数据流的前几个元素,取完后立即关闭数据流(所以该方法会造成SignalType.CANCEL) agrs0:取的个数 如果传入的值和当前数据流中元素的个数一致,则最终还是会造成SignalType.CANCEL(即使数据全部取出来了) 但是如果传入值比数据流元素的个数多,则最终会造成SignalType.ON_COMPLETE
+take(Duration) return Flux<T>;						//取一段时间内发出的元素
+next() return Flux<T>;							//只取第一个元素
+skip(long) return Flux<T>;						//从数据流的第几个开始取 例如设置为1就代表从数据流的第二个元素开始取(该方法会造成SignalType.ON_COMPLETE)
+skipLast(long) return Flux<T>;						//舍弃数据流的最后几个元素
+blockLast() return Flux<T>;						//在收到最后一个元素之前会阻塞(响应式业务中慎用)
+then() return Flux<T>;							//忽略数据元素(舍弃当前元素)
+takeLast(int) return Flux<T>;						//取数据源的最后几个元素 args0:元素数量
+takeUntil(Predicate<? super T>) return Flux<T>;				//取出满足条件的元素 数据源在onNext的时候会先回调该方法判断如果为true才能拿到该元素
+elementAt(int) return Mono<T>;						//根据元素索引取一个元素
+last() return Mono<T>;							//如果元素为空则发出错误信号
+last(T) return Mono<T>;							//如果元素为空则给一个默认元素
+single() return Mono<T>;						//只取一个元素 如果数据源为空则发出错误信号
+single(T) return Mono<T>;						//只取一个元素 如果数据源为空则返回默认元素 args0:默认元素
+singleOrEmpty() return Mono<T>;						//只取一个元素 如果数据源为空则返回一个空序列
+
+
+用于错误处理的方法:在Reactor中异常是从上至下传播的 另外一旦产生了异常,即使在调用链中声明了错误数据的处理方式,数据流也不会接着执行了(因为一旦产生异常就会执行onError方法,而该方法是终止信号)
+Flux.range(1, 6)
+    .map(i -> 10/(i-3))				//当i=3时会产生异常,则该异常会传播给下一条链
+    .map(i -> i*i)				//继续传播给下一条链
+    .subscribe(System.out::println, System.err::println);	//最终由订阅者来兜底处理该异常
+√onErrorReturn(final T) return Mono<T>;					//该方法代表如果在执行链中出现了异常则会返回该方法设置的默认值 
+Flux.range(1, 6)
+        .map(i -> 10 / (i - 3))
+        .onErrorReturn(1)					//由于异常是由上往下传播的,所以默认值为异常碰到的第一个onErrorReturn设置的默认值 这里打印结果1
+        .map(i -> i * i)
+        .onErrorReturn(0)					//这里设置等于没设置 如果这两个onErrorReturn方法设置的位置二选一,则任意位置都可以
+        .subscribe(System.out::println, System.err::println);
+√onErrorResume(Function<? super Throwable, ? extends Publisher<? extends T>>) return Flux<T>;		//该方法代表如果在执行链中出现了异常,则会调用该方法,该方法返回一个新的数据流(只对本次异常有效的数据流) 该方法的入参是回调,要求传入产生的异常,我们需要返回新的数据流 那么这个新的数据流会代替本次元素接着往下执行
+√onErrorMap(Function<? super Throwable, ? extends Throwable>) return Flux<T>;				//之前在很多项目中看到,当产生一个异常后会将该异常包装成业务异常(包装为一个新异常)后再抛出 就可以使用该方法 该Function的入参是产生的异常会回调给我们,而我们要做的就是在该方法内部抛出一个新的业务异常
+√doOnError(Consumer<? super Throwable>) return Flux<T>;							//如果在执行链中出现了异常会回调该方法设置的Consumer 调用该方法可以窥探到异常(不会对数据流产生异响,这是对于三方库而言) 回调传入产生的异常,我们可以通过设置进去的回调函数对异常做日志操作 由于该方法是窥探方法不对数据流产生影响,所以该方法会接着传播下去
+√doFinally(Consumer<SignalType>) return Flux<T>;							//当执行链执行完毕之后会回调该方法 Consumer是一个消费者接口,所以API会回调给你一个SignalType 根据该SignalType就能知道当前是什么原因导致的执行链执行完毕的(SignalType类详情信息在下方)
+√retry(long) return Flux<T>;										//该方法表示如果在执行链中出现了异常,则会进行重试 重试的含义代表,让数据源从头开始再执行一遍 args0:重试的次数(假设设置为2就代表如果出现了异常会重试第一次,如果重试的时候还是出现了异常则还会重试一次,那么这第二次重试如果还有异常就不会重试了) 
+√retry() return Flux<T>;										//重载方法,该方法会一直重试
+
+用于分批的方法:
+
+设置回压策略的另外一种方式:
+onBackpressureBuffer() return Flux<T>;					//BUFFER
+onBackpressureDrop() return Flux<T>;					//DROP
+onBackpressureLatest return Flux<T>;					//LATEST
+onBackpressureError return Flux<T>;					//ERROR
+
+·ParallelFlux<T>:
+runOn(Scheduler) return ParallelFlux<T>;				//该方法配合parallel使用 在调用parallel后调用该方法设置执行器 调用该方法后数据流的onNext会均匀地分配到每一个工作线程上 而且每一个线程都会调用一次onSubscribe、request、onComplete/onError方法 那之前不是说publishOn可以指定线程执行吗?确实可以,但有时就算指定多个工作线程却还是只有一个Worker执行任务(但这个Worker和之前讲的一样确实和数据源的线程不一样)
+
+·UnicastProcessor:热生产者 继承自FluxProcessor 该接口间接实现了Processor接口能够处理回压,但是只支持一个订阅者
+create() return UnicastProcessor<E>;					//调用该方法创建热生产者
+onNext(T) return void;							//调用该方法 生产者手动发送数据 关于热生产者的特性Demo在下方
+sink() return FluxSink<IN>;						//得到线程安全的FluxSink 多线线程就可以并发地调用next生成数据 这个方法和generate方法很像
+sink(FluxSink.OverflowStrategy) return FluxSink<IN>;			//指定回压模式
+
+·ConnectableFlux<T>:该发布者提供了多种对订阅者的管理方式 该订阅者可以通过Flux的publish和replay方法创建
+connect() return Disposable;						//当有足够的订阅者接入后 可以对Flux手动执行一次,它会触发对上游源的订阅(doOnSubscribe方法) 当调用该方法之前,发布者不会对任何订阅者发布数据(而是等待订阅者注册) 一旦调用该方法后发布者开始发布数据
+autoConnect(int) return Flux<T>;					//类似connect()方法 当有n个订阅时才触发 args0:订阅者数量 该方法可以在订阅者订阅之前调用(subscribe方法),假设传入2 那么当有两个订阅者订阅时发布者才会开始发布数据
+refCount(int) return Flux<T>;						//可以在有订阅者的时候自动触发,该方法还会检测订阅者的取消动作 如果全部订阅者取消则会与数据源断开连接 再有新的订阅者连接时才会继续连上发布者
+refCount(int,Duration) return Flux<T>;					//args1:指定如果所有订阅者全部断开连接多长时间之内如果没有新的订阅者接入就断开连接 args1:等待时间的单位
+
+
+·SynchronousSink<T>:
+complete() return void;						//当数据全部发送完毕后会调用该方法告知订阅者
+currentContext() return Context;				//
+error(Throwable) return void;					//产生异常
+next(T) return void;						//发布数据(虽然是该接口调用了next可实际上内部调用了监听者的noNext方法把参数传入)
+
+·FluxSink<T>:
+next(T) return FluxSink<T>;					//发布数据(可以异步)
+complete() return void;						//数据流处理完毕
+error(Throwable) return void;					//异常
+onRequest(LongConsumer) return FluxSink<T>;			//该方法可以用来响应下游订阅者的请求事件(所以除了像调用next方法让上游主动将数据推送到下游,还可以让下游主动从上游拉取数据)
+
+
+FluxSink.OverflowStrategy:枚举类,回压的几种策略
+IGNORE:完全忽略下游回压 当队列积压满时会导致IllegalStateException
+ERROR:当下游跟不上节奏的时候发出一个错误信号
+DROP:当下游没有准备好接收新的元素的时候抛弃这个元素
+LATEST:让下游只得到上游最新的元素
+BUFFER:缓存下游没有来得及处理的元素(如果缓存不限大小的可能导致OutOfMemoryError) 该策略相当于队列
+
+·Schedulers:工具类,可以用于创建Scheduler 翻译过来叫调度器(它就相当于线程池)
+static newSingle(String) return Scheduler;			//创建一个单线程的调度器(线程池) args0:线程池名称(调度器名称)
+static single() return Scheduler;				//可重用的单线程 和newSingle不一样,调用该方法总是返回同一个调度器,而不是新建
+
+static newElastic(String) return Scheduler;			//创建弹性调度器(线程池) 不够就创建
+static elastic() return Scheduler;				//可重用的弹性调度器 该方法也总是返回同一个调度器(只不过该调度器中的线程是弹性的)但如果该线程池空闲时间过长(比如60S)则该线程池会被废弃 这就好比多个线程池和多个线程的概念(线程池也可以是多个)
+
+static newParallel(String) return Scheduler;			//根据CPU创建调度器
+static parallel() return Scheduler;				//可重用的调度器,该调度器会根据CPU来创建
+
+static immediate() return Scheduler;				//当前线程
+
+
+·Scheduler:实现了Disposable接口 执行器
+Scheduler相当于大管家Worker是员工每个Scheduler手中有若干Worker.接到任务后,Scheduler负责分派任务给Worker干活
+每一个Worker都是一个ScheduledExecutorService,或者叫包装了一个ScheduledExecutorService对象所以,Scheduler拥有的并不是线程池,而是一个自行维护的ScheduledExecutorService池
+另外对于有些操作符本身会需要调度器来处理多线程(例如delayElements(Duration)方法如果不指定执行器则该方法会使用Schedulers来获得内置的单例调度器来执行)
+schedule(Runnable) return Disposable;				//调度执行Runnable接口的任务方法(即调度执行run方法)
+schedule(Runnable,long,TimeUnit) return Disposable;		//延迟调度执行Runnable接口的任务方法 args0:回调方法 args1:延迟执行的时间 args2:时间单位
+schedulePeriodically(Runnable,long,long,TimeUnit) return Disposable;	//周期性调度执行Runnable接口的任务方法 args1:初始延迟时间 args2:周期执行时间 args3:周期执行时间单位 
+createWorker() return Worker;					//创建一个工作线程
+start() return void;						//启动调度器
+
+
+·Scheduler.Worker:实现了Disposable接口 一个Worker代表执行器(调度器)可调度的一个工作线程 在一个Worker内遵循先进先出的任务执行策略
+每一个Worker都是一个ScheduledExecutorService,或者叫包装了一个ScheduledExecutorService对象所以,Scheduler拥有的并不是线程池,而是一个自行维护的ScheduledExecutorService池
+schedule(Runnable) return Disposable;					//调度执行Runnable接口的任务方法
+schedule(Runnable,long,TimeUnit) return Disposable;			//延迟调度执行Runnable接口的任务方法 args0:回调方法 args1:延迟执行的时间 args2:时间单位
+schedulePeriodically(Runnable,long,long,TimeUnit) return Disposable;	//周期性调度执行Runnable接口的任务方法 args1:初始延迟时间 args2:周期执行时间 args3:周期执行时间单位 
+
+·Context:顶级接口 注意重名
+在多线程中ThreadLocal可以保证线程中的变量是单独的,而在WebFlux中数据流的执行过程中可能涉及到多个线程,这样的用法就失去作用了.
+Context是针对于数据流而言的,它的生命周期伴随整个数据流而不是线程.
+
+·StepVerifier:用于对Flux进行单元测试 接口
+create(Publisher<? extends T>) return FirstStep<T>;		//创建一个单元测试 args0:要被测试的发布者实例
+consumeNextWith(Consumer<? super T>) return Step<T>;		//当你想要跳过部分序列或者当你想对信号内容进行自定义的校验的时候会用到它
+withVirtualTime(Supplier<? extends Publisher<? extends T>>) return FirstStep<T>;	//构造一个可以操作虚拟时间的单元测试 args0:消费者接口返回一个数据源实例 假设我们有个判断是一天之内数据源都不产生信号(那我们不可能真去等一天,所以通过该方法创建虚拟时间单位即可在很短的时间内完成测试)
+verify() return Duration;					//测试(该方法最后调用)
+
+LastStep:内部接口
+expectComplete() return StepVerifier;				//用于期待下一次操作是终止信号(完成信号) 调用期待终止信号方法后就不能再继续增加别的期待方法了
+expectError() return StepVerifier;				//用于期待下一次操作是终止信号(错误信号)
+expectErrorMessage(String) return StepVerifier;			//用于期待下一次操作是终止信号(错误信号) agrs0:并且期待该终止信号对应的异常的message是指定消息
+
+
+Step<T>:内部接口 继承自LastStep
+thenAwait() return Step<T>;					//对测试状态或内容进行调整 该方法会暂停校验步骤(允许信号延迟发出)
+then(Runnable) return Step<T>;					//对测试状态或内容进行调整
+expectNoEvent(Duration) return Step<T>;				//让序列持续一定的时间,期间如果有任何信号发出则测试失败
+
+FirstStep<T>:内部接口继承自Step<T>
+expectNext(T...) return Step<T>;				//用于测试下一个期望的数据元素
+expectSubscription() return Step<T>;				//期待订阅事件
+
+·Signal<T>:用于信号回调接口 该接口继承自Supplier<T> Consumer<Subscriber<? super T>>
+
+
+·SignalType:枚举类 当前是什么原因导致的执行链终止的枚举
+ON_ERROR						//错误导致
+ON_COMPLETE						//正常执行完毕导致
+CANCEL							//取消导致(该执行状态可以通过take方法得到)
+
+·Hooks:
+onOperatorDebug() return void;				//开启调试模式 这样以后产生异常的时候就能增加一些调试信息了 这个方法应该在程序最开始的时候被调用(激活) 该方法是针对整个应用的方法 要想针对单个数据流链的调试需要使用checkpoint方法
+
+
+·WebFluxConfigurer:WebFlux的配置类,这里面有些是重名类
+configureContentTypeResolver(RequestedContentTypeResolverBuilder) return void;
+addCorsMappings(CorsRegistry) return void;
+configurePathMatching(PathMatchConfigurer) return void;
+addResourceHandlers(ResourceHandlerRegistry) return void;
+configureArgumentResolvers(ArgumentResolverConfigurer) return void;
+configureHttpMessageCodecs(ServerCodecConfigurer) return void;
+addFormatters(FormatterRegistry) return void;
+getValidator() return Validator;
+getMessageCodesResolver() return MessageCodesResolver;
+configureViewResolvers(ViewResolverRegistry) return void;
+
+·ServletHttpHandlerAdapter:该类是一个Servlet实现了Servlet接口 内部封装了一个HttpHandler
+
+·HttpHandler:顶级接口
+handle(ServerHttpRequest,ServerHttpResponse) return Mono<Void>;
+
+WebHandlerDecorator:实现了HttpHandler接口
+
+HttpWebHandlerAdapter:继承自WebHandlerDecorator,实现了HttpHandler接口
+
+·HttpMessage:顶级接口
+
+·HttpRequest:继承自HttpMessage接口
+getMethod() return HttpMethod;							//得到当前HTTP请求的请求方式
+getMethodValue() return String;							//得到当前HTTP请求的请求方式 String格式
+getURI() return URI;								//得到请求URI
+
+·ReactiveHttpInputMessage:继承自HttpMessage接口
+getBody() return Flux<DataBuffer>;						//得到请求体的DataBuffer?
+
+·ReactiveHttpOutputMessage:继承自HttpMessage接口
+
+
+·ServerHttpRequest:继承自HttpRequest、ReactiveHttpInputMessage接口 注意这个类重名了!! 该类应该等价于HttpServletRequest
+getId() return String;								//因为Spring Flux中一个请求会在多个线程中执行,所以不能单靠线程ID来记录,spring Flux为每一个请求都分配一个ID
+getPath() return RequestPath;							//返回封装请求路径以及URL编码值等信息的RequestPath实例
+getQueryParams() return MultiValueMap<String, String>;				//得到请求参数
+getCookies() return MultiValueMap<String, HttpCookie>;				//得到请求Cookie
+getRemoteAddress() return InetSocketAddress;					//得到封装请求的InetSocketAddress实例(JDK原生类)
+getSslInfo() return SslInfo;							//得到SSL证书
+mutate() return ServerHttpRequest.Builder;					//调用该方法创建ServerHttpRequest.Builder实例(默认是DefaultServerHttpRequestBuilder实现类)
+
+·ServerHttpRequest.Builder:ServerHttpRequest的内部类 用于构建ServerHttpRequest实例
+method(HttpMethod) return Builder;						//设置请求方法
+uri(URI) return Builder;
+path(String) return Builder;
+contextPath(String) return Builder;
+header(String,String...) return Builder;					//设置请求头信息
+headers(Consumer<HttpHeaders>) return Builder;					//设置请求头信息
+sslInfo(SslInfo) return Builder;						//设置SSL证书
+
+
+·ServerHttpResponse:继承自ReactiveHttpOutputMessage 该类应该等价于HttpServletResponse
+setStatusCode(HttpStatus) return void;						//设置响应码
+getStatusCode() return HttpStatus;						//得到响应码
+getCookies() return MultiValueMap<String, ResponseCookie>;			//得到相应Cookie
+addCookie(ResponseCookie) return void;						//添加响应Cookie
+
+·HttpCookie:顶级类,该类代表一个Cookie
+
+·ResponseCookie:响应Cookie 该类代表响应Cookie 该类有很多设置响应Cookie的方法
+
+·PathContainer:路径容器
+value() return String;
+elements() return List<Element>;						//这个Element是内部类
+
+·RequestPath:继承自PathContainer接口 SpringFlux依赖该接口进行请求路径的解析表达式(这里配合PathPattern食用)
+contextPath() return PathContainer;						//得到上下文路径
+pathWithinApplication() return PathContainer;					//得到应用程序路径
+modifyContextPath(String) return RequestPath;					//得到修改上下文路径
+static parse(URI,String) return RequestPath;
+
+·SslInfo:封装SSL证书的类
+getSessionId() return String;							//获取请求的SessionID
+getPeerCertificates() return X509Certificate[];					//获取请求的X509证书
+
+·ServerRequest:顶级接口(注意重名)
+bodyToMono(Class<? extends T>) return Mono<T>;					//例如bodyToMono(String.class)将请求正文提取到Mono<String>
+bodyToFlux(Class<? extends T>) return Flux<T>;					//例如bodyToMono(Person.class)将请求正文按照JSON/XML形式进行反序列化为对象
+body(BodyExtractor<T, ? super ServerHttpRequest>) return T;			//也可以通过ServerHttpRequest 例如BodyExtractors.toMono(String.class)
+
+BodyExtractors:工具类
+static toMono(Class<? extends T>) return BodyExtractor<Mono<T>, ReactiveHttpInputMessage>;		//
+static toFlux(Class<? extends T>) return BodyExtractor<Flux<T>, ReactiveHttpInputMessage>;		//
+static toFormData() return BodyExtractor<Mono<MultiValueMap<String, String>>, ReactiveHttpInputMessage>;		//如果调用该方法将返回值传入ServerRequest的body方法则根据泛型返回一个Mono<MultiValueMap<String, String>> 而MultiValueMap<String, String>就代表访问表单数据
+static toMultipartData() return BodyExtractor<Mono<MultiValueMap<String, Part>>, ServerHttpRequest>;			//访问客户端的文件上传
+static toParts() return BodyExtractor<Flux<Part>, ServerHttpRequest>;							//以流的方式访问上传的文件数据
+static toDataBuffers() return BodyExtractor<Flux<DataBuffer>, ReactiveHttpInputMessage>;				//访问Flux<DataBuffer>
+
+·ServerResponse:顶级接口(注意重名)该类实例是不可变对象
+status(HttpStatus) return BodyBuilder;				//设置响应码,返回一个BodyBuilder用于构建响应体
+created(URI) return BodyBuilder;				//构建带有地理位置的URI URI location = ServerResponse.created(location).build();
+writeTo(HttpServletRequest,HttpServletResponse,Context) return ModelAndView;		//Spring会回调该方法,该方法要包装返回ModelAndView
+
+·ServerResponse.HeadersBuilder<B extends HeadersBuilder<B>>:该接口指定了很多响应头的方法
+build() return ServerResponse;					//构建ServerResponse
+build(BiFunction<HttpServletRequest,HttpServletResponse,ModelAndView>) return ServerResponse;		//传入一个lambda表达式并构建一个ServerResponse Spring会回调ServerResponse的writeTo方法,然后该方法内部会回调BiFunction的apply方法 并把HttpServletRequest和HttpServletResponse传入,最后要保证apply方法返回ModelAndView
+
+·ServerResponse.BodyBuilder:该接口继承自HeadersBuilder<B extends HeadersBuilder<B>>
+contentLength(long) return BodyBuilder;
+contentType(MediaType) return BodyBuilder;			//设置媒体类型
+body(Object) return ServerResponse;				//设置响应体
+body(T,ParameterizedTypeReference<T>) return ServerResponse;	//设置响应体 agrs0:响应体(泛型) args1:代表响应体泛型的类 内部封装了一个Type
+
+
+ParameterizedTypeReference<T>:
+static forType(Type) return ParameterizedTypeReference<T>;	//根据Type返回指定的泛型
+
+
+·ClientRequest:顶级接口 用于客户端请求(WebClient)
+method() return HttpMethod;			 				//得到Http方法
+url() return URI;
+headers() return HttpHeaders;							//得到当前请求的请求头
+cookies() return MultiValueMap<String, String>;					//得到cookie
+attributes() return Map<String, Object>;					//得到当前request的attributes
+logPrefix() return String;							//得到日志前缀
+
+·ClientResponse:顶级接口 用于客户端响应(WebClient) 封装本次响应的信息
+bodyToFlux(Class<? extends T>) return Flux<T>;					//将响应体转为对应的泛型类似并包装在Flux中	
+
+·WebHandler:顶级接口 包含具有属性的用户会话、RequestAttributes、解决了Locale和Principal请求、访问已解析和缓存的表单数据 貌似应用程序只能配置一个BeanNmae:webHandler
+handle(ServerWebExchange) return Mono<Void>;
+
+DispatcherHandler:实现了WebHandler、ApplicationContextAware接口 该类实例是一个Bean BeanName需要指定为webHandler(来自spring官方文档)
+该类还检测一些特殊Bean:HandlerMapping、HandlerAdapter、HandlerResultHandler
+DispatcherHandler处理请求的流程如下:要求每一个HandlerMapping查询匹配的处理程序,并使用第一个->如果找到处理程序,则通过适当的HandlerAdapter执行该处理程序,该处理程序将执行返回的值公开为HandlerResult->通过直接写入响应或使用视图进行渲染,将HandlerResult赋予适当的HandlerResultHandler以完成处理
+
+·HandlerMapping:顶级接口和SpringMVC中的HandlerMapping不是同一个!该类实例主要用于被@RequestMapping注解修饰的Controller 直译过来是映射处理器
+getHandler(ServerWebExchange) return Mono<Object>;				
+
+·HandlerAdapter:顶级接口 帮助DispatcherHandler调用映射到请求的处理程序
+supports() return boolean;
+handle(ServerWebExchange,Object) return Mono<HandlerResult>;
+
+·HandlerResult:通过HandlerAdapter得到并包装到HandlerResultHandler中
+
+·HandlerResultHandler:顶级接口 处理来自处理程序调用的结果并最终确定响应 如果有异常则也通过该类处理(注意在SpringFlux中不能通过@ControllerAdvice来处理异常 只能通过@ExceptionHandler对单个类进行处理)
+supports(HandlerResult) return void;
+handleResult(ServerWebExchange,HandlerResult) return Mono<Void>;
+
+HandlerResultHandlerSupport:实现了Order接口
+
+AbstractMessageWriterResultHandler:抽象类继承自HandlerResultHandlerSupport
+
+ResponseEntityResultHandler:继承自AbstractMessageWriterResultHandler实现了HandlerResultHandler接口 用于解析ResponseEntity(通常来自@Controller)
+
+ServerResponseResultHandler:实现了HandlerResultHandler、InitializingBean、Ordered接口 用于处理ServerResponse
+
+ResponseBodyResultHandler:继承AbstractMessageWriterResultHandler实现HandlerResultHandler 用于处理@ResponseBody和@RestController
+
+ViewResolutionResultHandler:继承自HandlerResultHandlerSupport实现了HandlerResultHandler、Ordered 用于解析任何模型属性(例如String、View、Map等) 在springFlux中就是通过该类和视图解析器来处理的(通过调用handleResult方法完成)
+
+·HttpMessageWriterView:继承自View ViewResolutionResultHandler支持内容协商,它会匹配请求的媒体类型与每个选定的View进行比较,选择最匹配的第一个.为了支持JSON和XML之类的媒体类型,Spring Flux 提供了当前这个视图,这是一个特殊的视图通过HttpMessageWriter呈现.
+HttpMessageWriterView(Encoder<?>);				//该类构造器需要一个编码器
+HttpMessageWriterView(HttpMessageWriter<?>);			//该类构造器需要一个HttpMessageWriter(HTTP消息Writer)
+
+·ViewResolverRegistry:视图解析器注册器(注意重名) 下面是用于支持视图解析器解析除了HTML外的其余格式
+defaultViews(View...) return void;						//添加默认的视图View
+Jackson2JsonEncoder encoder = new Jackson2JsonEncoder();			//HTTP消息编码器(类详情在下方)
+registry.defaultViews(new HttpMessageWriterView(encoder));			//添加默认的视图(该视图用于支持JSON/XML)
+
+·RequestMappingHandlerMapping:Spring Flux还支持自定义映射规则,要想使用该功能需要创建一个子类并且覆盖getCustomMethodCondition方法 springboot自动配置会注册该类,该类实例可以再任意地方自动注入
+getCustomMethodCondition(Method) return RequestCondition<?>;
+registerMapping(RequestMappingInfo,Object,Method) return void;			//注册Handler以下展示了该如何配置
+    @Autowired
+    public void setHandlerMapping(RequestMappingHandlerMapping mapping, UserHandler handler) throws NoSuchMethodException {
+    RequestMappingInfo info = RequestMappingInfo.paths("/user/{id}").methods(RequestMethod.GET).build();		//准备请求映射的元数据
+    Method method = UserHandler.class.getMethod("getUser", Long.class);							//获取处理器方法
+    mapping.registerMapping(info, handler, method);									//添加注册
+}
+
+·RequestCondition<T>:
+combine(T) return T;
+getMatchingCondition(ServerWebExchange) return T;
+compareTo(T,ServerWebExchange) return int;
+
+·ServerWebExchange:顶级接口
+getFormData() return Mono<MultiValueMap<String, String>>;			//用于访问表单数据
+getMultipartData() Mono<MultiValueMap<String, Part>>;				//访问文件上传数据 该方法通过MultipartHttpMessageReader解析内容并将结果缓存 调用该方法后无法再从请求正文中读取原始原始内容(否则必须靠SynchronossPartHttpMessageReader来实现一次性访问Flux<Part>)
+getLogPrefix() return String;							//得到请求ID(日志ID)的完全格式化前缀
+
+DefaultServerWebExchange:ServerWebExchange接口的实现类
+static initFormData(ServerHttpRequest,ServerCodecConfigurer,String) return Mono<MultiValueMap<String, String>>;		//通过调用该方法将表单数据解析为Mono<MultiValueMap<String, String>> args1:通过调用ServerCodecConfigurer的getReaders方法得到的HttpMessageReader将表单数据解析为MultiValueMap
+static initMultipartData(ServerHttpRequest,ServerCodecConfigurer,String) return Mono<MultiValueMap<String, Part>>;	//通过调用该方法将上传的文件解析为MultiValueMap<String, Part> args1:通过调用ServerCodecConfigurer的getReaders方法得到的HttpMessageReader(实际上实现类是MultipartHttpMessageReader)将上传的文件解析为MultiValueMap
+getFormData() return Mono<MultiValueMap<String, String>>;			//用于访问表单数据 重写方法,内部实现基于initFormData方法
+
+
+·WebHttpHandlerBuilder:HttpHandler的构建器 该类没有公开的构造器
+static webHandler(WebHandler) return WebHttpHandlerBuilder;				//根据一个WebHandler构建WebHttpHandlerBuilder
+static applicationContext(ApplicationContext) return WebHttpHandlerBuilder;		//根据application构建WebHttpHandlerBuilder
+filter(WebFilter...) return WebHttpHandlerBuilder;					//注册WebFilter过滤器
+filters(Consumer<List<WebFilter>>) return WebHttpHandlerBuilder;			//过滤当前的过滤器(实现Consumer接口,回调的时候会自动传入注册的所有的WebFilter到Consumer接口的方法中)
+exceptionHandler(WebExceptionHandler...) return WebHttpHandlerBuilder;			//注册WebExceptionHandler
+exceptionHandlers(Consumer<List<WebExceptionHandler>>) return WebHttpHandlerBuilder;	//过滤当前的WebExceptionHandler
+sessionManager(WebSessionManager) return WebHttpHandlerBuilder;				//设置WebSessionManager 该实例只有一个
+codecConfigurer(ServerCodecConfigurer) return WebHttpHandlerBuilder;			//设置ServerCodecConfigurer 该实例只有一个
+localeContextResolver(LocaleContextResolver) return WebHttpHandlerBuilder;		//设置国际化上下文解析器
+hasLocaleContextResolver() return boolean;						//判断当前有没有国际化上下文解析器
+forwardedHeaderTransformer(ForwardedHeaderTransformer) return WebHttpHandlerBuilder;	//设置ForwardedHeaderTransformer
+
+build() return HttpHandler;				//构建HttpHandler 该方法最终返回的实现是HttpWebHandlerAdapter
+
+·WebFilter:顶级接口 Web过滤器 在WebHandler之前之后执行过滤(有点像Servlet的Filter) 可以直接注册到容器中,还可以通过@Order来实现过滤器优先级
+filter(ServerWebExchange,WebFilterChain) return Mono<Void>; 
+
+·WebExceptionHandler:顶级接口 提供对WebFilter过滤链和WebHandler的异常处理程序 可以直接注册到容器中,还可以通过@Order来实现过滤器优先级
+handle(ServerWebExchange,Throwable) return Mono<Void>;
+
+ResponseStatusExceptionHandler:WebExceptionHandler接口的实现类,提供对ResponseStatusException类型的异常的处理
+
+WebFluxResponseStatusExceptionHandler:用于支持@ResponseStatus注解
+
+·WebSessionManager:顶级接口 beanName:webSessionManager
+getSession(ServerWebExchange) return Mono<WebSession>;					//通过ServerWebExchange得到WebSession
+
+·WebSession:顶级接口
+getId() return String;
+getAttributes() return Map<String, Object>;
+getAttribute(String) return T;								//根据Key得到Value
+getRequiredAttribute(String) return T;							//获得必填属性(也就是调用该方法得到的value不能为null,否则需要/会报错)
+getAttributeOrDefault(String,T) return T;						//根据Key得到Value,如果没有就给个默认值
+start() return void;
+isStarted() return void;								//是否开始了
+changeSessionId() return Mono<Void>;
+invalidate() return Mono<Void>;
+save() return Mono<Void>;
+isExpired() return boolean;
+getCreationTime() return Instant;
+getLastAccessTime() return Instant;
+setMaxIdleTime(Duration) return void;
+getMaxIdleTime() return Duration;
+
+·CodecConfigurer:顶级接口 编码配置类 
+getReaders() return List<HttpMessageReader<?>>;						//得到HTTP消息编码器 可以直接往List中添加自已的HttpMessageReader
+getWriters() return List<HttpMessageWriter<?>>;						//得到HTTP消息解码器 可以直接往List中添加自已的HttpMessageReader
+
+·CodecConfigurer.DefaultCodecs:CodecConfigurer的内部类
+enableLoggingRequestDetails(boolean) return void;					//启用日志记录请求详细信息默认为false(为了脱敏)
+
+·ServerCodecConfigurer:继承自CodecConfigurer接口 直译过来是服务端编码配置 用于访问HttpMessageReader实例以解析表单数据和Multipart数据,然后通过ServerWebExchange上的方法公开这些数据 该类实例提供了一组默认的读取器和解析器 beanName:serverCodecConfigurer(这是一个Bean)
+static create() return ServerCodecConfigurer;						//默认情况下可以通过该方法创建ServerCodecConfigurer
+defaultCodecs() return ServerDefaultCodecs;						//设置默认的编码器
+
+·ServerCodecConfigurer.ServerDefaultCodecs:ServerCodecConfigurer接口的内部类 该接口继承自DefaultCodecs
+
+
+·ClientCodecConfigurer:继承自CodecConfigurer接口 通常用于配置和自定义要在应用程序中使用的编解码器
+
+
+·Encoder<T>:顶级接口(不是JDK的) 编码器 独立于HTTP编码和解码
+
+·Decoder<T>:顶级接口(不是JDK的) 解码器 独立于HTTP编码和解码
+
+·HttpMessageEncoder<T>:继承自Encoder<T> HTTP消息编码器
+
+·HttpMessageDecoder<T>:继承自Decoder<T> HTTP消息解码器
+
+·Jackson2JsonEncoder:HttpMessageEncoder的间接实现类
+
+·Jackson2JsonDecoder:HttpMessageDecoder的间接实现类
+
+·HttpMessageReader<T>:HTTP消息编码
+read(ResolvableType,ReactiveHttpInputMessage,Map<String, Object>) return Flux<T>;
+readMono(ResolvableType,ReactiveHttpInputMessage,Map<String, Object>) return Mono<T>;
+
+DecoderHttpMessageReader:实现了HttpMessageReader<T>接口,该类内部包装了一个Decoder<T>
+
+MultipartHttpMessageReader:继承自LoggingCodecSupport实现了HttpMessageReader<MultiValueMap<String, Part>> 支持对"Multipart/表单数据"内容进行解码和编码.依次将MultipartHttpMessageReader委派给另一个HttpMessageReader以便实际解析为Flux<Part> 该类用于解析客户端的文件上传
+
+SynchronossPartHttpMessageReader:继承自LoggingCodecSupport实现了HttpMessageReader<Part> 该类功能见上方
+
+·HttpMessageWriter<T>:HTTP消息解码
+write(Publisher<? extends T>,ResolvableType,MediaType,ReactiveHttpOutputMessage,Map<String, Object>) return Mono<Void>;
+
+EncoderHttpMessageWriter<T>:实现了HttpMessageWriter<T>接口,该类内部包装了一个Encoder<T>
+
+MultipartHttpMessageWriter:继承自LoggingCodecSupport实现了HttpMessageWriter<MultiValueMap<String, Part>>
+
+·ForwardedHeaderTransformer:这是个类 用于转发 beanName:forwardedHeaderTransformer 该过滤器用于过滤不受信任的转发(比如反向代理时就很有用)
+
+·DataBuffer:顶级接口 Spring5新增 用来提取不同的字节缓冲区表示形式 这个接口在SpringFlux中也很重要,详情看SpringCore的官方文档
+
+·Rendering:顶级接口 通过该类实例重定向
+view() return Object;
+modelAttributes() return Map<String, Object>;
+status() return HttpStatus;						//得到响应码
+headers() return HttpHeaders;						//得到响应头
+view(String) return Builder<?>;						//设置逻辑视图名称
+redirectTo(String) return RedirectBuilder;				//设置重定向
+
+·Rendering.Builder<B extends Builder<B>>:
+modelAttribute(String,Object) return B;
+modelAttribute(Object) return B;
+modelAttributes(Object...) return B;
+model(Map<String, ?> map) return B;
+status(HttpStatus) return B;
+header(String,String...) return B;
+headers(HttpHeaders) return B;
+build() return Rendering;						//构建Rendering
+
+·Rendering.RedirectBuilder:
+contextRelative(boolean) return RedirectBuilder;
+propagateQuery(boolean) return RedirectBuilder;
+
+·PathPattern:实现了Comparable<PathPattern>接口 该类内部组合了一个PathPatternParser
+在SpringWebFlux中使用这两个类来进行路径匹配,需要注意的是这两个类不支持后缀匹配(后缀匹配在上面)
+
+PathPatternParser:
+
+·HandlerFunction<T extends ServerResponse>:在Spring Flux中Spring通过当前接口处理请求,它接收一个ServerRequest并延迟返回ServerResponse及其子类 该接口就相当于Controller层中的@RequestMapping方法主体
+handle(ServerRequest) return T;
+
+·RouterFunction:用于路由请求 路由功能按顺序评估:如果第一个路由不匹配,则评估第二个路由,依此类推 该类一般不用自已实现
+
+·RouterFunctions:用于构建RouterFunction
+route() return RouterFunctions.Builder;
+add(RouterFunction<ServerResponse>) return RouterFunctions.Builder;			//添加一种路由 相当于责任链模式一样的
+
+RouterFunction<ServerResponse> route = route()
+    .GET("/person/{id}", accept(APPLICATION_JSON), handler::getPerson)			//添加请求映射
+    .GET("/person", accept(APPLICATION_JSON), handler::listPeople) (2)
+    .POST("/person", handler::createPerson)
+    .add(otherRoute)
+    .build();
+
+对于我们需要注意的是SpringFlux既支持注解式的开发又支持这种类似编程式的开发.
+
+·RouterFunctionMapping:在Spring配置中检测一个或多个RouterFunction<?> bean,通过RouterFunction.andOther组合它们,并将请求路由到生成的RouterFunction
+
+·HandlerFunctionAdapter:简单的适配器,它使DispatcherHandler调用Map到请求的HandlerFunction
+
+·ServerResponseResultHandler:通过调用ServerResponse的writeTo方法来处理HandlerFunction调用的结果 你会发现这三个类有点类似上面的三个类HandlerMapping、HandlerAdapter
+
+·RequestedContentTypeResolverBuilder:请求类型解析器构建器 该类可以配置SpringFlux格根据Controller确定请求媒体类型,默认情况下只从请求头中获取.
+
+
+在Spring Flux中支持的Controller入参:
+ServerWebExchange:访问完整的ServerWebExchange容器,以获取HTTP请求和响应,请求和会话属性.
+ServerHttpRequest、ServerHttpResponse:访问HTTP请求或响应
+WebSession、Principal、HttpMethod、Locale、TimeZone、ZoneId、@PathVariable、@MatrixVariable、@RequestParam
+在Spring Flxu中支持的Controller返回值:
+Rendering:用于模型和视图渲染方案的API
+Flux<ServerSentEvent>、Observable<ServerSentEvent>或其他响应式类型发送服务器发送的事件
+
+@PostMapping("/")
+public String handle(@RequestBody Flux<Part> parts) {				//以流的方式访问上传的文件数据
+}
+
+@PostMapping("/accounts")
+public void handle(@RequestBody Mono<Account> account) {			//在WebFlux中@RequestBody方法参数支持响应类型以及完全无阻塞的读取和(Client端到服务器)流
+}
+
+在SpringFlux中参数校验错误会导致WebExchangeBindException异常(@Valid)
+
+打包操作符:
+public void testTransform() {    
+    Function<Flux<String>, Flux<String>> filterAndMap =
+	f -> f.filter(color -> !color.equals("orange"))
+	    .map(String::toUpperCase);
+
+    Flux.fromIterable(Arrays.asList("blue", "green", "orange", "purple"))
+	.doOnNext(System.out::println)
+	.transform(filterAndMap)
+	.subscribe(d -> System.out.println("Subscriber to Transformed MapAndFilter: "+d));
+}
+
+可变的打包操作符:
+public void testCompose() {
+    AtomicInteger ai = new AtomicInteger();
+    Function<Flux<String>, Flux<String>> filterAndMap = f -> {
+        if (ai.incrementAndGet() == 1) {
+            return f.filter(color -> !color.equals("orange"))
+                    .map(String::toUpperCase);
+        }
+        return f.filter(color -> !color.equals("purple"))
+                .map(String::toUpperCase);
+    };
+
+    Flux<String> composedFlux =
+            Flux.fromIterable(Arrays.asList("blue", "green", "orange", "purple"))
+                    .doOnNext(System.out::println)
+                    .compose(filterAndMap);
+
+    composedFlux.subscribe(d -> System.out.println("Subscriber 1 to Composed MapAndFilter :" + d));
+    composedFlux.subscribe(d -> System.out.println("Subscriber 2 to Composed MapAndFilter: " + d));
+}
+这个例子中,filterAndMap函数式有一个名为ai的会自增的状态值.每次调用subscribe方法进行订阅的时候,compose会导致ai自增,从而两次订阅的操作链是不同的.
+如果把compose方法换成transform方法则两个订阅者最后打印的内容是一致的.
+
+热生产者:
+
+@Test
+public void testHotSequence() {
+    UnicastProcessor<String> hotSource = UnicastProcessor.create();
+
+    Flux<String> hotFlux = hotSource.publish()
+            .autoConnect()
+            .map(String::toUpperCase);
+
+
+    hotFlux.subscribe(d -> System.out.println("Subscriber 1 to Hot Source: "+d));
+
+    hotSource.onNext("blue");
+    hotSource.onNext("green");
+
+    hotFlux.subscribe(d -> System.out.println("Subscriber 2 to Hot Source: "+d));
+
+    hotSource.onNext("orange");
+    hotSource.onNext("purple");
+    hotSource.onComplete();
+}
+打印结果:
+Subscriber 1 to Hot Source: BLUE
+Subscriber 1 to Hot Source: GREEN
+Subscriber 1 to Hot Source: ORANGE
+Subscriber 2 to Hot Source: ORANGE
+Subscriber 1 to Hot Source: PURPLE
+Subscriber 2 to Hot Source: PURPLE
+这个例子中,hotSource发出两个元素后第二个订阅者才开始订阅,所以第二个订阅者只能收到之后的元素,这就是热生产者.
+
+
+---------------------------------------------------------------------SpringBoot----------------------------------------------------------
+springboot可以先从@Enable*注解开始
+
+
+·WebMvcAutoConfiguration:当使用@EnableAutoConfiguration注解后,Springboot会自动加载导入一些类,比如当前这个WebMvcAutoConfiguration类
+DelegatingWebMvcConfiguration类虽然被@Configuration注解修饰,也有很多@Bean方法(从WebMvcConfigurationSupport继承)完成各种组件的注册并将所有ViewResolver添加到容器中,但是DelegatingWebMvcConfiguration类本身并不会被扫描到.该类内部有个静态内部类EnableWebMvcConfiguration,该类就继承自DelegatingWebMvcConfiguration 这就是的DelegatingWebMvcConfiguration中所有的@Bean方法会被调用(根据上面所说的通过@Bean方法去驱动WebMvcConfigurer接口的方法)
+该类通过读取ResourceProperties类中的配置来自动创建静态资源映射规则,详情看看这个类一切自然懂
+该类通过读取WebMvcProperties类中的配置来配置PathMatchConfigurer等
+
+·MultipartAutoConfiguration:对于MultipartResolver的自动配置 
+在springboot中spring会默认创建StandardServletMultipartResolver作为文件上上传解析器实现 在创建的时候spring会读取MultipartProperties的配置,所以如果要定制文件上传解析器只要通过application.yml来定制MultipartProperties即可(比如文件的编码、上传单个文件的最大值byte单位等等)
+
+·ServletWebServerFactoryAutoConfiguration:
+在springboot中会自动注册ForwardedHeaderFilter过滤器(继承自OncePerRequestFilter),该过滤器用于过滤不受信任的转发(比如反向代理时就很有用) 但是在spring5中应该摒弃ForwardedHeaderFilter而是使用ForwardedHeaderTransformer
+
+
+
+
+
+
+
+
+
+spring默认会加载resources文件夹下的spring.properties配置文件,这些配置可以通过SpringProperties类来获取.
+我们可以在spring.properties中添加配置spring.spel.ignore=false来使得SPEL(spring的EL表达式)不生效
+org.graalvm.nativeimage.imagecode=true来使用简单的Bean实例化策略,spring默认使用CGLIB实例化Bean.
+
+注意假设现在A继承B,A实现接口C,C有一个run()方法,B也有一个run()方法,虽然表面上B并没有实现接口C,但是在A眼里,A已经实现了接口C的run()方法.
+
+
+
+
+@ConstructorProperties({"years", "ultimateAnswer"})
+public void test(int test,int test){}
+该注解用于修饰方法,指代方法的参数名称是什么.例如这里就代表参数一名称为years,参数二的名称为ultimateAnswer.
+
+对于当前类必要的依赖,推荐通过构造器注入.对于当前类非必要依赖,这些依赖有默认的依赖,可以通过setter来注入.
+
+
+@PostConstruct:被该注解修饰的方法,会在bean被初始化之前回调该方法
+@PreDestroy:被该注解修饰的方法,会在bean被销毁之前回调该方法.当然这两个注解也可以被XML替代.
+@Bean:在springboot中,也可以通过@Bean注解的initMethod注解方法来指定初始化方法.
+
+bean的生命周期:初始化-使用-销毁
+spring容器的生命周期:
+
+
+LifecycleProcessor该接口继承自Lifecycle扩展了,当application onRefresh和onClose是会回调.
+onRefresh() return void;	//刷新application时回调
+onClose() return void;		//正在关闭application
+
+SmartLifecycle:对于auto-startup的bean需要单独实现该接口,不可以直接使用上述接口.该接口继承自Lifecycle、Phased
+isAutoStartup() return booolen;
+stop(Runnable) return void;		//任何该接口的实现类,完成shutdown之后就会调用Runnable的run方法完成回调.
+
+Phased:
+getPhase() return int;
+
+@Autowired:该注解的作用不细说
+@Required:该注解的作用类似@Autowire,但是在创建Bean的时候必须依赖注入,如果不注入会报错.当然可以通过@Autowired(required=false)达到
+@Required的效果
+@Resouce:也是表示注入,但是只支持注入属性和单参数的setter方法.
+
+可以定义一个注解,该注解又被@Qualifier注解修饰,@Qualifier注解的作用不多说了.是限制注入特定bean name的bean.通过自定义注解就添加更多注入的限制条件.
+
+之前说过,如果通过@Component、@Repository、@Service、@Controller,spring就会帮我们去实例化并存放到IOC容器中.这个bean的名称默认就是类名的首字母小写(如果不手动指定bean名称的话),首字母小写是spring默认的生成规则,可以实现BeanNameGenerator接口的方法并提供无参构造器来自定义默认的bean名称的指定规则.
+
+作用域:就是这个bean是单例的还是多利的还是session的还是什么.同样的我们可以自定义自已的作用域,只需要实现ScopeMetadataResolver接口.
+
+除了通过方法切入的方式指定动态代理外,还可以通过@ComponentScan注解指定.通过这种方式可以指定非单例bean的动态代理.
+
+只推荐在@Configuration注解中使用@Bean.@Configuration类不能是final的,它们应该拥有空构造.
+@Profile("dev")注解配合@Configuration一起使用,通过里面的value值表明当前被@Configuration修饰的配置类在什么环境下生效.该注解同样可以配合@Bean一起使用,代表在什么环境下才向容器中注册该bean.
+
+通过@Bean注入到容器中的Bean,在bean销毁时会自动回调close()或者shutdown()方法.如果不想spring回调这两个方法通过设置@Bean(destroyMethod="")来避免.实际上destroyMethod应该指代销毁时会调用哪个方法.
+
+讲一下什么是回调,回调男上位女上位.
+
+@Bean
+@Description("Provides a basic example of a bean")			//给Bean添加描述
+public Foo foo() {
+    return new Foo();
+}
+
+注入内部bean依赖:
+@Configuration
+public class AppConfig {
+
+    @Bean
+    public Foo foo() {
+        return new Foo(bar());		
+//FOO依赖内部的Bar bean.这种方式只能用在@Configuration类上.不能用于@Component.注意@Component类中也是可以@Bean的.
+    }
+
+    @Bean
+    public Bar bar() {
+        return new Bar();
+    }
+
+}
+
+自调用不会通知相关的切面.
+
+如何判断一个Field(属性)是公开的?
+int modifiers = field.getModifiers();		//调用field类的getModifiers方法返回一个代表修饰符的编码值
+
+Modifier类的静态方法:
+isPublic(int) return boolean;			//agrs0:输入上面获得的属性的编码值.返回当前属性是否是公开的
+isStatic(int) return boolean;			//当前属性是否是静态的
+isFinal(int) return boolean;			//当前属性是否是常量
+
+
+spring官方文档名词解释:
+class:类型
+classes:类型们
+object:特指实例对象
+objects:对象们
+IOC也称为依注入DI
+arguments:参数们
+process:过程
+Constructor:构造器
+setter/getter:get/set方法
+injection:注入
+configuration:也就是通常所说的@configuration的功能,@configuration之前说过和spring XML的作用是一样的,这里就指代spring的XML配置文件
+reference:依赖
+property:配置,指代spring调用setter方法.
+原型=多利
+client:指代使用spring框架的程序员(项目)
+Provider:生产者
+dependency:依赖
+dependency-injected:DI依赖注入
+Java configuration:特指java代码注解 例如@Bean、@Configuration
+什么叫耦合到spring?如果项目删掉spring还能照样运行.比如我的类实现了spring的接口,这就叫和spring耦合了.因为此时我是依赖于spring的.
+time:时机
+feature:特征
+qualifier:限定符
+所谓环境就是值不同的环境,例如:开发环境、部署环境等
+
+

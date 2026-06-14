@@ -1,0 +1,376 @@
+							Maven
+·作用:
+1.管理jar包
+	a.增加第三方jar
+	b.如果jar包之间有依赖关系,一个jar包依赖于另外一个jar包.比如mybatis依赖JDBC.只要你导入mybatis,maven就自已关联下载JDBC
+		maven下载的jar包不会冲突,而且保证准确.
+2.将一个整体项目拆分成多个模块.
+	
+·概念:
+maven是一个基于java平台的 自动化构建工具
+
+maven可以:
+清理:删除编译的结果,为重新编译做准备
+编译:java->class
+测试:针对项目中的关键点进行测试,也可以用 项目中的测试代码 去测试开发代码
+报告:将测试的结果 进行显示
+打包:将项目中包含的多个文件 压缩成一个文件,用于安装和部署
+安装:将打包的文件 放到本地仓库
+部署:将打包的文件 放到 服务器上准备运行
+
+
+自动化构建工具maven:将原材料(java、js、css、html、图片)->产品(可发布项目)
+
+仓库这个概念:
+大体来分分为:本地仓库和远程仓库
+
+本地仓库:本地仓库
+远程仓库:中央仓库、中央镜像仓库、私服(nexus)
+
+本地仓库:本地仓库有jar包,直接拿过来用,如果没有就去网上下载
+中央仓库:总的仓库
+中央仓库镜像:放置访问中央仓库的流量太大,对中央仓库进行分流.
+私服(nexus):对于一个公司而言不需要多次下载相同的jar包
+
+原本每个开发人员,如果需要用到一个jar包,本地仓库没有的话,就去中央仓库下载.现在在中央仓库下建立一个私服,对于一个公司而言.如果张三需要使用mybatisjar包,现在他先从本地仓库查看是否拥有,没有后又从公司的私服上查看是否有jar包,也没有的话,就从中央仓库下载.现在另外的开发人员李四,也想使用mybatisjar包,本地仓库没有,紧接着访问私服,发现有就直接拿过来用,不需要再去中央仓库上下载了.
+
+·配置Maven
+
+1.配置MAVEN_HOME	D:\maven
+2.配置path		%MAVEN_HOME%\bin	
+3.验证			mvn -v
+4.配置本地仓库	在maven文件中打开conf文件中的setting文件	搜索repository 找到 Default: ${user.home}/.m2/repository
+在文件中新增代码 <localRepository>D:/maven仓库</localRepository>
+
+·使用maven
+约定优于配置
+
+maven约定的目录结构:
+
+main	执行项目
+test	测试项目
+
+创建模块:
+此时原本项目的名称现在变为模块的名称.模块下面有src目录,src目录下面有main和test.main和test目录下面好还有java和resources目录.
+java目录就放java代码,resources就放资源文件.
+
+
+
+ -src 
+	--main				执行代码
+		--java			java代码
+		--resources		资源文件
+	
+	--test				测试代码
+		--java
+		--resources
+	
+ pom.xml	项目对象模型 类似于DOM,DOM是将javabean对象看做一个节点 pom就是将项目看做一个节点 pom文件存放在src目录下
+
+ target		和src目录在同一目录下
+
+
+
+·pom.xml文件:
+<modelVersion>4.0.0</modelVersion>		 模型版本,不管
+
+gav:坐标	通过这个坐标可以定位一个模块或者jar包的路径
+<groupId>com.hytcshare</groupId>		类似于包名,域名的反转+模块名(大的项目名)
+<artifactId>jerry-web-spider</artifactId>	子模块(模块名称)
+<version>0.0.1-SNAPSHOT</version>		当前版本号	SNAPSHOT:快照
+
+这里你可以理解成,将com.hytcshare称为一个大的项目(实际上也就是一个目录 com/hytcshare ),在这个目录下有很多模块,比如jerry-web-spider是其中的一个模块.jerry-web-spider实际上也是一个目录(文件夹名字就叫jerry-web-spider,所以项目名称也叫jerry-web-spider).
+
+	
+<name>	</name>					和子模块的名称一致
+<description> </description>		依赖 比如mybatis需要依赖JDBC 就称为mybatis依赖jdbc 也就是你这个模块需要哪些jar包
+具体内容,之前我们在github上就看到一些如果你使用的是maven,就粘贴什么什么内容,具体内容复制就完事了.一般这些内容在maven官网上一搜索就可以看到了.
+
+一个依赖的例子:
+<dependency>
+	<groupId>com.alibaba</groupId>
+	<artifactId>fastjson</artifactId>
+	<version>1.2.35</version>
+	<scope>test</scope>			依赖范围
+</dependency>
+dependency标签下,依旧是gav指定一个坐标.
+
+另外如果使用UTF-8编码,可能会报错:
+//使用UTF-8编码
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.encoding>UTF-8</maven.compiler.encoding>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+    </properties>
+
+1.依赖的范围:
+假如这里本地仓库有个a.jar包,设置这个jar包的scope,可以在不同的阶段有不同的依赖.
+compile(默认):在编译、测试、运行时都可以获取到A.jar
+test:只能在测试时使用该jar包
+provided:在编译、测试时可以获取到A.jar.如果一个项目是基于tomcat来运行的,在项目真正运行的时候(运行在Tomcat),Tomcat也自带了很多jar包.就不需要把重复的jar包写进去了.
+
+这里的编译、测试对应下面的mvn compile和mvn test阶段.对于运行,如果一个项目是基于tomcat来运行的,在项目真正运行的时候(运行在Tomcat),Tomcat也自带了很多jar包.
+
+2.依赖排除:
+前面说过,如果A.jar的某些类的使用需要依赖于B.jar(是整体来看的,就是A.jar整个类只要有需要依赖B.jar的类,maven就直接也引入B.kar),但是现在我的使用不需要用到B.jar.此时就需要使用依赖排除.
+
+这里我是用junit的@Test注解来测试,但是maven会自动引入1个junit包和3个依赖包.但是使用@Test只需要一个依赖包,所以需要在pom.xml中配置
+
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>		//原本引入的jar包
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>RELEASE</version>
+            <scope>test</scope>
+
+            <exclusions>			//依赖排除标签
+
+                <exclusion>			//需要排除一个就写一个
+                    <groupId>org.opentest4j</groupId>	//坐标,只要写两个这里 g 和 a
+                    <artifactId>opentest4j</artifactId>
+                </exclusion>
+
+                <exclusion>
+                    <groupId>org.apiguardian</groupId>
+                    <artifactId>apiguardian-api</artifactId>
+                </exclusion>
+
+            </exclusions>
+
+        </dependency>
+    </dependencies>
+
+3.依赖的传递性:
+模块A依赖于模块B,模块B依赖C.jar.
+理论上来讲模块A现在也依赖于C.jar.但实际上并不是这样的,这个取决于模块B和C.jar直接的关系.
+要使A模块依赖于C.jar,那么B模块依赖的C.jar的依赖性就必须是compile.
+
+4.依赖原则:防止冲突
+a.路径最短优先原则
+用上面的例子,现在模块A依赖于模块B,模块B依赖的C.jar包之间的依赖关系是compile.那么模块A现在也要依赖于C.jar.假如C.jar的版本是4.0
+现在我在模块A中的pom.xml文件中依赖C.jar,不过版本不同,是3.8版本的.那么现在模块A就不会依赖4.0版本的.
+A->B->C
+|
+C
+此时会使用A直接到C(3.8),而不会使用A到B,在从B到C.
+
+b.路径长度相同:
+i.
+假如A模块即依赖 E 又依赖F 则:
+F
+|
+A->E
+此时路径都是一样长的.
+
+在相同的一个pom.xml文件中有两个相同的依赖:后面声明的依赖会覆盖前面的依赖.
+(但实际上这是一个bug,严谨在一个pom里面声明两个相同的jar)
+
+ii.
+假如A模块依赖两个模块 B和C,而B和C模块有同时依赖 D.jar,不过两个D.jar的版本不同.而且B和C与D.jar的依赖关系都是compile
+
+A->B->D.jar(3.8)
+|
+C->D.jar(4.0)
+
+此时取决于是想依赖B还是先依赖C,先声明的模块会覆盖后声明的模块.也就是看A模块的pom文件中,<dependency>标签依赖的模块哪个在前,就用哪个.
+
+5.通过maven统一jdk版本:
+    <profiles>
+        <profile>
+            <id>jdk12</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+                <jdk>12</jdk>		//jdk版本
+            </activation>
+            <properties>
+                <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+                <maven.compiler.encoding>UTF-8</maven.compiler.encoding>
+                <maven.compiler.source>1.8</maven.compiler.source>
+                <maven.compiler.target>1.8</maven.compiler.target>
+            </properties>
+        </profile>
+    </profiles>
+
+6.统一版本编号
+<dependency>
+	<groupId>com.alibaba</groupId>
+	<artifactId>fastjson</artifactId>
+	<version>1.2.35</version>
+	<scope>test</scope>			
+</dependency>
+如果项目需要依赖的jar包过多,有些时候需要找到一个jar,然后修改版本比较麻烦,可以使用一个变量.
+
+在properties标签中添加子标签:
+<properties>
+        <junit.version>5.5.0</junit.version>	这就相当于一个变量,junit.version是变量名称,子标签中间的内容就是版本号	
+</properties>
+
+然后使用变量:
+<dependency>
+	<groupId>org.junit.jupiter</groupId>
+	<artifactId>junit-jupiter-api</artifactId>
+	<version>${junit.version}</version>		//动态的引用版本号,使用方法类似mybatis的占位符.
+	<scope>test</scope>			
+</dependency>
+
+7.继承:
+之前使用依赖的时候,假如模块A依赖模块B,模块B依赖C.jar.那么A是否依赖C.jar主要看模块B和C.jar直接的依赖范围.但是这样对于模块A而言太麻烦了,如果pom文件引用的包过多就眼花缭乱.
+现在使用继承,只要模块A继承模块B,那么模块A就一定能引用模块B里面所有的jar包.
+
+创建父类工程:
+注意该工程只是用于管理jar包,并不会参与项目的代码部分.
+
+创建步骤:
+创建maven项目,勾选create form archetype,并选中org.apache.maven.archetypes:maven-arachetype-site-simpile(站点)
+注意创建出来的工程没有src目录,根据定义这个工程应该只有pom文件用来配置jar包.
+
+创建子类工程步骤:
+在刚才建完的父类工程上,右键新建一个module.groupId会自动填写好,不同的就是你模块的名称.注意子模块的路径在父类工程的里面.
+
+idea会自动配置好父类工程和子类工程的pom文件.
+
+声明子工程要用的父工程的哪些jar包:
+父工程是对于整个项目而言,所以父类工程里的jar包是所有子工程的jar包合集,那么其中的某一个模块,如果不声明的话,子工程会用到父工程的所有jar包,显然是没必要的,所以子工程也要声明需要用到父工程的哪些jar包.
+
+此时在父工程中引入jar包需要再嵌套一层:dependencyManagement
+
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
+另外父工程要声明子工程:
+    <groupId>org.testmaven</groupId>
+    <artifactId>father</artifactId>
+    <packaging>pom</packaging>		//格式必须是pom
+    <version>1.0-SNAPSHOT</version>
+    <modules>
+        <module>music</module>
+    </modules>
+
+此时在子工程的pom文件中的dependencies标签添加子标签:
+
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>		
+            <artifactId>junit-jupiter-api</artifactId>		//不需要声明版本,版本自动依赖父工程的版本.
+        </dependency>
+    </dependencies>
+
+另外子工程要生成父工程:
+    <parent>					//父工程标签
+        <artifactId>father</artifactId>
+        <groupId>org.testmaven</groupId>
+        <version>1.0-SNAPSHOT</version>
+        <relativePath>../../father/pom.xml</relativePath>	//执行当前工程对于父工程的相对路径
+    </parent>
+
+8.聚合:
+现在我有创建了一个father项目的子项目:picture
+
+在编译器的帮助下:
+我想让picture模块依赖于music模块,注意这种依赖是动态的依赖.只要music模块的代码发生了改变,picture模块可以不需要进行任何操作就能立即得到改变.
+
+在picture模块中引入music模块,也是根据坐标来实现的.
+   <dependencies>
+        <dependency>
+            <groupId>org.testmaven</groupId>
+            <artifactId>music</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+    </dependencies>
+
+但此时picture在idea中运行时没有问题的,但是如果使用cmd来运行就会报错.原因就是真正运行的时候运行的是字节码文件,picture模块中并没有music模块的代码,所以还是要想之前那样,将music模块打包成jar包,上传到本地仓库,然后再让picture模块引用.因为picture模块只能识别自身和本地仓库的jar包.
+
+使用聚合一次性搞定:
+<packaging>pom</packaging>		指定当前模块的打包方式是pom(总工程的打包方式必须为pom)
+<modules>
+	<module>../music</module>	运行当前模块之前先调用的模块
+</modules>
+
+这样就不会运行失败了
+
+
+
+
+·配置完pom.xml就运行pom文件:
+常用命令大全:如果是第一个使用maven命令,需要去中央仓库下一些jar包用来支持maven .
+mvn compile	编译
+mvn test	测试
+mvn package	打包
+mvn install	共享模块
+mvn clean	删除target(target目录是用来存放编译文件的)
+
+编译:
+找到pom.xml文件,在该目录下调用cmd.输入 mvn compile.
+mvn compile是一个编译命令,会编译当前模块的java文件(但只会编译main目录下的文件),如果在编译的过程中发现,你的模块需要依赖某个jar包.于是乎就根据<dependency>标签定位本地仓库看有没有这个jar包,如果没有就去中央仓库下载.
+当其余操作完成时(下载完依赖jar包),会在项目内创建target文件夹(和src目录存放在同一目录下).然后将main目录下编译后的字节码文件放到target文件的子目录classes文件夹下.包也会对应(此时classes目录就相当于main目录,会把main目录下的所有内容都复制到classes目录下,并且把main文件的所有java代码编译成class字节码文件).
+
+测试:
+还是在刚才的目录下 输入mvn test
+和main目录的操作类似,此时会在target文件下创建test-classes,这个文件就用来存储test目录下所有编译的字节码文件.
+
+打包:
+还是在刚才的目录下 输入mvn package
+使用该命令的前提是,需要测试通过,才能打包.
+
+作用:将模块打包成一个jar文件.存放到target目录下.
+
+共享模块:
+还是在刚才的目录下 输入mvn install
+将刚才打包好的jar包放入本地仓库里面,供别人使用.
+放入的位置也是通过模块的pom.xml里面定义的gav坐标决定的.
+
+删除target:
+还是在刚才的目录下 输入mvn clear
+作用:删除target文件(删除编译的文件)
+
+
+
+·之前都是使用cmd来操作maven,现在使用idea来操作maven.
+1.创建完maven工程之后,记得到setting选项中设置好maven目录、maven仓库、maven setting.xml文件指定具体的目录
+
+如何在idea中运行maven命令:
+点击idea右上角绿色运行按钮左边的方框,点击Edit Configurations.点击弹出的对话框的左上角的+,选择maven.在右侧的command line中输入你需要的maven命令.
+
+修改完pom.xml之后记得刷新:
+如果你在pom.xml文件中引入新的jar包,那么你需要右键项目,点击maven,刷新项目.
+
+如何合并多个模块:
+假如现在模块A想要调用模块B里面的类,需要先将模块B打包成jar包,并且上传到本地仓库(或者私服),然后模块A再在pom.xml文件中配置,引入模块B,刷新后.模块A就可以使用模块B的类.
+
+·maven生命周期:
+当我们执行package命令的时候,会连带resources、compile、test连带着一起执行.这个就称之为maven生命周期.
+
+加入现在有 a b c d e 这五个命令 如果要执行 c命令 会先执行a在执行b最后执行c 
+
+生命周期:顺序
+resources
+compile
+test
+package
+
+生命周期包含的阶段:3个阶段
+clean lifecycle :清理
+default lifecycle:默认
+site lifecycle:站点
+
+·断言测试:
+Assertions.assertEquals(Object expected, Object actual)
+
+
+
+
+
+
+
+
+
+
+
+
+
+

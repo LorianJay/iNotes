@@ -1,0 +1,536 @@
+·介绍:							JDBC
+JDBC(Java DataBase Connectivity,java数据库连接)是一种用于执行SQL语句的Java API，可以为多种关系数据库提供统一访问，它由一组用Java语言编写的类和接口组成。JDBC提供了一种基准，据此可以构建更高级的工具和接口，使数据库开发人员能够编写数据库应用程序，同时，JDBC也是个商标名。
+sun公司由于不知道各个主流商用数据库的程序代码,因此无法自已写代码连接各个数据库,因此sun公司决定,自已提供一套api,范式数据库想与java进行连接的,数据库厂商自已必须实现jdbc这套接口.而数据厂商的jdbc实现,我们就叫他此数据库的数据库驱动.
+·JDBC的本质:
+(首先要加载驱动管理器)实际上就是通过java连接mysql服务器(scoket连接),然后通过java向mysql发送一些sql语句,mysql返回结果给java.
+
+·Driver接口:
+Driver接口由数据库厂家提供,对于java开发者而言,只需要使用Driver接口就可以了
+在编程中要连接数据库,必须先装载特定厂商的数据库驱动程序.不同的数据库有不同的装载方法.
+驱动:就是各个数据库厂商实现的sun公司提出的jdbc接口.即对Commection等接口的实现类的jar文件
+-装载mysql驱动:
+Class.forName("com.mysql.jdbc.Driver");
+·需要引入的jar包:
+compile group: 'mysql', name: 'mysql-connector-java', version: '8.0.16'
+
+·使用到的数据表:
+id int 主键约束 自增 不为null 
+name varchar 不为null
+password varchar 不为null
+regTime datetime 不为null
+
+目录:
+1.与数据库建立连接
+2.JDBC常用接口
+3.事务
+4.时间类型
+5.查询删除修改增加数据的方法
+6.CLOB和BOLB(存储二进制数据(任意文件))
+
+
+1.与数据库建立连接:
+
+//1.创建驱动加载Driver接口
+Class.forName("com.mysql.jdbc.Driver");
+
+//2.通过DriverManager建立与数据库的连接getConnection()方法返回Connection类.建立连接比较耗时,真正开发中会使用连接池来提高效率
+Connection connection = DriverManager.getConnection("","","");	传入三个形参
+三个字符串形参模板:
+"jdbc:mysql://localhost:port/database?serverTimezone=UTC","root","password"
+
+替换元素:
+localhost:数据库ip地址
+port:端口号
+database:连接的数据库名称
+root:用户名
+password:密码
+
+Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/testjdbc?serverTimezone=UTC","root","13218526138");
+
+
+3.通过connection创建常用类
+
+4.关闭流
+connection.close();
+
+
+2.JDBC常用接口:
+目录:
+1.Connection
+2.Statement:用得少	
+3.PreparedStatement:Statement的子接口	用得最多
+4.CallableStatement:Statement的子接口
+5.ResultSet:本质上也是个迭代器
+6.关闭Connection和各种类的流.遵循IO流的先开后关,后开先关.
+7.完整代码一遍:
+8.批处理(Batch)
+
+1.Connection:
+类方法:
+createStatement()		创建Statement对象.返回值Statement
+prepareStatement(String sql)	sql:预加载sql语句	创建PreparedStatement对象,返回值PreparedStatement	
+setAutoCommit(boolean autoCommit)	autoCommit:是否自动提交业务	true:自动提交(默认值)	false:手动提交
+commit()			手动提交业务
+rollback();				回滚
+
+
+2.Statement:
+创建Statement类:通过刚才创建好的Connection类的createStatement()方法,返回一个Statement类
+
+常用方法:
+execute(String sql);		sql:sql语句
+executeQuery(String sql);	sql:sql语句(只限于select)	返回ResultSet接口
+executeUpdate(String sql);	sql:sql语句(只限于select/delete/update)	返回结果的行数(返回值:int)
+一般查询用executeQuery,非查询用executeUpdate.execute用的很少.
+
+
+//1.执行sql语句:
+Statement statement = connection.createStatement();
+String url = "insert into user(name,password,regTime) values('赵六','123465',now());";
+statement.execute(url);
+
+特点分析:
+1.如果这里的赵六这个人名不是事先定义好的,而是通过客户端那边传过来的,作为一个变量保存的话.就很不方便
+  String name="赵六";
+  String url = "insert into user(name,password,regTime) values('"+name+"','123465',now());";
+2.容易发生sql注入的危险
+  String id= 5+" or 1=1;";	参数不规范,造成删库.
+  String url = "delete from user where id="+id;
+  statement.execute(url);
+
+
+
+3.PreparedStatement:
+创建PreparedStatement:通过Connection类的prepareStatement方法(String sql);	sql:sql语句	传入sql语句,预加载
+
+常用方法:
+execute();			确认执行sql语句,如果有ResultSet结果集则返回true.如果返回一个数或者没有内容则为false(返回布尔)
+executeQuery();			确认提交sql语句(只限于select),并且返回ResultSet接口
+executeUpdate();		确认提交sql语句(只限于select/delete/update),返回更新(操作)的行数(返回值:int)
+
+占位符:
+此时我要传入的构造参数是:
+String sql="insert into user(name,password,regTime) value(?,?,now());";		?代表占位符
+
+新增方法:PreparedStatement类的方法
+setString(int parameterIndex, String x);	parameterIndex:占位符对应的索引  x:占位符的内容(String类型)
+setInt(int parameterIndex, int x);		parameterIndex:占位符对应的索引  x:占位符的内容(int类型)
+setDate(int parameterIndex, java.sql.Date x)					 x:不是javaSE的date
+setObject(int parameterIndex, Object x);	这个方法的好处是,参数x,随便你传什么不需要考虑类型
+execute();					确认执行sql语句
+
+//1.创建PreparedStatement对象:
+String sql="insert into user(name,password,regTime) value(?,?,?);";     //?:占位符    
+PreparedStatement preparedStatement = connection.prepareStatement(sql);
+
+//2.设置通配符对应内容:
+preparedStatement.setString(1,"张三");		这里索引的计算方式是从1开始的
+preparedStatement.setString(2,"123746");
+preparedStatement.setDate(3,new Date(System.currentTimeMillis()));	这里的Date类是:java.sql.Date
+
+//3.提交数据:
+preparedStatement.execute();
+
+
+特点:
+1.比Statement的效率更高,并且可以防止sql注入.
+
+
+
+5.ResultSet:
+创建ResultSet的方法:通过Statement或其子类的executeQuery()方法.
+
+类方法:
+next()		将当前结果集的游标指向下一个.如果指向的内容不为空则范围true否则返回false(返回值类型:布尔值)
+getInt(int index)	取出当前游标指向的行的第几列的int值	index:指代具体的列,要和表里面类的类型对应.返回int值
+getString(int index)	取出当前游标指向的行的第几列的String值	index:指代具体的列,要和表里面类的类型对应.返回String值	
+getObject(int index)	返回Object类
+getClob(String columnLabel)	取出当前游标指向的行的第几列的String值	columnLabel:指代具体的列,就是以字符串指代	
+
+//1.创建PreparedStatement对象,并设置占位符内容:
+String sql="select * from user where id>?;";     //?:占位符
+PreparedStatement preparedStatement = connection.prepareStatement(sql);
+preparedStatement.setInt(1,2);  //将id大于2的记录查出
+
+//2.确认指向sql语句并获取ResultSet接口(结果集):
+ResultSet resultSet = preparedStatement.executeQuery();
+
+//3.循环遍历打印查询数据:
+while (resultSet.next()){
+	int id = resultSet.getInt(1);
+	String name = resultSet.getString(2);
+	String psssward = resultSet.getString(3);
+	Date reGTime = resultSet.getDate(4);
+	System.out.println(id+"---"+name+"---"+psssward+"---"+reGTime);
+}
+
+6.关闭顺序:
+调用close()方法关闭流
+ResultSet-->Statement-->Connection
+
+
+
+7.完整代码:
+public class Demo4 {
+    public static void main(String[] args) {
+	//声明在外,便于关闭
+        Connection connection = null;
+        PreparedStatement preparedStatement = null;
+        ResultSet resultSet = null;
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/testjdbc?serverTimezone=UTC ", "root", "13218526138");
+
+            String sql = "select * from user where id>?;";     //?:占位符
+            preparedStatement = connection.prepareStatement(sql);
+            preparedStatement.setInt(1, 2);  //将id大于2的记录查出
+            resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                int id = resultSet.getInt(1);
+                String name = resultSet.getString(2);
+                String psssward = resultSet.getString(3);
+                Date reGTime = resultSet.getDate(4);
+                System.out.println(id + "---" + name + "---" + psssward + "---" + reGTime);
+            }
+
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            if (resultSet != null) {		记得加上if判断,防止空指针异常
+                try {
+                    resultSet.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            if (preparedStatement != null) {
+                try {
+                    preparedStatement.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+
+        }
+    }
+}
+
+
+8.批处理(Batch):
+·介绍:对于大量的批处理,建议使用Statement,因为PreparedStatement的预加载空间有限,当数据量特别大时,会发生异常.
+常用方法:
+addBatch(String sql)	sql:sql语句 调用该方法不会立即执行,而是会添加一条sql语句,等待统一执行
+executeBatch()		统一执行所有的sql语句 	返回一个int类型的数组
+
+插入20w条数据示例:
+
+//1.设置事物手动提交:
+connection.setAutoCommit(false);
+
+//2.创建Statement对象
+statement = connection.createStatement();
+
+//3.增加批量处理的语句:
+for (int i = 0; i <20000 ; i++) {
+	Random random = new Random();
+ 	statement.addBatch("insert into user(id,name,password,regTime) values("+i+",'People"+i+"','"+random.nextInt(999999)+"',now());");
+}
+
+//4.统一处理sql语句:
+statement.executeBatch();
+
+//5.提交事务:
+connection.commit();
+
+特点:
+效率高
+
+
+
+
+3.事务:
+·介绍:和mysql那一套差不多
+
+用到的方法:
+setAutoCommit(boolean autoCommit)	autoCommit:是否自动提交业务	true:自动提交(默认值)	false:手动提交
+commit()				手动提交业务
+rollback();				回滚
+
+//1.设置事物手动提交
+connection.setAutoCommit(false);
+
+//2.创建两个PreparedStatement类
+String sql = "insert into user(id,name,password,regTime) values(1,?,?,now());";     //正确sql语句
+preparedStatement1 = connection.prepareStatement(sql);
+preparedStatement1.setString(1, "张三");
+preparedStatement1.setString(2,"123456");
+
+String sql2 = "insert into user(name,password) values(?,?,now());";     //错误sql语句
+preparedStatement2 = connection.prepareStatement(sql2);
+preparedStatement2.setString(1, "李四");
+preparedStatement2.setString(2,"123456");
+
+
+//3.确认指执行并手动提交事务
+preparedStatement1.execute();
+preparedStatement2.execute();		如果出现异常则到SQLException中处理异常
+connection.commit();
+
+//4.最重要的一步:
+SQLException的异常中调用回滚语句.
+connection.rollback();
+
+
+4.时间类型
+常用的类:
+java.sql.Date		表示年月日
+java.sql.Time		表示时分秒
+java.sql.Timestamp	表示年月日时分秒
+这三个类都继承自java.util.Date类
+再做一个插入随机日期练习:
+
+1.测试Date类:
+创建Date类的构造方法:	Date date = new Date(long date);		date:长整型数的时间		
+
+
+//1.创建PreparedStatement类:
+String sql = "insert into user(name,password,regTime) values(?,?,?);";
+preparedStatement = connection.prepareStatement(sql);
+
+//2.设置占位符内容.重点关注第三个占位符
+Date date = new Date(System.currentTimeMillis());	//java.sql.Date类	参数:当前的系统时间
+
+preparedStatement.setString(1,"王五");
+preparedStatement.setString(2,"123");
+preparedStatement.setDate(3,date);
+preparedStatement.execute();
+
+
+2.测试Timestamp类:
+为了便于测试,这里为表添加了新列
+lastLoginTime 类型:timestamp	
+
+创建Timestamp类的构造方法:	Timestamp stamp = new Timestamp(long date);	推荐使用该构造	date:长整型数的时间
+
+//1.创建PreparedStatement类:
+String sql = "insert into user(name,password,regTime,lastLoginTime) values(?,?,?,?);";
+preparedStatement = connection.prepareStatement(sql);
+
+//2.创建Timestamp类:
+Date date = new Date(System.currentTimeMillis());			这个没有时分秒的显示
+Timestamp timestamp = new Timestamp(System.currentTimeMillis());	这个内容较全
+
+//3.设置占位符内容并确认执行语句:
+preparedStatement.setString(1,"张三");
+preparedStatement.setString(2,"123");
+preparedStatement.setDate(3,date);
+preparedStatement.setTimestamp(4,timestamp);
+preparedStatement.execute();
+
+
+3.插入随机日期练习:
+for (int i = 0; i < 200; i++) {
+	String sql = "insert into user(name,password,regTime,lastLoginTime) values(?,?,?,?);";
+	preparedStatement = connection.prepareStatement(sql);
+	int rand = new Random().nextInt(1000000000)+1000000000;
+	Date date = new Date(rand);
+	Timestamp timestamp = new Timestamp(rand);
+
+	preparedStatement.setString(1, "张三"+i);
+	preparedStatement.setString(2, "xyz"+i);
+	preparedStatement.setDate(3, date);
+	preparedStatement.setTimestamp(4, timestamp);
+	preparedStatement.execute();
+}
+
+
+5.查询删除修改增加数据的方法:这里值提供查询指定时间数据的方法,其他的举一反三
+用到的都是已知类和方法.
+
+//1.创建PreparedStatement类:
+String sql = "select * from user where regTime>? and regTime<?;";
+preparedStatement = connection.prepareStatement(sql);
+
+//2.创建SimpleDateFormat类:
+DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd");
+
+//3.创建Date类:
+long time1 = dateFormat.parse("1970-1-10").getTime();		通过dateFormat来进行日期和long类型的转换
+Date date1 = new Date(time1);
+long time2 = dateFormat.parse("1970-1-15").getTime();
+Date date2 = new Date(time2);
+
+//4.设置占位符内容并确认执行语句:
+preparedStatement.setDate(1,date1);
+preparedStatement.setDate(2,date2);
+preparedStatement.execute();
+
+掌握要点:
+你通过preparedStatement的set方法具体设置的内容一定要跟着列的类型走.如果不一样要想办法把数据转换为和列相同的类型的数据.
+
+
+
+6.CLOB和BOLB:
+1.CLOB
+2.BLOB
+
+1.CLOB:
+·介绍:
+(1):用于存储大量的文本数据
+(2):大字段有些特殊,不同数据库处理的方式不一样,大字段的操作常常是以流的方式来处理的.而非一般的字段,一次即可读出数据.
+·前提:
+这里我创建了一个新的表text,表信息:
+id int 主键约束	自增约束
+myInfo	text	
+·目录:
+1.通过IO流读取字符存储到mysql里:
+2.读取mysql里的大文本保存为文件
+·类方法:
+getCharacterStream()			返回当前Clob所储存的大文本流	返回值类型:Reader
+
+·PreparedStatement类的方法:
+setClob(int parameterIndex, Reader reader)	parameterIndex:索引id	reader:IO流
+
+·获取Clob对象的方法:
+通过ResultSet类的getClob(String columnLabel)方法.结果返回一个Clob对象
+
+
+
+1.通过IO流读取字符存储到mysql里:
+//1.创建PreparedStatement类:
+String sql = "insert into text(myInfo) values(?);";
+preparedStatement = connection.prepareStatement(sql);
+
+//2.通过IO读取文件
+br = new BufferedReader(new FileReader("F:\\存放Java工程文件\\文件储存位置\\分割母文件utf8.txt"));
+          
+//3.将流读取到的内容设置到占位符的内容:
+preparedStatement.setClob(1, br);
+
+//4.确认提交:
+preparedStatement.execute();
+
+注意点:读取的文本的内容,必须与表中text列的编码集一致,都为UTF8.
+
+2.读取mysql里的大文本保存为文件:
+
+//1.确认执行并获取结果集:
+String sql = "select myInfo from text where id=1;";
+preparedStatement = connection.prepareStatement(sql);
+resultSet = preparedStatement.executeQuery();
+
+//2.循环结果集
+while (resultSet.next()){
+		Clob clob = resultSet.getClob("myInfo");        //通过列名获取到Clob对象
+                reader = clob.getCharacterStream();            //得到Reader流,获取到reader之后,就可以正常显示这里面的内容了
+                int temp = 0;
+                while ((temp=reader.read())!=-1){
+                    System.out.print((char) temp);
+	}
+}
+
+
+
+2.BLOB:
+·介绍:
+(1):用于存储大量二进制数据
+(2):大字段有些特殊,不同数据库处理方式不一样,大字段的操作常常是以流的方式来处理的.而非一般的字段,一次即可读出数据
+·前提:
+在text表里创建新的字段:
+Image 类型:blob		用来存储一张图片
+·mysql中相关的类型:
+tinyblob:最大长度为255个字节blob列
+blob:最大长度为65535字节的blob列
+mediumblob:最大长度为16777215字节的blob列
+longblob:最大长度为4294967295字节的blob列
+·BLOB方法:
+getBinaryStream()	返回当前Clob所储存的二进制数据	返回值类型:InputStream	
+
+·PreparedStatement类关于BLOB的方法:	
+setBlob(int parameterIndex, InputStream inputStream)		parameterIndex:索引	inputStream:字节流
+
+·通过ResultSet类获取Blob对象:
+getBlob(String columnLabel)		传入列名获得Blob对象
+
+
+·目录:
+1.通过BLOB存储任意文件
+2.读取数据库中的BLOB文件
+
+1.通过BLOB存储任意文件:
+
+//1.创建PreparedStatement对象:
+String sql = "insert into text(Image) values(?)";
+preparedStatement = connection.prepareStatement(sql);
+
+//2.通过IO流读取文件
+bis = new BufferedInputStream(new FileInputStream("F:\\存放Java工程文件\\文件储存位置\\copy.jpg"));
+
+//3.通过setBlob()方法,修改占位符为流内容
+preparedStatement.setBlob(1,bis);
+
+//4.确认执行
+preparedStatement.execute();
+
+
+2.读取数据库中的BLOB文件
+
+//1.创建PreparedStatement对象:
+String sql = "select Image from text where id=5;";
+preparedStatement = connection.prepareStatement(sql);
+
+//2.确认执行sql语句并获得结果集:
+resultSet = preparedStatement.executeQuery();
+
+//3.循环结果集:其实有很多都是和Clob类似的
+while (resultSet.next()){
+                Blob blob = resultSet.getBlob("Image");
+                InputStream binaryStream = blob.getBinaryStream();
+                int len = 0;
+                while ((len=binaryStream.read())!=-1){
+                    System.out.print((char)len);		这里只是随便输出的内容,实际情况中我们还可以通过输出流输出出来
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

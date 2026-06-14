@@ -1,0 +1,937 @@
+							java.base模块
+lang:
+Modifier:提供静态方法根据值判断当前修饰符是静态、final、public等等
+
+Cleaner:Cleaner机制
+static create() return Create;				// 创建实例对象
+register(Object,Runnable) return Cleaner.Cleanable;	// 注册需要cleaner机制的对象,args0为该需要注册回收的类,args1为真正回收args0对象时会回调的方法.并且args1不能是一个实现了Runnable接口的内部类存放于args0对应的类中(但是静态内部类可以),返回一个Cleaner.Cleanable实例,可以调用该实例的clearn方法实现回收(但未必会立即执行).这个机制最最牛逼的地方在于,如果当前注册的对象不被任何指针引用(即满足GC条件的对象).当调用System.gc();、System.runFinalization();方法之后,JVM就会自动回调args1(但是何时执行已经是否执行都是不被保证的)
+						// 因为静态内部类实际上就相当于一个新类,而内部类是依附于它所在的类的,会持有其宿主类的实例的引用.
+Cleaner.Cleanable:执行clear机制的具体类
+clearn() return void;					// 执行Cleaner类注册的clear类
+
+util:
+Scanner:
+
+这里介绍一种特性,假如一个XML(或者一段文字)带有很多的换行、空格、制表符.现在想把这些字符串缩减成一行,去除所有换行、制表符和空格.直接用正则表达式是不好做的,很麻烦(我做过).可以考虑以下这种实现
+public static String fomatXmlStr(String args) {
+    Pattern PATTERN = Pattern.compile("\t|\r|\n");			//代表匹配换行、空格、制表符
+    StringBuilder formatStr = new StringBuilder();
+    Scanner scanner = new Scanner(xml);
+    scanner.useDelimiter(PATTERN);
+    while (scanner.hasNext()) {
+	formatStr.append(scanner.next().trim());
+    }
+    return formatStr.toString();
+}
+
+Stream:stream流
+补充一点,Stream可以通过调用parallelStream转为并行Stream从而让提高性能.
+
+lambda表达式:
+引用静态方法,假设现在调用List集合的forEach方法,该方法需要传入一个Consumer接口的实现类,可以使用lambda表达式实现该接口.但如果有一个静态方法需要的参数和待实现接口中的参数匹配的话就可以引用该静态方法.
+使用的方法为 类::静态方法
+
+Lambda表达式的四大接口:				//更多的接口可以在java.util.function包下找到
+Consumer<T>: void accept(T t);			//消费者接口
+Supplier<T>:T get();				//生产者接口
+Function<T, R>:R apply(T t);				//函数接口
+Predicate<T>:boolean test(T t);			//判断型接口	
+
+Optional<T>:用于优雅地处理空指针异常
+static <T> of(T) return Optional<T>;			//用于构建Optional实例,Optional是一个包装类,它可以包装任何对象.使用Optional的of方法构建对象的好处在于,如果在构建Optional对象的过程中,发现传入的参数是null那么会直接报错.这就方便我们去定位这个空指针异常,因为在构建的过程中就会报错,而不像原来那样需要一步步地debug看这个变量是在哪一步空指针的.
+static <T> empty() return Optional<T>;			//创建一个Optional实例,但是这个Optional实例中没有包装任何对象.(如果我就想构建一个空的Optional实例就可以使用该方法,因为使用of方法会报错)
+static <T> ofNullable(T) return Optional<T>;		//用于构建Optional示例,如果构建的对象是null这里是不会报错的,而是会返回一个空的Optional实例.(注意空的Optional实例并不是说Optional对象是空的,而是指Optional容器里存放的对象为null)
+
+get() return T;					//获取optional类中封装的对象,如果optional类中封装的对象为null此时会报空指针异常,表明在获取对象的这一步产生了空指针异常.
+isPresent() return boolean;				//返回结果为判断当前optional类中是否有对象.
+ifPresent(Consumer<? super T>) return;			//如果当前optional类中封装的对象不为null,则调用consumer接口并将该对象作为入参传入.
+ifPresentOrElse(Consumer<? super T>, Runnable) return;	//如果当前optional类中封装的对象不为null,则调用consumer接口并将该对象作为入参传入,否则调用runnable接口.
+isEmpty() return boolean;				//返回结果为判断当前optional类中的对象是不是空.
+orElse(T) return T;					//如果当前optional类中有对象,则返回该对象,否则返回该方法的入参对象.
+orElseGet(Supplier<? extends T>) return T;		//如果当前optional类中有对象,则返回该对象,否则调用该方法的入参Supplier的get方法的返回值作为返回值.
+map(Function<? super T, ? extends U> mapper) return Optional<U>;				//如果当前optional封装了一个对象,则将该值(对象)作为function入参函数式接口的参数,调用Function接口,并将调用结果的返回值封装到一个optional类中作为本方法的返回值.(注意这里的function接口的返回值可以是任意类型的返回值)
+flatMap(Function<? super T, ? extends Optional<? extends U>> mapper) return Optional<U>;	//flatMap和amp方法的主要区别在于,传入的function接口的实现类的返回值不再是任意类型,而必须是optional类型,也就是说现在function的返回值必须也用optional对象包装起来(当然这个optional里的内容可以是任意类型的).所以个人觉得还是推荐使用flatMap方法.
+
+在JDK10中,lambda表达式也支持使用var进行类型推断了,例如:
+
+
+time:
+Duration:用于计算两个时间纳秒级别的时间差
+
+LocalDate:表示日期的类
+
+LocalTime:表示时间的类
+
+LocalDateTime:表示时间+日期的类(一般这个类用的最多)
+static now() return LocalDateTime;			//使用当前时间创建一个对象
+static of() return LocalDateTime;			//jdk提供了很多关于of的重载方法.大致的形参顺序就是:年-月-日 时-分-秒
+
+miunssYear(int) return LocalDateTime;			//增加年份
+plusMonths(int) return LocalDateTime;			//减少月份		别的自已推一下
+withYear(int) return LocalDateTime;			//修改年份
+withHour(int) return LocalDateTime;			//修改时
+getYear() return int;					//获得当前对象的年份
+getMonth() return int;					//获得当前对象的月份
+format(DateTimeFormatter) return String			//当我们对LocalDataTime格式化的时候使用的是策略模式.需要传入一个自定义的DateTimeFormatter
+parse(String,DateTimeFormatter) return LocalDateTime;	//将字符串转为LocalDateTime args0:表示时间的字符串 agrs1:表示字符串格式的DateTimeFormatter
+
+toEpochSecond(ZoneOffset) return long;			//获得LocalDateTime表示的时间的时间戳(单位秒) 
+toInstant(ZoneOffset) return Instant;			//如果想要获得LocalDateTime表示的时间的时间戳(单位毫秒)则调用该方法先获得Instant实例 然后再调用toEpochMilli方法
+
+Instant:直译过来叫瞬间
+toEpochMilli() return long;				//获得这一瞬间的时间戳(单位毫秒)
+
+
+DateTimeFormatter:这个类就是用来指定时间格式的 这个类提供了很多常量来指定时间格式
+DateTimeFormatter.ISO_DATE				//2019-1-1
+DateTimeFormatter.BASIC_ISO_DATE			//201911中间没有任何符号
+ofPattern(String) return DateTimeFormatter;		//和之前的DataFormat是一样的
+
+Clock:
+static systemDefaultZone() return Clock;			//使用系统默认的时区获获得Clock
+static systemUTC() return Clock;			//使用系统UTC时区
+
+millis() return long;					//获取时钟当前的毫秒数
+instant() return Instant;				//获取时钟的瞬时时间Instant
+getZone() return ZoneId;				//获取时钟当前对应的ZoneId
+
+
+ZonedDateTime:具有时区信息的时间类(这个类也很重要)
+static of(LocalDateTime,ZoneId) return ZonedDateTime;	//根据一个时间和该时间的时区创建ZonedDateTime args0:时间 agrs1:表示时区的类
+
+ZoneId:表示时区的类,实际上也是时区偏移量
+static of(String) return ZoneId;			//根据ZoneId获得一个ZoneId args0:时区字符串(具体有哪些表示时区的字符串详情见API文档)
+static systemDefault() return ZoneId;			//获得当前系统的时区(CTT代表亚洲/上海)
+static getAvailableZoneIds​() return Set<String>;		//获得当前可用的所有时区
+
+ZoneOffset:继承自ZoneId 用来表示时间偏移数据(一般这个类用的多)
+static of(String) return ZoneOffset;			//创建ZoneOffset并指定ZoneOffset的时间偏移量 在中国就是+8
+
+TimeZone:看看这个!!!
+static getDefault​() return TimeZone;			//获取Java虚拟机的默认TimeZone
+static getTimeZone​(String) return TimeZone;		//根据指定ID获得TimeZone
+static getTimeZone​(ZoneId) return TimeZone;		//根据指定时区的ZoneID创建一个
+static getAvailableIDs​() return String[];			//获取当前Java虚拟机所有可用的ID
+toZoneId() return ZoneId;				//通过这个方法获取ZoneId就可以将其转为ZoneId或者ZoneOffset
+
+
+
+
+net:
+URLEncoder:提供静态方法,URL编码器,将一个URL编码
+encode(String,String) return String;		//agrs0:目标字符串 args1:编码(一般指定为CharsetUtil.UTF_8)
+
+URLDecoder:提供静态方法,URL解码器
+decode(String,String) retrun String;		//args0:被编码后的字符串 args1:解码规则(和编码规则对应)
+
+io:
+StringReader:该类继承自Reader抽象类,String读取器,用于读取String用的,该类的构造方法需要一个String对象.
+ready​() return boolean;				//返回当前流是否准备好被读取
+read​() return int;				//读取一个字符
+read​(char[],int,int) return int;		//将字符串的一部分读取到字符数组中
+markSupported​() return boolean;			//返回当前流是否支持mark操作
+mark​(int) return void;				//标记当前位置 args0:参数意义有点难懂,暂时设置为0
+reset​() return void;				//将流重置到最近的标记处(说明流可以多次标记),而且重置到该处后标记应该就没有了.如果没有标记就回到字符串开头
+skip​(long) return long;				//跳过流中指定的字符数量
+
+StringWriter:该类继承自Writer抽象类,String写入器,该类用来写入一个String,详情用法见API
+
+
+nio:
+StandardCharsets:在JavaNIO中要指定字节编码用来类的静态变量.
+
+MulticastChannel:该接口继承NetworkChannel 用于支持网络多播的通道(计算机网络)
+
+DatagramChannel:抽象类实现了DatagramChannel接口 
+
+security:
+数字签名、数字证书
+公钥是公开的,私钥只存在用户这一端,用公钥加密出来的内容可以用私钥完全解密.
+数字签名:拥有私钥的用户,现在想发布一些内容,但是怎么能保障这个内容就是该用户发出来的呢?用户首先对要发布的原文进行私钥加密(这一步就已经生成数字签名了)
+然后再对生成的数字签名进行摘要运算(防止内容过大),将原文和摘要后的文本一并传给接受者.接受者拿到摘要后的签名后先解码出原先的数字签名
+最后接受者根据原文以及自身的公钥去验证这个数字签名是否正确.
+数字证书:但假设现在有人把接受者的公钥修改为自已的公钥,那么此时篡改者只要用自已的私钥加密数字签名再发送给接受者,因为接受者的公钥已经改为和篡改者的一致
+但是接受者并不知情,还以为自已的公钥是发送者的公钥,那么此时篡改者发布的内容同样可以被解密(因为公钥一致).现在为了避免这种情况出现了数字证书
+数字证书(CA)是做公钥验证的,证书中心用自已的私钥对内容发送者的公钥和一些相关信息做加密生成数字证书.
+这样以后内容发布者只要发布内容的时候同时带上数字签名和数字证书发送即可,接受者拿到数字证书后就直接从数字证书中获取公钥(这一步也就是通过数字证书确认公钥/或者叫获取公钥,但前提是这个证书接受者也必须得有,需要通过这个数字证书来解密发送过来的公钥)
+那么如何保证数字证书不被伪造呢?数字证书是存储在电脑中的,相当于数字证书现在就是这个公钥,虽然可以获取到公钥,但是无法伪造.
+
+但是在正常的网络通行中,非对称加密(比如RSA)这种加密解密是非常耗费性能的,但是对称加密是不怎么耗费性能的.那么SSL/TLS的思想就是,先生成一个对称加密的密钥
+然后通过非对称加密加密这段对称加密的密钥.然后传输给对方,那么此时两者通信就还是通过对称加密来通信,但是对称加密的密钥的传输还是通过非对称加密来完成.
+这基本上就是SSL/TLS的工作流程了
+
+java中私钥签名可以用公钥验证签名.公钥加密可以用私钥解密.加密是加密签名是签名.但实际上私钥签名的本质是私钥加密,公钥验签的本质是公钥解密.这个和公钥加密/私钥解密并不冲突(另外记得公钥加密只允许加密117字节,私钥解密只能解密128字节.如果超出需要分段加密/解密)
+
+网站申请SSL的步骤和配置:https://pay.weixin.qq.com/wiki/doc/api/tools/cash_coupon.php?chapter=10_4
+另外SSL协议并不安全,最好使用TLS1.2协议,或者使用SSL3
+
+摘要算法:
+MD5是一种摘要算法,它不是加密算法,长度固定,是不可逆的.它实际上也就是HASH算法,会存在HASH碰撞的问题.
+BASE64是一种摘要算法,它也不是加密算法,只是一种编码方式.Base64编码之所以称为Base64,是因为其使用64个字符来对任意数据进行编码,同理有Base32、Base16编码.
+在BASE64中,如果最后有等于号=,那么这个等于号起到的作用只是补位,没有实际意义,可以省略,所以一般遇到等于号=就代表结束符
+
+
+在微信V2中:
+我们拥有:商户证书(API证书)该证书可通过权威CA证书颁布.该证书包含:商户号、证书序列号、公司名称、公钥(其中的公钥可以通过X509Certificate获得)+私钥(私钥单独存在apiclient_key.pem文件中)、支付密钥(32位单独到微信上设置)
+商户证书可以用于双向验证、私钥解密.当我们在服务器上安装商户证书时需要用到证书密码(这个密码很可能就是商户ID).当我们请求的时候直接带上证书是没有的,还需要一并带上证书密码,获得到KeyManager后带上KeyManager去请求.
+当我们生成签名的时候,先根据约定好的规则拼接请求参数,以及将支付密钥拼接进去.然后对内容进行MD5或者HMACSha256摘要计算,并添加到请求体中(而且要告诉微信当前使用的哪种签名算法).对于微信而言,验证签名只需要将请求体中的参数也按照约定拼接,并在最后加上支付密码,进行MD5或者HMACSha256摘要计算出签名,并验证签名是否一致即可.
+对于微信回调而言,同样也会遵循上述规则生成数字签名,作为开发第一步不管是回调还是响应内容都要先验证数字签名(同样微信也会告诉你当前使用哪种签名算法)
+
+在微信V3中:V3中的特性完全兼容V2,相当于从V2中继承过来的
+我们拥有:商户证书、平台证书(该证书包含:公钥、平台标识、证书序列号)、APIV3密钥(32位对称密钥单独到微信上设置,采用AES256GCM算法)
+
+平台证书在微信支付上获取,平台证书是针对V3接口使用的,平台证书会定期更换,不同商户对应的平台证书是不同的.平台证书可以用于对微信的响应报文或者微信回调的请求报文进行签名校验(和V2不同的是V3要用私钥签名公钥验签)
+APIV3密钥可以用于微信回调和平台证书的下载中,对关键信息进行对称加密.
+当我们通过微信接口获取平台证书的时候(同样要先验证签名),为了安全该证书会经过微信APIV3密钥(AES256GCM算法即AES算法)进行加密,当拿到该证书之后,再通过APIV3密钥解密即可(对称加密).
+平台证书并没有一个确切的文件,只是当我们https://api.mch.weixin.qq.com/v3/certificates接口时,该请求的响应信息就是我们的平台证书(该响应报文中就包含了公钥,但该公钥需要处理,接着往下看)
+同样的对于平台证书的响应信息我们也要验签,但现在就出现了一个矛盾.因为验签是需要平台证书的,而我们现在正是要获取平台证书(我们没有平台证书),那怎么办?对于第一次证书的下载,微信提供了下载工具:https://github.com/wechatpay-apiv3/CertificateDownloader
+之后当更替平台证书的时候,首先我们也得先验签,如果验签成功了,则从响应报文中得到String类型的公钥,同理该公钥得先BASE64解码成字节数组.解码之后由于微信对该公钥进行APIV3加密(AES-256-GCM/AES),所以得先通过APIV3密钥对其进行解密,解密后是字节数组.然后再对该字节数组BASE64编码为字符串保存到本地即可(此时就是字符串形式的PublicKey)
+同样如果后续用到该公钥验签的时候,先通过BASE64解码为字节数组后再通过KeyFactory+KeySpec得到PublicKey实例.
+响应信息可能是一个数组(因为平台证书可能不止一个),其中响应信息中也包含了每一个证书的证书序列号(这个需要对应上).
+
+当我们生成签名的时候,先根据约定好的规则拼接一些参数(注意这里和V2不同,这里包括:请求方法、请求URL绝对路径、请求时间戳、请求随机串、请求报文(这个请求报文就是我们将要请求微信的JSON串))
+然后用商户证书(API证书)中的私钥(apiclient_key.pem)对内容进行私钥签名(采用SHA256-RSA签名算法),注意签名出来的内容是字节数组,还需要通过BASE64将其编码为String.此时生成出来的叫签名值(还不叫签名)
+然后拼接以下内容:WECHATPAY2-SHA256-RSA2048(认证类型,该值目前固定) mchid="商户ID",serial_no="商户证书序列号",nonce_str="请求随机串",timestamp="时间戳",signature="签名值" 将拼接出来的内容添加到请求头Authorization中.注意在V3接口请求中不需要带上TLS证书(貌似是因为直接通过CA证书交互了?)
+然后微信拿到请求头中的信息拿到响应正文,按照同样的规则拼接出原文!然后根据Authorization指定的商户证书序列号得到对应的公钥,然后使用公钥进行验签.其中微信拿到的签名值signature不能直接使用,因为signature被BASE64编码过,所以signature要通过BASE64解码为字节数组,然后再验证(而且验证的时候签名正好得要字节数组形式)
+对于微信的响应或者微信回调,作为开发同样需要去验证签名,在V3接口中的签名验证和V2不同.
+首先微信平台同样也会根据约定好的规则拼接一些参数(包括:应答时间戳、随机串、响应报文).然后微信通过平台证书中的私钥对内容进行私钥签名.然后微信会在请求头Wechatpay-Timestamp中指定时间戳、Wechatpay-Nonce指定随机串、Wechatpay-Serial指定当前使用的平台证书序列号(因为平台证书可能有多份)
+当我们拿到请求信息后,根据同样的规则拼接这些参数,并根据平台证书序列号找到证书获得公钥,然后使用公钥进行验签(采用SHA256-RSA签名算法)在微信V3接口中指出,签名算法采用SHA256-RSA!!!验证的时候对于微信的签名同样要BASE64解码为字节数组!
+
+当我们在请求中如果要对敏感信息进行加密时,使用RSA加密算法,加密算法的填充方案选择RSAES-OAEP.我们需要使用平台证书的公钥对敏感信息加密,然后微信拿到加密后的内容后使用私钥对其解密.(私钥只保存在微信上)
+当微信在响应信息中要响应敏感信息时,微信会使用商户证书(API证书)中的公钥对敏感信息进行加密,然后我们根据证书序列号使用对应的公钥进行验签.证书序列号可以在请求中获得.
+微信的回调通知相当复杂,首先微信会对所有的敏感信息使用APIV3对称密钥进行加密(采用AEAD_AES_256_GCM算法),加密后是字节数组所以微信会对加密后的内容进行BASE64编码.在加密的时候需要用到associatedData、nonce(这两个会作为字符串出现在响应体中,使用的时候应该也要BASE64解码为数组,这两个值有没有被对称加密过还不清楚,如果有就记得解密再使用)
+首先还是先验证签名,然后从响应体中获得associatedData、nonce、密文,然后使用APIV3对称密钥进行解密(采用AEAD_AES_256_GCM算法).
+
+如何从apiclient_key.pem证书中得到商户的私钥?(不是直接获取的!!)因为要指定密钥的加密算法(就算是解析证书中的密钥你也需要告诉程序当前使用的什么加密算法)
+首先通过IO流读取到证书,证书会以特定的字符串作为开头和结尾,将这些特定的开头和结尾替换掉.然后通过PKCS8EncodedKeySpec将字符串转为PrivateKey对象.
+之前一直在强调的,PrivateKey取到的密钥是以byte的形式存放的,所以还要将该字节数组通过BASE64编码后的结果才是密钥的字符串形式!!
+
+有的时候微信需要回调(调用)我们的接口,微信会对回调请求进行签名(微信平台使用密钥数字签名),我们的接口必须通过平台证书的公钥去验证签名.
+
+证书类型:
+.DER、.CER:文件是二进制格式,只保存证书(公钥),不保存私钥.
+.PEM:一般是文本格式,可保存证书(公钥)，可保存私钥.
+.CRT:可以是二进制格式,可以是文本格式,与 .DER 格式相同,不保存私钥.
+.PFX、P12:二进制格式,同时包含证书(公钥)和私钥,一般有密码保护.
+.JKS:二进制格式,同时包含证书(公钥)和私钥,一般有密码保护.
+
+
+CertificateFactory:证书生成工厂
+static getInstance​(String) return CertificateFactory;			//返回实现指定证书类型的证书工厂对象 args0:证书类型(一般是X509,当然你数字证书是什么规范就用什么规范)
+static getInstance​(String,String) return CertificateFactory;		//返回实现指定证书类型的证书工厂对象 args0:证书类型(一般是X509) args1:证书提供商的名称
+static getInstance​(String,Provider) return CertificateFactory;		//这些静态方法是用来创建证书工厂的,所以在获取证书对象之前先通过这些静态方法创建证书工厂
+
+generateCertificate(InputStream) return Certificate;			//根据一个IO流生成证书工厂对象 args0:证书的输入流  如果是X509类型的数字证书可以直接强转为X509Certificate后使用 所以如果想要直接从证书中加载公钥就可以使用该方法,将其转为证书对象后调用其getPublicKey​()方法.
+​
+Certificate:存储证书信息的证书对象,顶级抽象类,实现了Serializable接口.该对象实例保存了一个证书的信息(你是需要通过这个类去加载数字证书的,直接做是不好做的)
+getEncoded​() return byte[];						//返回次证书的编码形式
+getPublicKey​() return PublicKey;					//获得证书公钥
+getType​() return String;						//返回次证书的类型
+writeReplace​() return Object;						//更换要序列化的证书
+verify​(PublicKey) return void;						//使用与指定公钥对应的私钥验证次证书是否已经签名(实际上该方法是判断某证书是否是某公钥)
+verify​(PublicKey,String) return void;					//使用与指定公钥对应的私钥验证次证书是否已经签名 args0:用于验证的公钥 args1:签名提供者的名称
+verify​(PublicKey,Provider) return void;					//
+
+X509Extension:X509证书的拓展接口,顶级接口
+getCriticalExtensionOIDs​() return Set<String>;				//获取由实现此接口的对象管理的证书/CRL中标记为"CRITICAL"的扩展名的OID字符串集
+getExtensionValue​(String) return byte[];				//获取由传入的oid字符串标识的扩展值(extnValue)的DER编码的OCTET字符串.oid字符串由一组以句点分隔的非负整数表示
+getNonCriticalExtensionOIDs​() return Set<String>;			//获取由实现此接口的对象管理的证书/CRL中标记为"非关键性"的扩展名的OID字符串集
+hasUnsupportedCriticalExtension() return boolean;			//检查是否有不支持的关键扩展
+
+X509Certificate:X509类型的证书对象,继承自Certificate抽象类,实现了X509Extension接口.X509实际上是一种数字证书的标准,规定了数字证书的格式.
+checkValidity​() return void;						//检查当前证书是否有效
+checkValidity​(Date) return void;					//检查给定日期是否在证书的有效期内
+getBasicConstraints​() return int;
+getVersion​() return int;						//获得证书的版本号
+getSerialNumber​() return BigInteger;					//获得证书的序列号
+getNotBefore​() return Date;						//获得证书有效期
+getNotAfter​() return Date;						//获得证书失效期
+getIssuerX500Principal​() return X500Principal;				//获得证书发行人信息
+getSubjectX500Principal​() return X500Principal;				//获得证书主体信息
+getSigAlgName​() return String;						//获得证书签名算法信息
+
+---------------------------------------------------------------------------------------------------------------------------
+
+Key:顶级接口
+getAlgorithm() return String;						//返回当前键(Key)的标准算法名称.例如DSA就表示私钥是DSA加密算法的私钥
+getFormat​() return String;						//返回此键的主编码格式名称
+getEncoded​() return byte[];						//返回其主要编码格式的私钥,返回编码的关键.貌似我们通过JDK Base64编码的时候要的就是字节数组
+
+Destroyable:顶级接口,用于销毁Key
+destroy() return void throws DestroyFailedException;			//销毁密钥,如果销毁失败会产生DestroyFailedException异常
+isDestroyed() return boolean;						//当前密钥是否已经被销毁
+
+SecretKey:该接口继承自Key、Destroyable.实现该接口表明当前Key应该具有自动销毁的能力(因为继承了Key接口,所以该接口的实现类也是一个Key).而且开发者可以调用destroy()方法来销毁Key
+
+PublicKey:接口,公钥,此接口不包含方法或者常量.它仅用于对所有公钥接口进行分组(并提供类型安全性),也就是所有的扩展公钥都应该继承该接口?
+
+PrivateKey:实现javax.security.auth.Destroyable接口
+
+RSAKey:RSA公钥与私钥的接口,顶级接口
+getModulus​() return BigInteger;						//返回模数
+
+RSAPublicKey:RSA公钥接口,该接口继承自PublicKey、RSAKey
+getPublicExponent​() return BigInteger;					//返回公共指数(这个就是公钥,只不过是以大数的方式存储的)
+
+RSAPrivateKey:RSA私钥接口,该接口继承自PrivateKey、RSAKey
+getPrivateExponent​() return BigInteger;					//返回私有指数(私钥)
+
+KeyPairGeneratorSpi:顶级抽象类
+generateKeyPair​() return KeyPair;
+initialize(int,SecureRandom) return void;
+initialize​(AlgorithmParameterSpec,SecureRandom) return void;
+
+KeyPairGenerator:该类用于生成公钥和私钥,继承KeyPairGeneratorSpi抽象类
+static getInstance​(String) return KeyPairGenerator;				//根据指定算法生成公钥/私钥对 args0:指定算法名(例如RSA算法,可以通过Security.getProviders()方法获得所有的注册商提供的算法)
+static getInstance​(String,String) return KeyPairGenerator;			//args0和上述一致 args1:暂未知(貌似也是算法提供商)
+static getInstance​(String,Provider) return KeyPairGenerator;			//args1:算法提供商 这三个静态方法都是用来创建KeyPairGenerator实例的,这三个方法可以想成是工厂方法
+generateKeyPair​() return KeyPair;					//生成一个私钥对
+genKeyPair​() return KeyPair;						//和上面这个方法效果类似
+getAlgorithm​() return String;						//返回当前私钥生成算法的标准名称(比如RSA之类的)
+getProvider​() return Provider;						//返回此私钥对生成器对象的提供者
+initialize(int) return void;						//初始化某个密钥大小的密钥对生成器 args0:密钥大小(如果是RSA算法建议指定为512、768、1024)
+initialize(int,SecureRandom) return void;				//用给定的随机源(和默认参数集)初始化特定密钥大小的密钥对生成器 args0: args1:随机来源
+
+假设现在通过KeyPairGenerator采用RSA算法生成出公钥和私钥后,拿到这两个密钥不是直接用的.PublicKey和PrivateKey本身是不包含任何方法的,那该怎么获得公钥和私钥呢?
+将这两个对象转型为RSAPublicKey、RSAPrivateKey.调用它们的getEncoded​()(该方法来自Key接口)得到字节数组后用Base64算法将其编码为字符串,那么就可以以字符串的形式保存公钥和私钥了.
+同样拿到代表公钥/私钥的字符串后,将其解码并得到字节数组,然后通过X509EncodedKeySpec这样的密钥生成规则和KeyFactory配合生成出PrivateKey、PublicKey
+
+KeyPair:实现了可序列化接口,这个类是私钥对,一个公钥和一个私钥的简单持有者
+getPrivate​() return PrivateKey;						//得到私钥对象
+getPublic​() return PublicKey;						//得到公钥对象
+
+KeyFactory:这个类很不一样,上述的这些类基本上都还是针对生成密钥的问题展开的.KeyFatcory的作用主要是针对不同的密钥规范生成不同的密钥,假如现在我想对一段文字生成密钥规范就需要使用到X509EncodedKeySpec
+static getInstance​(String) return KeyFactory;				//根据特定的算法创建KeyFactory 每个java平台都应该实现的算法DiffieHellman、DSA、RSA!!!
+static getInstance​(String,String) return KeyFactory;			//args1:提供商
+static getInstance​(String,Provider) return KeyFactory;			//args2:提供商 这三个静态方法都是用来创建KeyFactory实例的
+getAlgorithm​() return String;						//返回当前私钥生成算法的标准名称(比如RSA之类的)
+generatePrivate​(KeySpec) return PrivateKey;				//根据一个密钥规范生成私钥对象
+generatePublic​(KeySpec) return PublicKey;				//根据一个密钥规范生成公钥对象
+
+字符串形式的PrivateKey/PublicKey->不可以直接转换为PrivateKey/PublicKey实例->通过KeyFactory+KeySpec(密钥规范)+指定密钥算法(例如RSA)->最终生成出PrivateKey/PublicKey实例
+一个PublicKey/PrivateKey实际上底层就对应一个字节数组!所以但凡是以String类型存在的公钥或者私钥,都必须先通过BASE64解码为字节数组后使用.同理但凡是字节数组形式的公钥/密钥都需要通过BASE64编码为String类型传输.
+看X509EncodedKeySpec和PKCS8EncodedKeySpec的构造器就知道这两个密钥生成规范要想配合KeyFactory生成出密钥必须要将密钥通过BASE64解码为字节数组.
+
+KeySpec:顶级接口,一种标识,构成加密密钥的规范.之前都是简单地生成公钥和私钥.通过密钥规范可以进一步定制生成规则.
+
+RSAPublicKeySpec:实现KeySpec接口,此类指定一个RSA公钥,可以作为KeyFactory生成密钥的规范
+构造器:
+RSAPublicKeySpec(BigInteger,BigInteger);				//args0:模数 args1:公钥指数 根据模数和公钥指数创建一个RSAPublicKeySpec
+
+EncodedKeySpec:实现KeySpec接口的抽象类,该类标识编码格式的公钥或私钥
+getAlgorithm() return String;						//返回当前键(Key)的标准算法名称.例如DSA就表示私钥是DSA加密算法的私钥
+getFormat​() return String;						//返回此键的主编码格式名称
+getEncoded​() return byte[];						//返回其主要编码格式的私钥,返回编码的关键.貌似我们通过JDK Base64编码的时候要的就是字节数组
+
+X509EncodedKeySpec:该类继承自EncodedKeySpec抽象类,可以作为KeyFactory生成密钥的规范,这个类一般用于公钥的生成?(或者叫byte[]转PublicKey)
+构造器:
+X509EncodedKeySpec​(byte[] encodedKey);					//使用给定的编码密钥创建一个新的X509EncodedKeySpec args0:这个参数很关键,通过一个字节数组来创建一个编码密钥.如果这个字节数组每次都是一样的,那么通过KeyFactory生成出来的公钥也是一样的
+X509EncodedKeySpec​(byte[] encodedKey, String algorithm);		//使用给定的编码密钥创建一个新的X509EncodedKeySpec args1:编码公钥的算法名称有关标准算法名称的信息
+
+getEncoded​() return byte[];						//返回按照X.509标准编码的关键字节
+getFormat​() return String;						//返回与此密钥规范相关联的编码格式的名称
+
+PKCS8EncodedKeySpec:该类继承自EncodedKeySpec抽象类,可以作为KeyFactory生成密钥的规范,这个类一般用于私钥的生成?(或者叫byte[]转PrivateKey)
+PKCS8EncodedKeySpec​(byte[] encodedKey);					//使用给定的编码密钥创建一个新的X509EncodedKeySpec args0:这个参数很关键,通过一个字节数组来创建一个编码密钥.如果这个字节数组每次都是一样的,那么通过KeyFactory生成出来的公钥也是一样的
+PKCS8EncodedKeySpec(byte[] encodedKey, String algorithm);		//使用给定的编码密钥创建一个新的X509EncodedKeySpec args1:编码公钥的算法名称有关标准算法名称的信息
+
+
+SecretKeySpec:该类实现了KeySpec、SecretKey接口.表明该类的实例可以配合Cipher进行DES对称加密/解密.其次该类是一个Key,其次可以调用该类的destroy()销毁.
+SecretKeySpec(byte[],String);						//agrs0:指定对称加密的密钥 args1:加密的算法(一般就是DESede)
+
+
+更多的密钥生成规范全在java.security.spec包下
+
+Security:貌似是个工具类,各个厂商再添加安全实现的时候就是通过调用该工具类的静态方法完成.这貌似也是个工厂,管理所有的安全实现.
+static getProviders() return Provider[];				//返回当前所有以安装的程序,每个java平台都应该实现的算法DiffieHellman、DSA、RSA
+static addProvider(Provider) return int;				//添加程序供应商 如果添加失败返回-1
+static getAlgorithms​(String) return Set<String>;			//返回一组字符串,其中包含指定java加密服务的所有可用算法
+static getProperty​(String) return String;				//获取安全属性值
+static getProvider​(String) return Provider[];				//根据指定名称返回程序供应商
+static getProviders​(String) return Provider[];				//返回满足过滤条件的所有程序提供商 args0:过滤条件(详情见API)
+static getProviders​(Map<String,String>) return Provider[];		//返回满足过滤条件的所有程序提供商 agrs1:过滤条件(详情见API)
+static insertProviderAt​((Provider,int) return int;			//在指定位置添加一个新的程序供应商
+static removeProvider​(String) return void;				//删除具有指定名称的程序提供者 args0:程序提供商名称
+static setProperty​(String,String) return void;				//设置安全属性值 args:K-V形式
+
+Cipher:公钥和私钥提供了两种功能,1.公钥加密私钥解密(通过Cipher完成) 2.私钥签名公钥验证签名(通过Signature完成) 所以该类提供了公钥加密和私钥解密的相关功能
+注意在Java中,加密的内容不能超过117字节,解密的内容不超过128字节.所以需要分段加密和解密
+所有Java平台都必须实现以下Cipher转换:
+AES/CBC/NoPadding
+AES/CBC/PKCS5Padding 
+AES/ECB/NoPadding 
+AES/ECB/PKCS5Padding 
+AES/GCM/NoPadding 
+DES/CBC/NoPadding
+DES/CBC/PKCS5Padding
+DES/ECB/NoPadding
+DES/ECB/PKCS5Padding
+DESede/CBC/NoPadding
+DESede/CBC/PKCS5Padding
+DESede/ECB/NoPadding				//可以配合SecretKeySpec进行DES对称加密
+DESede/ECB/PKCS5Padding
+RSA/ECB/PKCS1Padding
+RSA/ECB/OAEPWithSHA-1AndMGF1Padding
+RSA/ECB/OAEPWithSHA-256AndMGF1Padding
+
+OPENMOD:例如在调用init方法的时候,指定当前Cipher的模式
+ENCRYPT_MODE = 1;			//指定当前是加密模式
+DECRYPT_MODE = 2;			//指定当前是解密模式
+WRAP_MODE = 3;				//密钥包装模式
+UNWRAP_MODE = 4;			//密钥解包模式
+KEY:
+PUBLIC_KEY = 1;				//指示要解除密钥的常数是公钥
+PRIVATE_KEY = 2;			//指示要解除密钥的常数是密钥
+SECRET_KEY = 3;				//指示要解开密钥的常数是公钥
+
+getInstance​(String) return Cipher;				//指定具体算法并创建Cipher实例 args0:上述的具体算法(也叫填充模式)
+getInstance​(String,String) return Cipher;				//args1:算法提供商
+getInstance​(String,Provider) return Cipher;			//args1:算法提供商
+
+init(int,Key) return void;					//agrs0:指定当前的模式(OPENMOD的值,一般就是1和2) args1:Key(Key是接口,传入PublicKey或者PrivateKey)
+
+doFinal​() return byte[];					//完成加密/解密操作
+doFinal​(byte[]) return byte[];					//agrs0:待加密/解密的数据的字节数组形式 该方法加密/解密目标内容 返回值是加密/解密后的字节数组
+doFinal​(byte[],int,int) return byte[];				//对字节数的一部分进行加密/解密 args1:开始 args2:长度 
+doFinal​(byte[],int,int,byte[]) return int;			//对字节数的一部分进行加密/解密 args1:开始 args2:长度 args3:指定输出的字节数组对象 返回值是成果加密/解密的长度
+doFinal​(ByteBuffer,ByteBuffer) return int;			//对字节缓冲区的一部分进行加密/解密 agrs0:输入字节缓冲区 agrs1:输出字节缓冲区 返回值是成果加密/解密的长度 
+
+对于公钥加密私钥解密和公钥解密私钥加密的代码都差不多(再强调一次,公钥也可以解密!私钥签名的本质就是私钥加密).
+需要注意的是init方法的第一个参数决定了当前是加密还是解密,第一个参数和第二个参数不搭噶.1就是加密2就是解密.但是init的第二个参数规定,公钥就得是X509私钥就得是PKCS8.
+
+
+SignatureSpi:顶级抽象类
+
+Signature:继承自SignatureSpi抽象类,该类用于提供数字签名等功能(如果是私钥签名公钥验证签名的话就得使用该类!!!!!)
+getInstance(String) return Signature;					//选择指定算法的Signature对象 args0:指定算法(SHA1withDSA、SHA256withDSA、SHA1withRSA、SHA256withRSA)
+getInstance​(String,String) return Signature;				//选择指定算法的Signature对象 args1:程序供应商
+getInstance​(String,Provider) return Signature;				//选择指定算法的Signature对象 args1:程序供应商 这三个方法都是用于创建Signature对象的
+
+initVerify​(PublicKey) return void;					//初始化此对象用于验证 如果初始化时选择该方法,则其作用是为了验证证书
+initSign​(PrivateKey) return void;					//初始化此对象用于验证 如果初始化时选择该方法,则其作用是为了发布签名(数字签名是靠私钥加密的)
+initSign​(PrivateKey,SecureRandom) return void;				//初始化此对象用于验证 如果初始化时选择该方法,则其作用是为了发布签名 args1:随机源
+
+update​(byte) return void;						
+update​(byte[]) return void;
+update​(byte[] data, int off, int len) return void;
+update​(ByteBuffer) return void;						//如果是验证签名就传入需要加密的数据(也就是原文),也就是设置签名,注意获取原文时最好指定编码
+
+verify​(byte[]) return boolean;						//验证传入的签名,把签名传入(传入时指定编码)
+
+sign​() return byte[];							//获得签名信息(如果是私钥签名,调用该方法就能得到签名信息了)
+
+所以如果想要验证签名就需要三个参数,公钥、原文、签名 在创建Signature的时候选择合适的加密算法,在初始化的时候将公钥传入,但公钥是字符串怎么把公钥转为PublicKey对象呢?(注意字符串要通过BASE64解码字节数组使用)
+这就得通过上面讲的KeyFactory和X509EncodedKeySpec来配合完成.最后调用verify​方法把签名传入,方法返回值就是验证结果.
+
+但现在该如何生成签名呢?之前说过签名需要通过私钥来生成,所以现在需要两个参数,私钥(String)、原文 在创建Signature的时候选择合适的加密算法(到时候公钥解密时一定也得采用这个算法)
+在初始化的时候将私钥传入,但私钥是字符串怎么转为PrivateKey呢?这就得通过上面将的KeyFactory和PKCS8EncodedKeySpec来搭配完成.最后调用sign​()方法得到签名信息.
+
+Java平台必须要实现的非对称加密算法:RSA(常用)、DSA、DiffieHellman
+在Java的每个平台中都应该支持一下私钥签名算法:SHA1withDSA、SHA256withDSA、SHA1withRSA、SHA256withRSA(常用)签名算法是签名算法不要搞混了
+----------------------------------------------------------------------------------------------------------------------------
+以下的这些类配合使用:
+KeyManager:顶级接口,JSSE密钥管理器的基础接口,KeyManager负责管理用于将本地SSLSocket认证给其对等体(双向验证)的密钥材料.
+
+X509KeyManager:KeyManager接口的子接口.此接口的实例管理哪些基于X509证书的密钥对用于认证安全套接字的本地端
+
+X509ExtendedKeyManager:KeyManager、X509KeyManager接口的抽象实现,用于扩展X509KeyManager接口
+
+KeyStore:该类代表加密密钥和证书的存储设备
+在微信支付中当我们请求微信时就要带上该证书(KeyManager),该证书也叫API证书.API证书分为CA证书、微信颁发的API证书.现在推荐CA证书,微信颁发的已经不推荐了.我们在请求的时候带上该证书就能起到双向验证的功能(一个是微信验证我们,一个是我们验证微信的回调)
+所以该证书要部署到当前服务器(只要部署了证书,验证是自动的),但是当部署(导入)证书到当前服务器的时候,是需要输入一个证书密码才能部署的(这个证书密码申请的时候会给你).而我们在获取KeyStore、KeyManager对象的时候也是需要证书密码的.
+
+static getInstance(String) return KeyStore;				//创建指定类型的密钥访问库对象 java平台必须要实现PKCS12
+load(InputStream,char[]) return void;					//加载一个指定的证书路径 args0:证书的IO流 args1:证书的密码 为什么加载证书时还要密钥?因为KeyStore并不是私钥,而是被加密后的私钥.KeyStore并不能单独使用,它需要配合args1证书密码才能使用.
+
+
+KeyManagerFactory:顶级类
+static getInstance(String) return KeyManagerFactory;			//根据指定的算法构件一个KeyManagerFactory对象.作为关键管理器的工厂
+static getDefaultAlgorithm​() return String;				//获得默认的KeyManagerFactory算法名称 该方法会先调用Security的getProperty(ssl.KeyManagerFactory.algorithm)得到返回值 如果为空则返回SunX509算法
+init(KeyStore,char[]) return void;					//使用关键材料初始化工厂 args0:从证书和加密密钥中加载到的KeyStore args1:证书密码,在这里获取KeyManager的时候同样要指定证书密码,该密码和keyStore load时指定的密码是一致的.
+getKeyManagers() return KeyManager[];					//得到KeyManager对象
+----------------------------------------------------------------------------------------------------------------------------
+SSLContext:这个类的实例代表一个安全的套接字协议实现,作为安全套接字工厂的工厂或SSLEngine.java平台的每个实现都需要支持一下标准的SSLContext协议:TLSV1、TLSV1.1、TLSV1.2
+static getInstance(String) return SSLContext;					//根据指定SSL协议,创建一个SSLContext实例
+init(KeyManager[],TrustManager[],SecureRandom) return void;			//初始化此上下文 agrs0:认证密钥的来源或null args1:双向验证的决策 args2:对此生成器的随机源或null
+createSSLEngine​() return SSLEngine;						//用该上下文创建一个新的SSLEngine
+
+SSLEngine:
+getSupportedProtocols() return String[];					//支持的协议
+getEnabledProtocols() return String[];						//启用的协议
+getSupportedCipherSuites() return String[];					//支持的加密套接字
+getEnabledCipherSuites() return String[];					//启用的加密套接字
+
+SSLServerSocket:
+其实SSLContext和SSLServerSocket说白了就是Socket和ServerSocket的关系
+
+MessageDigestSpi:顶级抽象类,提供了MD5、SHA摘要算法功能.摘要算法是传入任意大小的数据并输出固定长度的安全单向散列函数.这个类是历史遗留,这个类不使用除非你想提供自已的摘要算法
+
+MessageDigest:该类提供消息摘要算法,例如SHA-1或SHA-256.每个Java平台都应该提供以下摘要算法:MD5、SHA-1、SHA-256
+static getInstance(String) return MessageDigest;				//根据指定摘要算法创建MessageDigest实例对象 agrs0:摘要算法
+static getInstance(String,String) return MessageDigest;				//agrs1:提供算法的厂商
+static getInstance(String,Provider) return MessageDigest;			//args1:提供算法的厂商
+
+update(byte[]) return void;			//args0:传入待计算摘要的字节数组 调用该方法表明设置了当前要被计算摘要的字节数组(字节数组可以直接是调用String的getBytes("UTF-8")方法得到)
+update(byte) return void;			//重载方法被计算的数据是一个字节
+update(byte[],int,int) return void;		//重载方法可以指定字节数组从哪开始计算
+update(ByteBuffer) return void;			//重载方法只不过指定的参数类型是字节数组缓冲区(实际上也就是一个字节数组)
+digest() return byte[];				//计算摘要 这一步是最后的操作,所以必然是调用update方法之后调用的.返回值就是摘要计算的结果,大小固定为长度32的字节数组
+digest(byte[]) return byte[];			//使用指定的字节数组对摘要完成最后的更新 然后再计算摘要 args1:摘要计算完成前的更新输入
+reset() return void;				//重置摘要以便进一步计算
+
+注意你会发现计算出来的摘要是一个字节数组,字节数组肯定是不可能直接用的,肯定要转成String使用.那么字节数组转String还需要进一步操作(具体怎么转换可以视情况而定,可以是BASE64也可以是转为16进制形式的字符串)
+
+
+NIO:
+常见的缓冲区类型,这些缓冲区的共同方法(暂且以ByteBuffer举例子),这些类都继承自Buffer抽象类.实际上就可以简单的认为Buffer就是一个数组.
+ByteBuffer
+SeekableByteChannel
+CharBuffer
+ShrotBuffert
+IntBuffer
+LongBuffer
+FloatBuffer
+DoubleBuffer
+
+缓冲区中有四个核心变量:
+容量Capacity:缓冲区能够容纳的数据元素的最大数量(大小在创建的时候确定,不能改变)
+上界Limit:缓冲区里的数据的总数,代表了当前缓冲区中一共有多少数据
+位置Position:下一个要被读或写的元素的位置.
+标记Mark:一个备忘位置,用于记录上一次读写的位置.
+
+因为Buffer分为读和写,所以这些变量要分情况讨论,也就是一个变量往往代表多重含义,在一开始写的时候,Limit和Capacity一样,因为一开始Buffer是什么都没有的,那么
+你指定的缓冲区大小(Capacity)就是这个缓冲区能存放数据的上限(也就是Limit),对于写而言能写的上限不就是容量吗?对于写而言,每写一个值它的位置Position就自增
+当我们调用flip​()方法将缓冲区改为读模式时,对于读而言上界Limit此时的大小就是我们写入的数据量(元素个数),这个也很容易理解因为你现在缓冲区就这么多数据,那么
+Limit自然就是缓冲区能读取到的元素的个数,此时位置Position为0,因为是才切换到读模式的,所以肯定是从0开始往后读(就是我们说的一样类似数组),缓冲区的容量Capacity
+是自始至终不变的.
+
+Buffer:
+capacity​() return int;					//返回缓冲区的容量Capacity
+hasRemaining​() return boolean;				//返回当前位置Position和上界Limit之间是否存在元素
+isReadOnly​() return boolean;				//缓冲区是否是只读的
+position​() return int;					//返回当前缓冲区的位置Position
+remaining​() return int;					//返回当前位置Position和上界Limit之间的元素的个数
+limit​() return int;					//返回当前上界Limit的大小
+
+ByteBuffer:
+static allocate(int) return ByteBuffer;			//创建一个新的缓冲区(返回值不限定是什么类型) args0:缓冲区大小
+array() return byte[];					//返回该缓冲区代表的数组
+asCharBuffer​() return CharBuffer;			//将当前缓冲区转为CharBuffer
+asDoubleBuffer​() return DoubleBuffer;			//其余类型同样
+asReadOnlyBuffer() return ByteBuffer;			//创建一个只读的缓冲区
+clear​() return ByteBuffer;				//清除此缓冲区,并且由读模式转为写模式
+flip​() return ByteBuffer;				//翻转这个缓冲区(切换模式)
+limit​(int) return ByteBuffer;				//设置此缓冲区的大小
+slice() return ByteBuffer;				//创建一个新的字节缓冲区,其内容是此缓冲区内容的共享子序列
+duplicate() return ByteBuffer;				//创建一个新的字节缓冲区,其内容是此缓冲区内容的共享子序列
+put(byte) return ByteBuffer;				//往缓冲区放置内容
+get(int) return byte;					//根据索引从缓冲区获取内容
+get(byte[]) return ByteBuffer;				//将当前缓冲区的内容写到字节数组里
+put(byte[]) return ByteBuffer;				//将字节数组的内容写到缓冲区中(有时候这一步可能会改变目标文件)
+position(int) return ByteBuffer;			//设置当前缓冲区的位置 args0:设置索引
+rewind​() return ByteBuffer;				//倒带这个缓冲区,将位置Position设置为0,将标记Mark丢弃(也就是此时标记不再起到标记的效果),那么就可以重新写或者读这个缓冲器了
+
+FileChannel:文件通道,需要和缓冲区搭配使用,关于网络IO去看网络编程
+
+static open(Path,OpenOption...) return FileChannel;	//获取一个文件的通道 args1:通道打开时选项,不多说了.(有的时候第二个参数很重要,比如对于不存在的文件,就可能需要CREATE、READ、WRITE等模式,如果碰到错误了想想这个)
+transferTo​(long,long,WritableByteChannel) return long;	//直接将当前通道的内容传输到指定通道(有点像InputStream的transferTo方法),通过该方法就可以完成文件的拷贝
+size() return long;					//返回当前通道文件的大小
+map(FileChannel.MapMode,long,long) return MappedByteBuffer;	//将此通道代表的文件映射到内存中 args0:映射模式 args1:映射开始的位置(一般是0) args2:映射区域的大小(调用size方法就是映射整个文件) 返回值内存映射文件
+read​(ByteBuffer) return int;				//将文件通道的内容读取到缓冲区 返回值为读取到的字节数 如果读取完毕返回-1
+read(ByteBuffer[]) return int;				//分散读取,这里可以传入一个字节缓冲区数组 读取的时候按照顺序会依次填满这些Buffer
+write​(ByteBuffer) return int;				//将缓冲区中的内容写到文件通道中
+write​(ByteBuffer[]) return int;				//聚集写入,将缓冲区中的内容写到文件通道中,同理可以传入一个字节缓冲区数组
+
+lock() return FileLock;					//对当前文件加锁,默认为排它锁,阻塞式会一直尝试对文件加锁
+lock(long,long,boolean) return FileLock;		//对当前文件的部分内容加锁 args0:开始的位置 args1:长度/大小 args2:是否为共享锁 true为共享锁
+tryLock() return FileLock;				//尝试去加锁,非阻塞式的,如果无法加锁就返回一个null
+tryLock(long,long,boolean) return FileLock;		//尝试去加锁,并且对当前文件的部分内容加锁,非阻塞式的,如果无法加锁就返回一个null
+
+MappedByteBuffer:内存映射文件,这个对象就代表一个内存映射文件(或者就可以简单理解为一个文件),除了private映射模式之外,如果是读写模式,对该缓冲区的修改会影响目标文件
+isLoaded​() return boolean;				//当前缓冲区是否驻留在物理内存中
+load​() return MappedByteBuffer;				//将此缓冲区中的内容加到物理内存中
+下面是一个通过内存映射复制文件的例子
+// 获取内存映射文件对象(inchannel和outchannel就是两个打开的通道)
+MappedByteBuffer inMappedBuf = inchannel.map(FileChannel.MapMode.READ_ONLY,0,inchannel.size());
+MappedByteBuffer outMappedBuf = outchannel.map(FileChannel.MapMode.READ_WRITE,0,outchannel.size());
+
+byte[] dst = new byte[inMappedBuf.limit()];
+inMappedBuf.get(dst);			//将文件读取到字节数组中
+outMappedBuf.put(dst);			//将字节数组中的内容写出到outMappedBuf中
+
+FileLock:文件锁(通过FileChannel获得该对象)详细内容https://www.cnblogs.com/chy18883701161/p/10940390.html 这篇博客写的不错
+文件锁是进程级别的,不是线程级别的.文件锁可以解决多个进程并发访问、修改同一个文件的问题,但不能解决多线程并发访问、修改同一文件的问题.
+文件锁是当前程序所属的JVM实例持有的,一旦获取到文件锁(对文件加锁),要调用release(),或者关闭对应的FileChannel对象,或者当前JVM退出,才会释放这个锁.
+一旦某个进程(比如说JVM实例)对某个文件加锁,则在释放这个锁之前,此进程不能再对此文件加锁,就是说JVM实例在同一文件上的文件锁是不重叠的(进程级别不能重复在同一文件上获取锁)
+排它锁:又叫独占锁.对文件加排它锁后,该进程可以对此文件进行读写,该进程独占此文件,其他进程不能读写此文件,直到该进程释放文件锁.
+共享锁:某个进程对文件加共享锁,其他进程也可以访问此文件,但这些进程都只能读此文件,不能写.线程是安全的.只要还有一个进程持有共享锁,此文件就只能读,不能写.
+
+isValid​() return boolean;				//当前锁是否还有效
+release​() return void;					//释放这个锁
+close() return void;					//释放这个锁,内部调用release​()方法
+overlaps​(long,long) return boolean;			//判断当前锁锁定的范围是不是在给定的范围内 args0:开始位置 args1:锁定长度 也就是说锁可以只锁定文件的一个范围
+isShared​() return boolean;				//锁是否共享(是否是共享锁)
+size​() return void;					//获得当前锁锁定的大小
+acquiredBy​() return Channel;				//获取此锁的文件的通道
+channel​() return FileChannel;				//获取此锁的文件的通道(因为FileLock也是通过FileChannel获取的)
+
+
+
+
+Paths:操作文件的工具类
+static get(String,String) return Path;			//获得一个目录的Path对象
+static get(URI) return Path;			
+
+WatchEvent<T>:
+kind() return WatchEvent.Kind<T>;			//Returns the event kind.
+count() return int;					//返回事件的数目
+context() return T;					//
+
+WatchEvent.Kind<T>:				//监听的类型,详情见StandardWatchEventKinds
+name() return String;
+type() return Class<T>;
+
+WatchEvent.Modifier:
+name() return String;				//
+
+Watchable:顶级接口
+register(WatchService,WatchEvent.Kind<?>...) return WatchKey;				//注册监听器 args0:通过FileSystem创建 args1:监听的事件
+register(WatchService,WatchEvent.Kind<?>[],WatchEvent.Modifier...) return WatchKey;		//注册监听器 args0:通过FileSystem创建 args1:监听的事件 args2:
+
+WatchService:监听服务
+close() return void;					//关闭监听服务
+poll() return WatchKey;				//
+poll(long,TimeUnit) return WatchKey;			//args0:延迟时间 args1:时间单位
+take() return WatchKey;				//创建下一个监视Key,如果没有则阻塞等待
+
+WatchKey:监听Key
+isValid() return boolean;				//当前监听Key是否有效
+cancel() return void;					//取消监听
+reset() return boolean;				//重置WatchKey
+pollEvents() return List<WatchEvent<?>>;		//检索并删除此监视键的所有挂起事件,返回已检索事件的List,相当于监听一次就删除.
+watchable() return Watchable;				//返回创建此监听对象的Watchable
+
+DirectoryStream.Filter<? super Path>:用于过滤文件
+accept(T) return booleab;				//过滤文件,注意泛型
+
+Path implement Watchable:用于表示系统相关的文件属性,该接口的实现是不可变并且是线程安全的!
+static of(String,String) return Path;			//获得一个目录的Path对象
+static of(URI) return Path;	
+
+getFileSystem​() return FileSystem;			//返回创建此对象的文件系统
+isAbsolute​() return boolean;				//判断这条路径是否是绝对路径
+getRoot​() return Path;				//获得当前路径的根路径(磁盘符)
+getFileName() return Path;				//得到当前路径的文件名(目录),这个方法会返回里当前目录结构层次中根目录最远的元素.(比如D:\Java Project\Hello World.java离根路径D:\最远的元素就是Hello World.java)
+getParent​() return Path;				//得到当前路径的父目录
+getNameCount​() return int;				//得到路径中名称元素的数量
+getName(int) return Path;				//根据索引得到此路径中的元素的Path对象(比如D:\Java Project\Hello World.java中D:\索引为0 Java Project的索引为1以此类推)​
+subpath​(int,int) return Path;				//分割这个目录 args0:beginIndex args1:endIndex
+startsWith​(Path) return boolean;			//判断此路径是否以某个给定的路径开始的.
+startsWith​(String) return boolean;			//同理
+endsWith​(Path) return boolean;			//同理
+endsWith​(String) return boolean;			//同理
+normalize() return Path;				//归一化目录,假设现在有个目录是 a/b/../c.txt	实际上我们知道../的意思就代表上级目录,调用该方法返回的Path的目录就是 a/c.txt 也就是帮我们转换路径的逻辑.
+resolve​(Path) return Path;				//从效果上看是拼接上一个路径
+resolve(String) return Path;				//同理
+resolveSibling(Path) return Path;			//将末尾路径改为传入参数的路径(比如D:\Java Project\Hello World.java 调用该方法后,假设传入的参数是Test.java,则结果目录是D:\Java Project\Test.java)
+resolveSibling​(String) return Path;			//同理
+relativize(Path) return Path;				//使相对化.假设现在有两个Path: F:\A\B\	F:A\B\C.txt	则以第一个作为调用者传入第二个Path,返回的结果就是C.txt.也就是这个方法去除传入的Path和调用Path的公共内容,提取出不同的内容.
+toUri​() return URI;					//用URI来表示
+toAbsolutePath​() return Path;				//得到当前路径的绝对路径
+toFile​() return File;					//用File来表示
+
+
+Files:文件/目录或其他类型文件进行操作的静态方法(有些感觉并不是很好用)
+static newInputStream(Path,OpenOption...) return InputStream;		//打开一个文件 args0:文件的Path args1:文件打开的选项(比如选择DELETE_ON_CLOSE,当流关闭的时候是真的会把这个文件删掉)
+static newOutputStream​(Path,OpenOption...) return OutputStream;		//打开或创建一个文件
+static newByteChannel​(Path,Set<? extends OpenOption>,FileAttribute<?>) return SeekableByteChannel;	//打开或创建文件,返回可访问的字节通道以访问此文件(这种方式还是比较推荐的,而且注意返回的Channel,可以和Buffer搭配使用)
+static newByteChannel​(Path,OpenOption...) return SeekableByteChannel;	//同理
+static newDirectoryStream​(Path) return DirectoryStream<Path>;		//打开一个目录,返回一个DirectoryStream来遍历目录中的所有条目,这个返回的DirectoryStream只有该目录下的一级目录(也就是不提供递归目录).(这个方法也比较推荐,因为是Stream流)注意该方法结束后要调用DirectoryStream的close方法.
+									或者通过try (DirectoryStream<Path> paths = Files.newDirectoryStream(Paths.get("D:\\java工程大全\\springboot"))) { } catch (IOException e) { e.printStackTrace(); }这种方法自动关闭
+static newDirectoryStream​(Path,String) return DirectoryStream<Path>;	//主要讲讲args1,这个参数可以过滤匹配的文件.假设传入 *.java 就代表只匹配以.java结尾的文件.同样记得关闭流
+static newDirectoryStream​(Path,DirectoryStream.Filter<? super Path>) return DirectoryStream<Path>;	//该方法比上面的这个方法要更强大.在调用该方法的时候通过lambda表达式传入一个回调(注意指定泛型),然后JDK会回调你的函数根据你的规则去过滤Path.
+static createFile​(Path, FileAttribute<?>...) return Path;		//创建一个空文件,如果文件已经存在则创建失败.这个方法不是很推荐,第二个参数作用未知
+static createDirectory​(Path,FileAttribute<?>...) return Path;		//创建一个新的目录(父目录一定要存在)
+static createDirectories​(Path,FileAttribute<?>...) return Path;		//该方法会把传入的一整条目录结构全部创建,这是和上面方法的区别
+static createTempFile​(Path,String,String,FileAttribute<?>...) return Path;	//在指定目录创建临时文件 args1:文件前缀 args2:文件后缀
+static createTempDirectory​(Path,String,FileAttribute<?>...) return Path;	//创建临时目录
+static createTempDirectory​(String,FileAttribute<?>...) return Path;		//创建临时目录(这个方法应该会在操作系统的临时目录里创建该目录,比如windows的临时目录在C:...) agrs0:目录的前缀
+static delete​(Path) return void;					//删除文件(或者删除一个空目录),如果目标文件/目录不存在会报错
+static deleteIfExists​(Path) return void;				//删除文件/目录,如果目标文件/目录不存在则不会报错
+static copy​(Path,Path,OpenOption...) return Path;			//将一个文件复制到另一个文件(只能是复制文件)
+static move(Path,Path,OpenOption...) rteturn Path;			//将一个文件移动到另一个文件,相当于Linux中高端mv命令
+static getFileStore​(Path) return FileStore;				//返回表示文件所在文件存储区的FileStore
+static isSameFile​(Path,Path) return boolean;				//此时两个路径是否找到相同的文件
+static isHidden​(Path) return boolean;					//当前文件是否是隐藏文件
+static probeContentType​(Path) return String;				//探测文件的类型.该方法的返回值由RFC2045提供
+static getOwner​(Path,LinkOption...) return UserPrincipal;		//得到文件的所有者
+static setOwner​(Path,UserPrincipal) return Path;			//更新文件所有者
+static isDirectory​(Path,LinkOption...) return boolean;			//目标目录是否是文件夹
+static isRegularFile(Path,LinkOption...) return boolean;	//判断当前Path是否是一个常规文件.什么是常规文件?首先肯定得是文件,其次该文件必须能被windows识别.比如没有后缀的文件肯定就不是常规文件,再比如一个后缀为a的文件也不是常规文件.但是一个后缀为png的就是常规文件了.
+static getLastModifiedTime​(Path,LinkOption...) return FileTime;		//返回文件上次修改的时间
+static size​(Path,LinkOption...) return long;				//返回文件的大小
+static exists​(Path,LinkOption...) return boolean;			//测试目标文件是否存在
+static notExists​(Path,LinkOption...) return boolean;			//测试目标文件是否不存在
+static isReadable​(Path) return boolean;					//目标文件是否可读
+static isWritable​(Path) return boolean;					//目标文件是否可写
+static isExecutable​(Path) return boolean;				//目标文件是否是可执行的(该方法不是原子的,对于权限敏感的系统慎用此方法)
+
+static walkFileTree​(Path,Set<FileVisitOption>,int,FileVisitor<? super Path>) return Path;		    
+//通过DFS去递归遍历给定的起始目录 args0:起始目录 args1:文件遍历的选项(FileVisitOption是个枚举,只有一个值FOLLOW_LINKS(按照符号链接)) args2:访问的目录级别的最大数量 args3:对于每一个目录将调用FileVisitor接口的函数(这里通过泛型指定上限,所以回调时传入的参数基本上就是Path了)
+static newBufferedReader​(Path,Charset) return BufferedReader;		//打开一个文件开始阅读 args1:指定字符编码(可以用StandardCharsets类里的常量代表,IDEA也会有提示的)
+static newBufferedReader​(Path) return BufferedReader;			//打开一个文件开始阅读并且默认按照UTF-8解码
+static newBufferedWriter​(Path,Charset,OpenOption...) return BufferedReader;		//同理
+static copy​(InputStream,Path,CopyOption...) return long;		//将输入流中的所有字节复制到文件(不推荐使用)
+static copy​(Path,OutputStream,CopyOption...) return long;		//将文件中所有的字节复制到输出流
+static readAllBytes​(Path) return byte[];				//读取文件中的所有字节
+static readAllLines​(Path,Charset) return List<String>;			//从文件中读取所有行将其存放在List集合中 args1:指定编码
+static readAllLines​(Path) return List<String>;				//从文件中读取所有行将其存放在List集合中,默认以UTF-8解码
+static write​(Path,byte[],OpenOption...) return Path;			//将字节数组中的内容写入Path代表的文件
+static write​(Path,Iterable<? extends CharSequence>,Charset,OpenOption...) return Path;		//将文件写入文件  args1:代表文本的Set集合(在参数中这个意思是Set集合中的一个元素就代表一行) args2:字符集 
+static write​(Path,Iterable<? extends CharSequence>,OpenOption...) return Path;			//同理,默认以UTF-8编码作为字节
+static list​(Path) retrun Stream<Path>;					//列出当前目录下的所有目录,该方法是线程安全的(推荐使用).注意需要手动关闭Stream流!!
+static walk​(Path,int,FileVisitOption...) return Stream<Path>;		//通过DFS去递归遍历得到起始目录的所有子目录 args1:DFS访问目录的最大深度 args2:如果参数是FOLLOW_LINKS,则目标的属性无法读取.
+static walk​(Path,FileVisitOption...) return Stream<Path>;		//它实际上就相当于walk(start,Integer.MAX_VALUE,options);
+static lines​(Path,Charset) return Stream<String>;			//从文件中读取所有行将其存放在List集合中,和readAllLines​方法不同的是,该方法不会将所有行全读出来,而是在消耗时懒惰地去读取数据.args1:指定编码
+
+File:
+getName​() return String;				//返回当前路径的文件或者文件夹名称(也就是路径名称结构中的最后一个名字)
+getParent​() return String;				//得到父路径名称
+getParentFile​() return File;				//得到父路径的File对象
+getPath​() return String;				//得到当前路径
+isAbsolute​() return String;				//测试这个路径是否是绝对路径
+getAbsolutePath​() return String;			//得到该路径的绝对路径
+getAbsoluteFile​() return File;				//同上,返回值不一样
+getCanonicalPath​() return String;			//得到该路径的规范化路径(应该和上面的归一化路径差不多)
+getCanonicalFile​() return Files;			//同上,返回值不一样
+toURL​() return URL;					//转为URL
+toURI​() return URI;					//转为URI
+canRead​() return boolean;				//判断是否可读
+canWrite​() return boolean;				//判断是否可写
+exists​() return boolean;				//判断此目标表示的文件/目录是否存在
+isDirectory​() return boolean;				//判断此目录表示的是否为文件夹
+isFile​() return boolean;				//判断此目录表示的是否为文件
+isHidden​() return boolean;				//判断此目录表示的是否为隐藏文件
+lastModified​() return long;				//返回此目录表示的文件上次修改时间
+length​() return long;					//返回此目录表示的文件长度
+createNewFile​() return long;				//当且仅当当前路径表示的文件不存在时才创建该文件
+delete​() return boolean;				//删除当前文件
+deleteOnExit​() return void;				//请求当虚拟机终止时删除该文件,一旦请求删除将无法取消请求,谨慎使用该方法.
+list​() return String[];					//如果当前目录是文件夹就返回当前文件夹下的所有目录(和Files里的list方法很像)
+list​(FilenameFilter) return String[];			//同上,不过该方法可以通过实现FilenameFilter接口来过滤掉一些不需要的目录
+listFiles​() return Files[];				//同理只是返回值不一样
+listFiles​(FilenameFilter) return Files[];		//同理只是返回值不一样
+mkdir​() return boolean;					//创建此目录表示的文件夹(在此之前应该进行非空判断),该方法前提是父目录存在,否则会报错
+mkdirs​() return boolean;				//创建此目录表示的文件夹(在此之前应该进行非空判断),该方法不需要父目录存在,全部创建完成
+renameTo​(File) return boolean;				//重命名该文件
+setLastModified​(long) return boolean;			//设置当前目录的最后修改时间
+setReadOnly​() return boolean;				//设置当前目录为只读
+setWritable​(boolean,boolean) return boolean;				//设置当前目录的写许可 args0:当前目录是否可写 args1:如果是true则当前目录只有有权限的用户才能写 false表示所有用户可写
+canExecute​() return boolean;				//该文件是否可执行
+static listRoots​() return File[];			//列出当前系统的所有盘符
+toPath​() return Path;					//转为Path
+
+FileStore:FileStore表示存储池,设备,分区,卷,具体文件系统或其他实现文件存储的具体方式
+getAttribute​(String) return Object;				//读取文件存储属性的值
+getTotalSpace() return long;					//返回文件存储的大小
+getUnallocatedSpace() return long;				//返回文件存储区中未分配的字节数量
+getUsableSpace() return long;					//返回文件存储的名称
+name() return String;						//返回文件存储在此java虚拟机中可用的字节数
+isReadOnly() return boolean;					//这个文件是否是只读的
+type() return String;						//返回此文件存储的类型
+
+BasicFileAttributes:基本的文件属性接口
+lastModifiedTime() retrun FileTime;				//返回文件最后一次修改的时间
+lastAccessTime() return FileTime;				//返回文件最后一次访问的时间
+creationTime() return FileTime;				//返回文件的创建时间
+isRegularFile() return boolean;					//判断文件是否是非透明的常规文件
+isDirectory() return boolean;					//判断文件是否是文件夹
+isSymbolicLink() return boolean;				//判断文件是否是符号链接
+size() return long;						//文件长度
+fileKey() return Object;					//返回唯一标识文件的Key
+
+FileTime:文件时间类
+to(TimeUnit) return long;					//将当前的文件时间转为long值 args0:时间单位
+toMillis() return long;					//返回文件时间的毫秒数
+toInstant() return Instant;					//返回时间瞬时值
+
+FileVisitor<T>:顶级接口,文件访问者,这个接口要我们自已实现回调,配合上面的walkFileTree​方法使用
+preVisitDirectory(T,BasicFileAttributes) return FileVisitResult;	//由于是递归遍历文件目录,在访问每一个目录的时候调用(不管是文件夹还是文件).注意该方法的返回值很有讲究
+visitFile​(T,BasicFileAttributes) return FileVisitResult;		//如果当前目录为文件就调用该方法
+visitFileFailed​(T,IOException) return FileVisitResult;			//当前目录无法访问时调用
+postVisitDirectory​(T,IOException) return FileVisitResult;		//当整个迭代结束之后会调用该方法,如果在迭代的过程中没有产生任何错误则args1为null.如果迭代的过程中产生任何IO异常都会传入agrs1
+
+
+FileVisitResult:枚举类,这是我们实现FileVisitor接口的方法时要返回的内容
+CONTINUE						//如果方法返回该值,代表继续遍历
+TERMINATE						//终止遍历
+SKIP_SUBTREE						//不再遍历当前目录下的目录,去遍历当前结构树的兄弟节点(不是子节点和父节点)
+SKIP_SIBLINGS						//不在遍历当前目录下的兄弟节点目录
+
+OpenOption:顶级接口,定义打开或创建文件的的选项
+
+CopyOption:顶级接口
+
+StandardOpenOption:实现OpenOption接口,枚举类,标准的打开选项
+READ					//需要读取权限
+WRITE					//需要写权限
+APPEND					//附加写权限(这个和单纯的写权限还不一样)
+TRUNCATE_EXISTING			//如果文件已经存在,并且打开WRITE访问,则其长度将截断为0
+CREATE					//创建一个文件,如果不存在
+CREATE_NEW				//创建一个新文件,如果已经存在则失败
+DELETE_ON_CLOSE				//关闭时删除该文件
+SPARSE					//稀疏文件
+SYNC					//要求将文件内容或元数据的每次更新都同步写入底层存储设备
+DSYNC					//要求将文件内容的每次更新都与底层存储设备同步写入
+
+StandardCopyOption:实现CopyOption接口,枚举类,标砖的拷贝选项
+REPLACE_EXISTING				//拷贝的选项为覆盖
+COPY_ATTRIBUTES				//拷贝的选项为复制
+ATOMIC_MOVE				//拷贝的选项为移动文件
+
+StandardWatchEventKinds:该类里面的静态属性都是WatchEvent.Kind<T>的实现类,也就是说下面的几个静态属性都实现了WatchEvent.Kind<T>
+OVERFLOW				//一个特殊事件,表示事件可能已丢失或丢弃.
+ENTRY_CREATE				//目录条目创建
+ENTRY_DELETE				//目录条目删除
+ENTRY_MODIFY				//目录条目修改
+
+
+LinkOption:实现OpenOption、CopyOption接口,枚举类定义选择如何符号链接的处理(Linux中文件分为硬连接和软连接/符号链接)
+NOFOLLOW_LINKS				//不要遵从符号链接?意思不能用符号链接?不识别符号链接的文件?
+
+FileVisitOption:定义文件遍历数的选择
+FOLLOW_LINKS				//按照符号连接
+
+FileChannel.MapMode:映射模式(映射模式的前提是通道打开,所以通道的打开方式会影响映射模式,通道打开设置为READ时,这里的映射模式才能设置为READ,对于映射模式的读写,通道打开模式必须支持读写才可以)
+READ_ONLY				//只读映射
+READ_WRITE				//读写映射
+PRIVATE					//对于Private而言,在缓冲区所做的修改不会影响到文件,并且对于映射了相同文件的其他程序将不可见.
+
+FileSystems:FileSystem的工厂
+static getDefault() return FileSystem;			//返回默认值FileSystem
+static getFileSystem​(URI) return FileSystem;		//根据文件的URI获取到文件对应的FileSystem,记得close
+static newFileSystem​(URI,Map<String,?>) return FileSystem;		//没看懂
+static newFileSystem​(URI,Map<String,?>,ClassLoader) return FileSystem;	//加载的时候指定类加载器(指定类加载器是很有必要的,因为有些时候调用者的类加载器无法访问到)
+static newFileSystem​(Path,ClassLoader) return FileSystem;		//没看懂
+
+
+FileSystem:通过FileSystem可以读取到jar包里面的文件,但是还是要跟Path配合使用的
+close() return void;					//关闭此文件系统
+isOpen​() return boolean;				//判断这个文件是否打开
+isReadOnly​() return boolean;				//判断这个文件是否只读
+getSeparator​() return String;				//返回名称分隔符
+getRootDirectories​() return Iterable<Path>;		//得到当前目录的根目录
+getFileStores​() return Iterable<FileStore>;		//得到代表当前每个磁盘的FileStore(C: D: E: F:)
+getPath​(String,String...) return Path;			//获取当前文件系统代表的Path,对于路径我们可以拼接上,比如当前的路径是 F: 第一个参数是/abc,后面的可变参数是"aaa","bbb"则最终的路径是 F:/abc/aaa/bbb
+newWatchService() return WatchService;		//获取文件事件监听器
+
+下面是一个对文件事件监听的Demo:
+public class Test {
+    public static void main(String[] args) throws IOException, InterruptedException {
+
+        //创建一个文件系统的监听服务
+        WatchService watchService= FileSystems.getDefault().newWatchService();
+
+        Path path=Paths.get("D:/untitled/test");
+
+        //为该文件夹注册监听,监听新建、修改、删除事件。只能为文件夹（目录）注册监听，不能为单个文件注册监听
+        path.register(watchService,StandardWatchEventKinds.ENTRY_CREATE,StandardWatchEventKinds.ENTRY_MODIFY,StandardWatchEventKinds.ENTRY_DELETE);
+
+        //编写事件处理
+        while (true){  //一直监听
+            //拉取一个WatchKey。当触发监听的事件时，就会产生一个WatchKey，此WatchKey封装了事件信息。
+            WatchKey watchKey=watchService.take();
+
+            //使用循环是因为这一个WatchKey中可能有多个文件变化了，比如Ctrl+A全选，然后删除，只触发了一个WatchKey，但有多个文件变化了
+            for (WatchEvent event:watchKey.pollEvents()){
+                System.out.println(event.context()+"发生了"+event.kind()+"事件！");
+                /*
+                watchKey.pollEvents()  获取此次WatchKey中所有变化了的文件的信息，以List（列表）形式返回，一个WatchEvent就是一个元素，封装了一个变化了的文件的信息
+                event.context()  获取文件名
+                event.kind()  获取发生的事件类型
+
+                因为只能为文件夹注册监听，如果要监听某些指定的文件，可以在增强的for循环中，先根据event.context()判断是否是指定的文件，是才处理。
+                 */
+            }
+
+            //虽然是while()循环，但WatchKey和ByteBuffer一样，使用完要重置状态，才能继续用。
+            watchKey.reset();    //如果不重置，WatchKey使用一次过后就不能再使用，即只能监听到一次文件变化。
+        }
+    }
+}
+
+
+									java.xml模块
+xml:
+InputSource:它是XML实体的单一输入源,但凡是通过java来解析XML的.那么你的输入源最终会转为InputSource,InputSource包装了一个流.它要和DocumentBuilder搭配使用,详情见javaSE旧版
+构造器:
+InputSource​(InputStream) 创建一个带有字节流的新输入源。  
+InputSource​(Reader)
+InputSource​(String)
+
+
+								模块机制
+如何使用模块管理机制?在一个模块下新建module-info.java文件表示当前项目采用模块管理机制,文件的格式如下:
+module [modelName] {				//模块名称随便起一个就可以,但是注意必须是唯一的,以及模块内的包名也得是唯一的,即使模块不同(也就是不同模块的包名也必须是唯一的)
+    
+}
+
+这样使用之后发现程序可以正常运行但是某些类无法使用了,这里无法使用Java的Logger类了,这是因为Java的java.logging包是作为一个单独的模块存在,要想使用必须先导入该模块.
+
+module [modelName]{
+    requires java.logging;		//将日志模块导入到当前项目,如果需要导入JavaSE的所有依赖,像之前一样的话,直接 requires java.se;  即可
+}
+
+所以实际上,全新的模块化机制提供了另一个级别的Java代码可见性、可访问性的控制.除了JDK的一些常用包之外,只有我们明确需要的模块才会导入依赖库.所以模块说道最后就是对包的可访问性的控制.
+反射 API 的 Java 9 封装和安全性得到了改进,如果模块没有明确授权给其他模块使用反射的权限,那么其他模块是不允许使用反射进行.什么意思呢?
+之前说过JDK常用的包会自动导入,假设我现在要获取String的value变量,由于value变量是private的,所以我们是无法直接获取这个属性的属性值的,那么我们就可以用反射来获取该变量.但是现在由于java.lang模块(系统模块)没有明确授权给别的模块的反射权限,所以就不允许使用反射获取.
+模块机制共有四种类型:
+1. 系统模块:来自JDK官方的模块,可以使用java --list-modules命令来列出所有的模块.
+2. 应用程序模块:我们自已写的Java模块
+3. 自动模块:对于那些不是Java9以上版本的模块项目,这种情况下是需要做兼容的,默认情况下是直接导出所有的包,可以访问所有其它模块提供的类,不然这些库就无法使用了.
+4. 未命名模块:我们自己创建的一个Java项目,如果没有创建module-info.java,那么会按照未命名模块进行处理,未命名模块同样可以访问所有其他模块提供的类,这样我们之前写的Java 8代码才能正常地在Java 9以及之后的版本下运行.不过,由于没有使用Java 9的模块新特性,未命名模块只能默认暴露给其他未命名的模块和自动模块,应用程序模块无法访问这些类.
+
+我们创建Maven项目之后如果没有module-info.Java文件则该模块为未命名模块还是按照之前的开发方式可以使用依赖库的任何类,但如果我们要采用模块化的方式来开发,新建好module-info.java文件后.
+我们需要去对应的包下面找到它的module-info.java文件看看这个依赖当前暴露了哪些模块供我们使用.
+
+模块中共有5个关键字:
+requires [transitive] [modelName]			//将一个模块导入到当前模块中,导入的时候是按照模块名导入的.transitive是可选的
+exports [packageName]				//指定当前模块暴露哪些包
+exports [packageName] to [moduleName]		//指定当前模块暴露哪些包,并指定暴露给哪些模块
+open [packageName] to [moduleName]			//使用open关键字来为其它模块开放反射权限,to后面的参数代表也可以同时指定给哪个模块开放反射的权限.
+open module [moduleName]{				//也可以直接在模块前加上open关键字,代表开放整个模块的反射权限
+}
+uses [interfaceName/abstractClassName]		//使用uses指定,[interfaceName]是一个接口,表明当前模块有一个功能接口需要别的模块实现.
+provides [interfaceName] with [implementClass]		//使用provides表明当前模块拥有interfaceName这个接口的实现类
+
+moduleA{
+	exports com.test;		//将当前模块的com.test模块暴露出去,这样其它模块才能导入.如果不暴露该包,即使别的项目有当前模块的依赖也无法使用com.test里面的类.
+}
+
+moduleB{
+	requires moduleA;		//将模块moduleA导入进当前项目
+}
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+moduleA{
+	exports com.test to moduleB;
+	requires java.logging;		//如果模块A依赖于某个模块,那么会不会传递给依赖于模块A的模块呢?事实上是不会的.也就是说哪个模块导入的依赖只能哪个模块用.
+}
+
+moduleA{
+	exports com.test to moduleB;
+	requires transitive java.logging;	//通过添加参数transitive来向别的模块传递此依赖
+}
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+moduleA{
+	exports com.test to moduleB;
+	uses com.test.Test;			//使用uses指定当前模块需要Test接口的实现类
+}
+
+moduleA{
+	requires moduleA;				//将模块moduleA导入进当前项目,这样就能导入模块A的Test类了
+	provides com.test.Test with com.main.TestImpl; 	//声明此模块提供了Test的实现类
+}
+
+
+

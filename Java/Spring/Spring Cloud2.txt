@@ -1,0 +1,1167 @@
+1.springcloud就是由各种组件组成的
+服务注册中心:Eureka(不推荐)、zookeeper、Consul(GO语言编写,大同小异)、Nacos
+负载均衡:Ribbon、OpenFeign
+服务降级:Hystrix(不推荐)、Sentinel
+服务网关:Zuul(不推荐)、Gateway
+服务配置:Config(不推荐)、Nacos
+服务总线:Bus(不推荐)、Nacos
+消息驱动:Cloud Stream
+链路跟踪:Sleuth
+集群和持久化配置:Nacos
+分布式事务:Seata
+
+2.最基础的依赖(这个文档就不写版本了)
+<dependency>
+    <groupId>org.springframework.cloud</groupId>			
+    <artifactId>spring-cloud-dependencies</artifactId>
+    <type>pom</type>
+    <scope>import</scope>
+</dependency>
+3.服务注册到服务注册中心,并保持心跳连接注册中心可以知晓哪些服务还能提供服务.
+4.在Ribbon中远程调用实际上就是通过RestTemplate的方法来完成的(关于RestTemplate在SpringBoot入门中讲过)
+5.第9.1条很重要
+6.注册中心总是最先启动的
+7.集群服务(也就是相同服务)必须每个服务所担当的职责都是一样的,也就是说随便宕掉其中的任意一个服务,对全局不会产生任何程度的影响.
+8.引入SpringCloudAlibaba
+<dependency>
+    <groupId>org.springframework.cloud</groupId>			
+    <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+    <type>pom</type>
+    <scope>import</scope>
+</dependency>
+
+
+
+服务注册中心之Eureka:
+1.在Eureka中,Eureka包含两个组件Eureka Server就是常说的注册中心,Eureka Client就是一个个的具体的服务.
+2.Eureka Server的依赖,Eureka Server本身也是一个服务
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>
+</dependency>
+3.Eureka Server的application.yml
+eureka:
+    instance:
+	hostname: eurekaserver.com		//Eureka Server的实例名称
+    client:
+	register-with-eureka: false		//表示不向注册中心注册自已
+	fetch-registry: false			//之前说过Eureka Server自已本身就是一个服务,只不过这个服务对外不提供服务,只是维护Eureka Client而已
+	service-url:
+	    defaultZone: http://eurekaserver.com:port/eureka		//表明当前服务注册到哪个地址中去,虽然Eureka Server并不会被真正注册,这里这么写是为了下面Eureka Server集群服务的(当我们Eureka Server服务起来后访问这个地址就能可视化看到现在的注册中心有哪些服务)
+4.在Eureka Server的SpringBootApplication主启动类上标注@EnableEurekaServer表明当前这个程序是微服务的注册中心(并且开启Eureka Server的相关的自动配置)
+5.Eureka Client的依赖
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+</dependency>
+6.Eureka Client的application.yml
+spring:
+    application:
+	name: now-CloudName		//当前服务的名称,当注册进注册中心时通过这么名称来区分服务.
+eureka:
+    client:
+	register-with-eureka: true		//表示向注册中心注册自已
+	fetchRegistry: true			//是否从Eureka Server抓取已有的注册信息(这样就能看到别的服务了)
+	service-url:
+	    defaultZone: http://localhost:port/eureka		//在当前是Eureka Client的情况下,在这里填上当前Eureka Server的地址,表明当前Eureka Client要注册到哪个服务注册中心中去(因为服务注册中心有可能不止一个,这里的地址应该和上面Eureka Server地址对应)
+7.在Eureka Server的SpringBootApplication主启动类上标注@EnableEurekaClient表明当前这个程序是服务的提供者(并且开启Eureka Client的相关的自动配置)
+8.springcloud Eureka的架构是,如果A服务要调用B服务则需要先与Eureka交互,换句话说所有服务必须都注册到注册中心中去.
+9.老生常谈为了保证服务的高可用,你不能确保Eureka Server服务注册中心不宕机,所有需要部署多个Eureka Server(集群部署)
+假设现在有两个EurekaServer,我们只要让这两个服务相互注册就可以了(Eureka Server本身也算是一个服务)
+Eureka Server1的application.yml
+eureka:
+    instance:
+	hostname: eurekaserver1.com		//Eureka Server1的服务名称
+    client:
+	register-with-eureka: false		
+	fetch-registry: false			
+	service-url:
+	    defaultZone: http://eurekaserver2.com:port/eureka	//相互注册,注意对应,此时Eureka Server1对于Eureka Server2就是Client了
+Eureka Server2的application.yml
+eureka:
+    instance:
+	hostname: eurekaserver2.com		//Eureka Server2的服务名称	
+    client:
+	register-with-eureka: false		
+	fetch-registry: false			
+	service-url:
+	    defaultZone: http://eurekaserver1.com:port/eureka	//相互注册,注意对应,此时Eureka Server2对于Eureka Server1就是Client了
+9.1当Eureka Server保证了高可用之后,实际上最终处理请求的还是一个个服务,所以要把所有的服务分别注册到各个注册中心中去,这样一个Eureka Server宕机了服务还是可以用的
+defaultZone: http://eurekaserver1.com:port/eureka,http://eurekaserver2.com:port/eureka		//当注册多个Eureka Sever的时候用逗号,隔开
+10.同样为了保证服务的高可用,你不能确保Eureka Client具体的服务提供者就不宕机了,所以也需要部署多个Eureka Client(集群部署)然后注册到注册中心中去
+11但现在就有问题了,当同一个服务(多个Eureka Client提供相同内容)有多个Eureka Client的时候,当我想要RPC远程调用的时候那么具体是哪个服务来处理这个远程调用呢?
+我们都知道一般通过RestTemplate来进行远程调用的时候需要指定域名(IP)+端口号,但如果我们把IP和端口号写死了那么别的服务就调用不到了,但问题是现在你也不知道
+到底有几个服务,它们的端口号到底是多少,怎么解决?在Eureka 第6条中有写到我们可以通过spring.application.name配置来指定当前服务的名称,所以我们只要基于约定
+提供相同服务的微服务它们的服务名称相同,那么真正通过RestTemplate RPC远程调用的时候,只要使用这种形式 http://now_cloud_name/ 也就是在请求URL中填入服务的服务名称
+不需要关注具体的IP和端口我们就能使用负载均衡去请求具体的服务,只不过原版RestTemplate不支持,要做一些修改:
+@Configuration
+public class ApplicationConfig{
+
+    @Bean
+    @LoadBalanced			//加上这个注解,让RestTemplate拥有springcloud的功能(实际上这个注解是Ribbon的内容,加上这个注解让RestTemplate可以使用Ribbon的负载均衡算法远程调用,所以与其说springcloud是使用RestTemplate去调用还不如说是Ribbon要使用RestTemplate去调用.例如负载均衡OpenFegin就不是使用RestTemplate去调用的)
+    public RestTemplate getRestTemplate(){
+	return new RestTemplate();
+    }
+
+}
+12.一个小细节不是很重要 在注册中心看当前所有的服务时(也就是那个可视化界面),一个服务会显示它的Status状态信息,这个状态信息默认是主机名+服务名称+端口
+如果你觉得这个值不好看,可以通过配置指定
+eureka:
+    instance:
+	instance-id: Eureka-Client-8080
+	prefer-ip-address: true		//访问路径可以显示IP地址
+13.对于单个服务而言,如何获取Eureka Server中所有的微服务的信息
+@AutoWired
+private DiscoveryClient discoveryClient;		//自动注入DiscoveryClient
+
+DiscoveryClient:
+getServices() return List<String>;		//获取当前Eureka Client注册到的注册中心中的所有的服务名称
+getInstances(String) return List<ServiceInstance>;	//args0:微服务名称 根据服务名称获取到该服务名称对应的所有的集群服务的信息.这些信息封装在ServiceInstance对象中.
+
+ServiceInstance:封装一个具体的微服务Eureka Client信息
+getServicedId() return String;		//得到服务名称
+getPort() return int;			//得到端口信息
+getHost() return String;		//得到IP地址
+getUri() return String;			//得到URI地址(实际上就是IP+端口)
+14.在Eureka Client的主启动类上标注@EnableDiscoveryClient注解
+15.Eureka Server的自我保护机制
+产生原因:假如某一时刻某个服务和Eureka Server发送的心跳检测失败了,那么Eureka Server就会开启自我保护机制,因为Eureka Server认为就算服务心跳失败了也不一定就代表这个服务不能用了,如果直接删除该服务可能会造成更大的问题
+具体表现:Eureka Server如果某时刻心跳检测不到一个服务,那么Eureka Server也不会立即把该服务从注册信息列表中删除,会保留信息
+16.关闭Eureka Server自我保护机制(更多配置)
+eureka:
+    server:
+	enable-self-preservation: false		//是否开启Eureka Server自我保护机制
+	eviction-interval-timer-in-ms: [int/ms]	//当Eureka Client心跳连接超时多长时间后剔除服务信息(单位毫秒 默认90000ms/90s)
+
+eureka:
+    instance:
+	lease-renewal-interval-in-seconds: [int]	//Eureka Client向Eureka Server服务端发送心跳的时间间隔(单位秒 默认30s)
+	lease-expiration-duration-in-seconds: [int]	//Eureka Server在受到最后一次心跳后等待时间上线(单位为秒 90s),超时就剔除该服务信息(和上面的配置有点异曲同工之妙)
+
+服务注册中心之zookeeper:
+1.zookeeper是一个软件是需要在Linux上单独安装的
+2.依赖,注意这里有可能引入的jar包和zookeeper软件的版本冲突,如果有冲突需要手动解决   
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-zookeeper-discovery</artifactId>
+</dependency>
+
+3.Server的application.yml
+spring:
+    application:
+	name: cloudName			//服务名称
+    cloud:
+	zookeeper:
+	    connect-string: [URI]	//zookeeper注册中心的URI(和上面一样,最起码的IP+端口)
+4.在Server的主启动类上添加@EnableDiscoveryClietn注解
+5.和zookeeper不一样的是,如果一个服务发送心跳连接失败了,则最开始zookeeper是不会删除这个服务信息的,但是如果过一段时间还是连不上则zookeeper就直接把该服务给删除了.(换而言之就是Eureka Server默认不会真的删除服务)
+6.Client的创建(配置)方式和Server一模一样,依赖、application.yml、注解
+7.远程调用的方式和Eureka里面第11条一模一样,主要就是服务名称
+
+
+服务注册中心Nacos:
+1.Nacos=Eureka+Config+Bus
+2.查看最上面的第8条,引入SpringCloudAlibaba.然后去https://github.com/alibaba/nacos/tags上下载Nacos(Gitee上也有).解压之后来到bin目录,用CMD运行start.cmd命令.如果是Linux则运行start.sh
+3.访问http://localhost:8848/nacos 来到nacos的主页.如果有账号和密码都是nacos
+4.注意现在Nacos Server是直接启动的,不需要我们去瞎操心.Nacos是一个软件单独安装,所以现在只有Client
+5.Nacos Client的依赖
+<dependency>
+    <groupId>com.alibaba.cloud</groupId>
+    <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+</dependency>
+6.Nacos Client的application.yml
+spring:
+    cloud:
+	nacos:
+	    discovery:
+		server-addr: [IP]:[Port]		//填入Nacos的地址(就是第3条的那个访问地址)
+management:
+    endpoints:
+	web:
+	    exposure:
+		include: '*'			//开启监控
+7.Nacos Client的主启动类上添加@EnableDiscoveryClietn注解
+8.Nacos默认就支持负载均衡,Nacos封装了Ribbon,所以Nacos默认只支持RestTemplate风格的负载均衡.
+9.Nacos可以在AP和CP之间切换(也就是在高可用和强一致性之间二选一)
+10.通过发送 http://[IP]:[Port]/nacos/v1/ns/operator/switches?entry=serverMode&value=[CP/AP]	请求路径是访问Nacos的地址
+11.关于高可用集群的内容在下面 集群和持久化配置之Nacos里
+
+
+负载均衡之Ribbon:
+1.已经有了nginx为什么还需要Ribbon?
+Nginx是服务器负载均衡,是挡在最外面的所有的客户端(浏览器)请求都会先到Nginx,由Nginx选择转发到哪个Tomcat上.
+Ribbon是本地负载均衡,当内部服务调用服务的时候,会先从注册中心上获取Server的注册列表信息缓存到本地,然后在本地实现RPC远程调用的选择(在本地选择具体调用哪个服务)
+2.Ribbon是针对Client而言的,之前说过Server只提供服务注册的功能
+3.依赖,现在当引入spring-cloud-starter-netflix-eureka-client之后下面这个依赖会自动引入
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-netflix-ribbon</artifactId>
+</dependency>
+4.只要把上面的依赖引入Ribbon不需要改变任何东西就已经可以负载均衡了.
+但需要注意的是 在当前第1条说过,Ribbon是自已去Server上获取服务信息后自已根据负载均衡算法选择具体要调用的服务,所以实际上调用的选择权在调用者身上(这个也很容易理解,被调用者一般没有权利管你调用者调用哪个服务)
+所以这个依赖只针对调用者有效,也就是一般谁调用别的服务需要负载均衡谁就加这个依赖(和被调用者无关)
+5.
+IRule:顶级接口,负责Ribbon负载均衡算法的规则
+AbstractLoadBalancerRule:IRule接口的抽象实现
+RoundRobinRule:继承自AbstractLoadBalancerRule抽象类,该实现类代表负载均衡算法之轮询算法
+RandomRule:继承自AbstractLoadBalancerRule抽象类,该实现类代表负载均衡算法之随机算法
+AvailabilityFilteringRule:会先过滤掉由于多次访问故障而处于断路器跳闸状态的服务,还有并发的连接数量超过阈值的服务,然后对剩余的服务列表按照轮询策略进行访问.
+WeightedResponseTimmeRule:根据平均响应时间计算所有服务的权重,响应时间越快服务权重越大被选中的概率越高,刚启动时如果统计信息不足,则使用轮询策略,等待统计信息足够时再切换到该策略.
+RetryRule:先按照轮询的策略获取服务,如果获取服务失败则在指定时间内会进行重试.获取可用的服务.
+BestAvailableRule:会先过滤由于多次访问故障而处于断路器跳闸状态的服务,然后选择一个并发量最小的服务.(会选择故障最小的服务)
+ZoneAvoidanceRule:默认规则,符合判断server所在区域的性能和server可用性选择服务器.
+6.如何替换掉默认的负载均衡算法?
+需要注意的是,下面这个配置类不能被springboot扫描到(springboot会默认扫描主启动类所在的包以及其子包),所以该配置类不能放到与主启动类的同级目录下,否则该负载均衡规则将对所有服务生效
+@Configuration
+public class MyRule{			//同理通过配置类,把自定义的IRule实现添加到容器中
+    
+    @Bean
+    public IRule myRule(){
+	return new RandomRule();
+    }
+}
+
+@SpringBootApplication
+@EnableEurekaClient
+@RibbonClient(name="[CloudName]",configuration=MyRule.class)
+public class Application{
+
+}
+所有在主启动类上添加@RibbonClient注解对特定的服务调用使用特定的负载均衡算法(加载特定的配置类),所以该注解还是对于调用者而言的,切记负载均衡算法是对于调用者而言的!
+通过这种方式指定特定的服务名和配置类,代表对于不同的服务可以使用不同的负载均衡算法(这也是为什么上面说直接被SpringBoot扫描会对所有服务生效的原因)
+
+
+负载均衡之OpenFeign:
+1.之前说过最原始的远程调用是通过RestTemplate来完成的,实际上这是配合@LoadBalanced注解以及Ribbon的负载均衡算法完成的.
+而使用OpenFeign时,服务之间的调用就不是使用RestTemplate而是使用接口+注解来实现的
+2.和Ribbon一样OpenFeign也是针对服务的调用者而言的(首先得是Client然后才是服务调用者),所以被调用者是不感知的.
+3.Client调用者引入依赖(因为负载均衡是调用者的事)
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-openfeign</artifactId>
+</dependency>
+4.在调用者主启动类上添加@EnableFeignClients注解,开启OpenFeign的自动配置(这里可以不添加@EnableEurekaClient注解)
+5.具体使用方法,之前在使用RestTemplate的时候,我们真正去请求的还是controller层对应的接口,现在也差不多
+首先我们需要在服务调用者模块编写一个接口,该接口的方法要和被调用的服务的controller层的接口对应,该接口不需要我们编写实现类
+@Component				//接口需要添加到容器中
+@FeignClient(value = "[CloudName]")	//通过该注解指定微服务名称,表明当前接口要去调用哪个微服务下面的接口
+public interface FeiginService{
+    @GetMapping(value = "/get/{id}")	//我们在接口里编写了GetMapping,实际上这就表明当我们调用该方法(getUserInfo)的时候我们就会去请求@GetMapping里面的地址,该方法的参数就是目标服务需要的参数,该方法的返回值就是目标服务返回的返回值.
+    UserInfo getUserInfo(@PathVariable("id") Long id);
+}
+
+@GetMapping(value = "/get/{id}")		//这个控制层方法就是[CloudName]微服务下的一个接口
+public UserInfo getUserInfo(@PathVariable("id") Long id){
+	//...
+}
+
+最后我们在服务调用者一方,只要自动注入FeiginService,调用它的getUserInfo方法,OpenFeign就会去调用对应的服务
+6.在OpenFeign中服务的调用者只等待目标服务1s钟处理时间(也就是说如果目标服务1s以内还没有返回结果,则服务调用者就会报错)但有的时候确实某些服务需要超过1s的时间去处理该怎么办?
+7.配置服务调用者的application.yml配置文件(为什么是设置ribbon?因为OpenFeign内部集成了Ribbon)
+ribbon:
+    ReadTimeout: [int/ms]		//设置服务建立连接所用的时间
+    ConnectTimeout: [int/ms]		//设置服务连接后,当前服务调用目标服务允许的超时时间
+8.开启OpenFegin的接口调用日志(也就是对调用者接口,正如上面的FeiginService接口对这些接口的进行日志记录)
+@Configuration
+public class FeginConfig{
+    @Bean
+    fegin.Logger.Level feignLoggerLevel(){	
+	return fegin.Logger.Level.Full;		//将日志组件添加到容器中(注意包名),Fegin的日志有四个日志等级,到时候自已看看这里不细说了
+    }
+}
+
+logging:
+    level:
+	[想要监控的接口的全限定名]: debug	//比如这里想要监控FeiginService那就填上FeiginService接口的全限定名,后面更日志等级
+
+服务降级之Hystrix:
+1.服务雪崩
+产生原因:在一整条服务调用流程上,如果某一环一个服务出现故障,这就会导致整个系统不可用阻塞(换句话说就是无法保证系统的高可用).另外如果目标服务调用响应时间超时,则也可能需要服务降级(这个和前面讲的不矛盾,在约定好的情况下,如果你服务本身要3s而我调用者也可以接受3s,但是现在调用你花费了5s此时就需要降级)
+2.服务降级:相当于在服务调用的流程上,如果某一环出现问题,则你要告知系统给一个最终的解决方案(FallBack),而不是让系统就这么等待.所以服务降级就是当程序出问题时去调用指定方法
+3.服务熔断:服务熔断包含了服务降级,当服务达到最大访问量之后直接把服务关掉,并且给一个最终解决方案(FallBack).服务熔断只是为了恢复服务
+4.服务限流:高峰流量来的时候做限流操作(详情看下面Sentinel,实际上Hystrix也不推荐使用了)
+5.服务提供者和服务调用者都可以使用Hystrix,但是一般是用在调用者上.
+6.Client依赖
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-netflix-hystrix</artifactId>
+</dependency>
+6.5在Client主启动类上添加@EnableCircuitBreaker注解(开启服务降级/熔断的相关的自动配置)
+7.先从服务提供者下手(下面的方法是Service层方法)
+@HystrixCommand(fallbackMethod = "getUserInfoHandler",commandProperties = {
+    @HystrixProperty(name = "execution.isolation.thread.timeoutInMilliseconds",value = "3000")		//当前方法调用多长时间后未响应就调用降级方法
+})
+public String getUserInfo(Long id){
+    int i = 10 / 0;			//运行异常也会调用降级方法
+    return "服务调用成功";
+}
+
+public String getUserInfoHandler(Long id){
+    return "服务调用失败";
+}
+
+8.HystrixCommand注解详解:
+String fallbackMethod;		//当前方法服务降级后默认调用的方法名称(注意调用的方法一定是当前类的方法)
+HystrixProperty[] commandProperties;	//定义当前方法降级的配置,问execution.isolation.thread.timeoutInMilliseconds这个配置是哪来的?详情点开看HystrixCommandProperties这个类
+
+9.当大规模流量调用服务方法时,此时线程已经干枯目标方法未响应的原因就是因为资源被占满,那怎么能保证降级方法的调用呢?
+实际上处理每一个请求的线程还是Tomcat去处理的,但是降级方法有单独的线程池(Hystrix线程池),这样就和Tomcat隔离了,保证降级方法的调用,一旦目标方法出现问题则理解调用降级方法,给一个最终解决方案.
+10.再从服务调用者下手(一般服务降级都是在服务调用方去做的)
+10.1 Client服务调用者的application.yml(只要你想用hystrix的服务降级就打开这个)
+feign:
+    hystrix:
+	enable: true
+这些是OpenFeign的配置,如果是使用OpenFeign来实现负载均衡的话需要开启,如果是Ribbon暂时不太清楚
+11.2Client的主启动类上添加@EnableHystrix注解  
+@GetMapping("...")
+@HystrixCommand(fallbackMethod = "getUserInfoHandler",commandProperties = {
+    @HystrixProperty(name = "execution.isolation.thread.timeoutInMilliseconds",value = "1500")	
+})
+public String getUserInfo(Long id){
+    //假设这里调用上面的那个微服务,现在假设上面的方法调用成功且耗时2S,对于服务提供者而言并不会报错,因为服务提供者设定的超时时间是3S
+    //但是这里还是会服务降级,原因是当前方法总体的调用时间超过1.5S,所以从另一个角度而言Hystrix内部并不管你内部调用了谁,怎么操作的,它只针对当前单个方法而言,判断你当前整个方法的调用时间是否超时.但如果目标服务异常这种情况有待考证
+}
+
+public String getUserInfoHandler(Long id){
+    return "服务调用失败";
+}
+12.现在虽然都成功了,但问题是现在一个业务方法就需要一个降级方法,会使得代码膨胀很难受,所以对于普通(一般)方法而言,当服务降级后调用统一的服务降级方法
+@RestController
+@DefaultProperties(defaultFallback = "globalFallbackMethod")
+public class Controller{
+
+@GetMapping("...")
+@HystrixCommand		//一定要加该注解,如果不加就代表该方法没有服务降级功能(相当于之前的普通方法),加了之后如果有默认的就用类上@DefaultProperties标签里的内容,如果对特殊方法有定制的就在现在这个注解里改成上面那样(填具体的降级方法)
+public String getUserInfo(Long id){
+    
+}
+
+public String globalFallbackMethod(){
+    	return "服务器异常,请稍后重试!";
+    }
+}
+13.现在11.2-12条全部废弃,原因是这样写会导致业务代码和降级代码耦合,并且就算是@DefaultProperties注解也要一个类一个类加,如何解决业务代码与降级方法耦合
+一下所说的所有内容全都针对OpenFeign,对Ribbon无效,所以Ribbon基本上就不推荐使用了
+现在对于服务调用者而言它的controller层(或者是service层)已经完全不需要@HystrixCommand、@DefaultProperties这些注解了
+之前讲到过OpenFeign是通过接口来进行服务调用的(没有实现类),而且该接口封装了目标服务的所有方法.那么现在我们就是要实现这个接口,并把实现类添加到容器中,并且在接口的@FeignClient注解中指定fallback,此时在当前整个服务调用者模块中,但凡使用该接口进行远程调用出现服务降级时,就会直接去调用相应的接口的实现方法.也就是说此时这个实现类的实现方法作为服务降级方法
+@Component				
+@FeignClient(value = "[CloudName]",fallback = [实现类].class)	//引用上面的那个接口,此时需要实现当前接口,并把当前接口的实现类填入fallback中
+public interface FeiginService{			
+    @GetMapping(value = "/get/{id}")
+    UserInfo getUserInfo(@PathVariable("id") Long id);
+}
+14.服务熔断比服务降级来得更重量级,服务熔断包含了服务降级,如果出现问题也返回友好提示但服务熔断是直接把服务关掉,但服务熔断厉害的是关掉服务只是为了恢复服务.
+出现熔断的原因是:之前在降级的时候如果目标服务每次都无法调用完成,每次都要超时,那调用者每次还就会傻傻地去调用服务.此时熔断的机制是,如果目标服务一段时间内调用失败的次数超过一定的阈值,则直接将目标服务熔断,快速返回失败信息,而不是干等
+梳理:所以说服务降级是允许一段的调用时间,真正运行的时候还是会走到服务降级的阈值才会降级,而熔断是如果频繁地服务降级则直接熔断,这样连降级的这段时间都不用走了,直接返回错误信息.
+15.服务熔断肯定是针对Client服务提供者而言的,因为不可能你自已的服务出错了让调用者熔断吧......
+16.如何使用服务熔断?(下面是Service层方法)
+@HystrixCommand(fallbackMethod = "getUserInfoHandler",commandProperties = {
+    @HystrixProperty(name = "circuitBreaker.enable",value = "true"),			//是否开启熔断
+    @HystrixProperty(name = "circuitBreaker.requestVolumeThreshold",value = "10"),	//请求次数
+    @HystrixProperty(name = "circuitBreaker.sleepWindowInMilliseconds",value = "10000"),//时间窗口期[int/ms]
+    @HystrixProperty(name = "circuitBreaker.errorThresholdPercentage",value = "60")	//失败率达到多少后熔断服务
+})
+public String getUserInfo(Long id){
+    //....
+}
+
+public String getUserInfoHandler(Long id){
+    return "服务器错误,请稍后重试!";
+}
+上面那些配置表明,在10S内如果有10次以上的请求且这些请求中有60%都失败了则触发熔断.
+17.注意当服务熔断一段时间之后,慢慢地服务又可以重新使用,服务会自动恢复,不需要我们做任何操作.
+
+
+服务降级&服务熔断之Sentinel(也可以说成是服务监控):
+1.Sentinel本身也是一个软件,可以去GitHub上下载(到时候自已搜就完事了).默认端口是8080,访问这个地址可以来到Sentinel Dashboard(实际上也是一个控制面板)
+2.Sentinel Client依赖
+<dependency>
+    <groupId>com.alibaba.cloud</groupId>
+    <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+</dependency>
+<dependency>				
+    <groupId>com.alibaba.cloud</groupId>
+    <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
+</dependency>
+<dependency>					//持久化Sentinel配置的依赖
+    <groupId>com.alibaba.scp</groupId>
+    <artifactId>sentinel-datasource-nacos</artifactId>
+</dependency>
+3.Sentinel Client的application.yml,注册到注册中心的配置就不说了
+spring:
+    application:
+	cloud:
+	    sentinele:
+		transport:
+		    dashboard: [IP]:[Port]		//Sentinel DashBoard的IP+端口
+		    port: 8719
+management:						//但凡是涉及到监控的都要加上该配置
+    endpoints:
+	web:
+	    exposure:
+		include: '*'			//开启监控
+
+4.Sentinel DashBoard默认采用懒加载,需要我们先访问一次目标服务,才开始监控.
+5.我们可以来到簇点链路,然后对单个链路设置流控(操作里面点那个+),阈值类型可以设置为QPS(每秒访问量)/线程数,单机阈值,如果达到阈值了 可以选择流控模式和流控效果,如果选择流控模式直接,流控效果快速失败则当达到阈值会快速响应失败信息.
+
+6.流控规则面板详解(也就是我们点击流控后跳出来的面板)
+资源名:请求地址/@SentinelResource的唯一标识符
+
+针对来源:
+
+阈值类型(和单机阈值搭配使用):
+QPS:每秒请求量
+线程数:同时支持最大并发量(传统的servlet中一个请求一个线程)
+
+单机阈值:灵活一点,当阈值类型是QPS的时候该值表示每秒的请求量,当阈值类型是线程数的时候表示支持的最大并发量.
+
+流控模式:
+直接:api达到限流条件时,直接限流(不跟你多BB直接限流当前请求地址)
+关联:当关联的资源达到阈值时,就限流自已(假设对地址A进行限流,关联的地址是B,则当地址B达到阈值时,地址A会被限流.也就是B达到阈值了,确是A限流.比如支付系统达到阈值了就限流订单系统,这么做是为了防止一个带崩整个)
+链路:只记录指定链路上的流量(指定资源从入口资源进来的流量,如果达到阈值,就进行限流)
+
+流控效果:
+快速失败:直接失败,抛异常,想前端返回信息
+Warm UP(预热):比如现在的QPS是10,但是这里设置一个预热时长(比如10S),当系统刚启动的时候默认此时的QPS是我们设定值除以3(也就代表此时如果1S有三个请求就会限流),当系统运行完全运行到预热时长里的这段时间QPS会慢慢提升,当运行时间达到10S后(也就是完全达到预热时间之后),此时QPS才完全达到我们的设定值10
+排队等待(匀速排队):比如阈值设为10,就代表我1S就处理10次请求,也就是每次请求之间间隔100ms.如果100ms之内有两次请求,则请第二次请求等待(排队).排队等待只支持QPS不支持线程.
+
+7.Sentinel服务降级简单介绍,当某个服务调用超时或者异常比例升高,则该服务会被降级(熔断),在接下来的一段时间内(降级时间窗口之内)关闭该服务.等时间窗口过去后再恢复服务.
+
+8.服务降级面板详解
+资源名:请求地址/@SentinelResource的唯一标识符
+
+降级策略:
+RT:当选择此策略时会出现RT降级时间(代表一段时间内如果所有请求的平均运行时间达到该时间则会服务降级,RT的最大值是4900ms,也就是如果一段时间内请求的数量超过5次并且这些请求处理的平均时间超过4900ms则会服务降级)
+异常比例(0-1之间):如果1S内的请求数量大于5,并且这段时间内出现异常的请求超过了设定的异常比例(比如设定为20%,只要5次里面有1次异常)就会服务降级(熔断) 
+异常数:一分钟之内如果请求的异常数超过多少后服务降级.注意在该模式下时间窗口设置的时间一定要大于60S 
+
+时间窗口(单位S):当服务被降级(熔断)后多长时间恢复服务.
+
+9.也许此时会有疑问,之前我们一直没有编写过降级方法(在Hystrix时候是要写降级方法的),实际上是因为Sentinel会默认返回Blocked by Sentinel(flow limiting)这个友好提示.(注意被限流的时候返回的友好提示也是这段问题)
+那么我们是否可以自定义返回的友好提示?或者对特定的方法返回特定的提示呢?
+@GetMapping("/getUserInfo")
+@SentinelResource(value = "getUserInfo",blockHandler = "deal_getUserInfo")		//降级方法就是下面这个方法
+public String getUserInfo(@RequestParam(value  = "p1",required = false) String p1,
+			  @RequestParam(value  = "p2",required = false) String p2){
+	//...
+}
+public String deal_getUserInfo(String p1,String p2,BlockException exception){
+	//...
+}
+
+9.@SentinelResource		//todo
+String value;				//唯一标识符
+String blockHandler;			//降级方法(降级方法不能为private),blockHandler只负责Sentinel设置的降级规则,代码本身是怎么样的,blockHandler并不关心(参见第11条)
+Class blockHandlerClass;		//去哪个类寻找降级方法(默认是当前类,如果不是当前类则降级方法必须是静态方法)
+String fallback;			//当运行异常时,调用的降级方法名.(和blockHandler区别在于,如果服务(请求地址)内部出现异常,将由该注解负责)
+Class[] exceptionsToIgnore;		//该属性和fallback配合使用,表明当前资源(服务)忽略的异常.比如当前忽略NullPointerException异常,那么如果服务方法(资源)在运行时产生了该异常(空指针异常),那么将不会去调用服务降级方法.
+
+10.热点规则面板详解
+资源名:请求地址/@SentinelResource的唯一标识符		通过请求地址可以定位到一个唯一的服务(如果我们在该输入框中以斜杠/开头就表明当前以请求地址定位,如果当前不以斜杠开头,则表明以@SentinelResource注解中value的值进行定位,所以@SentinelResource注解中value值也得是唯一的)
+
+参数索引:此时还拿第9条的那个方法举例子,当前这里应该填入请求地址的参数索引,现在目标方法有两个参数P1和P2,所以索引的取值范围就是0-1.假设现在填入0.注意P1参数是非必须参数,假设现在的阈值设置为1就代表,如果1S内有1次请求请求目标方法并且带上了P1参数则会服务降级.
+
+单机阈值:对于参数索引指定的这个参数,设定每秒请求能带上该参数的最大请求数.
+
+时间窗口(单位S):服务降级(熔断)之后间隔多长时间后恢复
+
+参数例外项:假如一般情况下参数P1的阈值就是100.但是对于某些热点输入,比如P1="新冠肺炎"这种热点参数是我希望它的阈值是1000.也就是对传入的参数有个筛查,辨别的能力,热点数据就把阈值调地高一点.
+参数类型:只支持8大基本数据类型+java.lang.String类型
+参数值:当目标参数为多少时不采用单机阈值而采用下面的限流阈值.
+限流阈值:对于特定的参数值的特定阈值.
+
+11.小细节,假设上面的getUserInfo方法内部产生异常了,那么在不配置服务降级的情况下,只配置热点规则的情况下是否为服务降级呢?答案是不会,因为热点规则只管你的参数,至于方法内部,热点规则不感兴趣.
+
+12.系统规则面板详解:这个是一种粗粒度的监控,对当前整个系统的监控,之前都是对单个服务的限流、降级等.这个是对整个服务
+
+入口QPS:当前整个系统1S内的QPS如果超过阈值,则整个系统(所有服务)降级.(全不能用了)
+
+13.现在有个问题是,假设对于某个资源(请求路径)我们已经配置了它的限流规则,现在我们将该资源(请求路径)所属的服务关闭,则该服务在Sentinel中的配置规则立刻消失.
+解决思路如下
+之前说过Nacos默认采用本地数据库持久化配置,也可以和mysql连接持久化配置.但是Sentinel是不具备持久化功能的,所以我们需要把Sentinel的配置放到nacos中,通过nacos做持久化然后Sentinel读取nacos中的配置.
+假设现在Sentinel要对某个服务做限流规则,并且要持久化,那么该服务的application.yml如下
+spring:
+    cloud:
+	sentinel:
+	    datasource:
+		ds1:
+		    nacos:
+			server-addr: [IP]:[Port]		//nacos服务注册中心地址
+			dataId: [dataID]			//最好和服务名一致
+			groupID: [groupID]
+			data-type: json
+			rule-type: flow
+打开nacos控制面板,这里有点类似之前的nacos做服务配置,但还是很不一样的
+在配置管理->配置列表->新建配置中的DataID就填上上面配置里的DataID(DataID最好和服务名一致),Group和上面配置里的GroupID一致.配置格式选择json,填入一下内容
+[
+    {
+	"resource": "[addr]",			//请求地址(资源)
+	"limitApp": "default",			//来源应用
+	"grade": 1,				//阈值类型 0是线程数 1表示QPS
+	"count": 1,				//单机阈值
+	"strategy": 0,				//流控模式 0表示直接 1表示关联 2表示链路
+	"controlBehavior":0,			//流控效果 0表示快速失败 1表示WarmUP 2表示排队等待
+	"clusterMode": false			//是否集群
+    }
+]
+实际上可以理解为就是通过一个json来代表一个服务(资源)的规则
+
+14.另外一个问题是之前出现过的一个问题,Hystrix第12条,就目前这种方式业务代码还是和降级方法耦合.随着业务代码的增多一个业务就需要一个降级方法,导致代码膨胀.
+
+15.实际上解决这个问题的思路也很简单,实际上就是把降级方法抽出来放到一个单独的类里面.
+
+public class CustomerBlockHandler{	//把所有的降级方法放到这个类里,注意这些降级方法必须都是静态的.
+
+    public static String hadleException(BlockException exception){
+	//....
+    }
+
+    public static String hadleException2(BlockException exception){
+	//....
+    }
+
+}
+
+@GetMapping("/getUserInfo")
+@SentinelResource(value = "getUserInfo",blockHandler = "hadleException",blockHandlerClass = CustomerBlockHandler.class)		
+public String getUserInfo(){
+	//...
+}
+
+16.第8条以及第11条都说明了,在Sentinel配置的规则没有生效之前(服务没有降级/熔断之前),如果Sentinel服务降级不生效就代表不会调用降级方法.比如现在getUserInfo方法该方法内部直接
+产生异常,对于那三种服务降级规则RT、异常比例、异常数.在没有到达阈值之前(不满足降级规则之前),假如这个方法内部产生了异常就不会返回一个友好提示,而是一个Error Page(也就是spring默认会返回的错误页面,一大堆异常的那个页面)
+那现在我希望如果目标服务产生异常了,就直接返回友好提示(直接调用异常方法)就像Hystrix一样,运行异常时也会调用降级方法
+
+@GetMapping()
+@SentinelResource(value = "getUserInfo",fallback = "handlerFallback")
+public String getUserInfo(){
+    int i  = 1 / 0;			//该方法运行异常时会直接调用fallback中填写的方法
+    return "null";
+}
+
+public String handlerFallback(Long id,Throwable e){		//在fallback方法中,最后一个参数就是接受的异常(Throwable就是上面这个方法产生的异常)
+    return e.getMessage();
+}
+
+17.之前说过blockHandler和fallback一个管Sentinel配置异常,一个管java运行时异常.假设现在目标资源(请求地址)即配置了Sentinel配置服务降级又配置了java运行时异常的服务降级,会优先调用哪个呢?
+假设现在还是第16条的资源,不过现在在Sentinel中配置了限流规则,限制该资源的QPS阈值为1.那么当每秒的QPS达到该请求数量时,会优先调用blockHandler的降级方法(也就是优先处理Sentinel配置的降级方法)
+18.之前在服务注册中心之Nacos中说过,Nacos默认支持Ribbon(默认使用RestTemplate来做远程调用).现在要切换到OpenFeign的使用方式
+Sentinel Client的依赖
+<dependency>
+    <groupId>com.alibaba.cloud</groupId>
+    <artifactId>spring-cloud-starter-openfeign</artifactId>
+</dependency>
+Sentinel Client的application.yml(注册到nacos和Sentinel我就不说了)
+service-url:
+    nacos-user-service: http://[CloudName]		//当前服务要访问的服务名称(也就是当前服务要调哪个服务,目标服务一定要注册到nacos中)
+feign:
+    sentinel:
+	enabled: true		//开启Sentinel对OpenFeign的支持
+19.Sentinel Client的主启动类上添加@EnableFeignClients注解 
+20.使用OpenFeign进行远程调用和之前的OpenFeign一样,使用OpenFeign做服务降级详情见服务降级之Hystrix第13条(都一样).此时如果Sentinel Client调用目标服务,目标服务出现问题则会立即调用OpenFeign接口实现类的回调方法.
+
+
+
+
+
+
+
+图形化监控微服务之HystrixDashboard:
+1.HystrixDashboard也就是豪猪,也就是对微服务监控的图形化界面.
+2.HystrixDashboard本身不是不是不是一个服务!
+3.HystrixDashboard依赖
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-netflix-hystrix-dashboard</artifactId>
+</dependency>
+4.HystrixDashboard的application.yml直接给个端口号即可
+5.在HystrixDashboard的主启动类上添加@EnableHystrixDashboard注解
+6.补充所有想要被监控的服务都要添加依赖(所以所有Client需要添加以下依赖)
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+
+以及需要添加一个Bean到容器中(如果有错详情看64P)
+@Bean
+public ServletRegistrationBean getServlet(){
+    HystrixMetricsStreamServlet streamServlet = new HystrixMetricsStreamServlet();
+    ServletRegistrationBean registrationBean = new ServletRegistrationBean(streamServlet);
+    registrationBean.setLoadOnStartup(1);
+    registrationBean.addUrlMappings("/hystrix.stream");
+    registrationBean.setName("HystrixMetricsStreamServlet");
+    return registrationBean;
+}
+另外被监控的服务在主启动类上一定要添加@EnableCircuitBreaker(开启熔断相关的自动配置)
+7.图形化界面地址[IP]:[Port]/hystrix
+8.也许这里会有疑惑,为什么HystrixDashboard不要注册到注册中心也可以获取别的服务的状态信息.此时在HystrixDashboard监控的主页中的监控地址中输入
+http://[IP]:[Port]:/hystrix.stream	输入目标服务的IP+端口此时就能对目标服务进行监控(就是这么神奇)
+9.具体这个图怎么看之前的springcloud有讲过,另外HystrixDashboard一家不推荐了,关于服务监控可以看下面的Alibaba
+
+
+
+服务网关之Gateway:
+1.Gateway可以做反向代理、鉴权、流量控制、熔断、日志监控
+2.已经有的Nginx和负载均衡(Ribbon、OpenFeign)为什么还需要服务网关?
+Nginx是服务器负载均衡,是挡在最外面的所有的客户端(浏览器)请求都会先到Nginx,由Nginx选择转发到哪个Tomcat上(这个Tomcat就可以是网关)
+Gateway是挡在真正每一个微服务之前的一层,更全的原因详情看第9.1条
+Ribbon是本地负载均衡,当内部服务调用服务的时候,会先从注册中心上获取Server的注册列表信息缓存到本地,然后在本地实现RPC远程调用的选择(在本地选择具体调用哪个服务)
+3.Geteway采用servlet3.1+、支持异步非阻塞、集成WebFlux,总结一句话就是性能高.
+4.Geteway网关的三大概念
+路由(Route):
+断言(Predicate):做匹配条件定位到真正的服务节点
+过滤(Filter):在我们真正业务逻辑之前和之后去做一些操作(有点像AOP)
+5.新建网关模块,引入依赖
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-gateway</artifactId>
+</dependency>
+另外这里不能添加两个依赖
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+6.Geteway网关本身也作为一个服务Client,所以也要注册到注册中心中去,网关没有任何业务方法只提供网关服务
+7.Geteway Client的application.yml
+spring:
+    cloud:
+	gateway:
+	    routes:				//可以配置多个路由
+		- id: [RoutesID]		//路由的ID,注意不能重名
+		uri: [CloudAddress]		//检测目标服务的IP+端口
+		predicates: - Path= [Path]	//断言(这里填上一个Ant风格的请求路径),代表当前路由只拦截目标服务满足该Ant风格的请求.(也就是说如果在Geteway的IP和端口中请求目标服务的地址,断言后为true则会被拦截并且自动转发到目标服务,注意这里的转发和之前讲的转发不太一样,总之地址栏是不会变的还是Geteway的IP和端口)
+
+		- id: 
+		uri:
+		predicates: - Path=
+8.启动Geteway Client,此时我们访问Geteway Client的IP+端口+请求地址,只不过需要注意的是请求地址是当前路由断言能匹配上的地址,并且配置中的uri要可用
+所以最终的效果就是,虽然Geteway Client并不提供服务,而且我们请求的是Geteway Client的IP和端口,最终却能落实到具体的服务.这样就能隐藏掉真实服务地址(而且服务一般都是单独部署的,IP和端口都各不相同,通过网关就能统一管理,通过访问网关由网关做转发)
+所以Geteway Client是做转发的!即如果断言通过,Geteway只是把你请求的端口和IP换成目标服务的端口和IP(当然不绝对,编码的方式可以改成别的请求地址)
+9.现在还是有很多问题,你也许会疑惑之前在讲RestTemplate的时候就说过服务提供者的IP和端口不能写死,因为无法感知现在有几个服务提供者它们的IP和地址分别是什么
+感觉好像越做越倒退了?
+9.1修改Geteway Client的application.yml
+spring:
+    cloud:
+	gateway:
+	    discovery:
+		locator:
+		    enabled: true		//开启注册中心动态创建路由功能
+	    routes:				//可以配置多个路由
+		- id: [RoutesID]		//路由的ID,注意不能重名
+		uri: lb://[CloudName]		//没错和之前RestTemplate一样,这里直接填上目标服务的服务名(不过注意是以lb开头而不是http)
+		predicates: - Path= [Path]	//断言
+所以此时对于客户端(一定不是Client的调用者,这里指的就是浏览器或者用户)所有的访问首先经过Nginx,然后由Nginx转发到一个个的服务网关上(还记得之前说过的服务网关也是一个微服务,所以服务网关也要集群部署)
+然后在由Gateway去做负载均衡去调用真正的微服务,但如果服务与服务之间还有调用的话可以直接通过OpenFeign完成负载均衡.
+10.predicates是做断言的,之前已经讲过可以对请求路径做一个断言,除了请求路径之外还可以做别的一些断言
+- After=2020-09-19T12:11:54.485+8:00[Asia/Shanghai]		//只有当前系统时间在该时间之后断言才成功(目标服务才能访问)
+- Before=							//这个就是系统时间在目标时间之前才成功
+- Between=2020-09-19T12:11:54.485+8:00[Asia/Shanghai],2020-09-19T12:11:54.485+8:00[Asia/Shanghai]	//系统时间之内
+- Cookie=[CookieKey],[CookieValue]			//请求的时候必须带上Cookie逗号,前面指定的是需要带上的Cookie的Key,逗号后面指定的是需要带上的Cookie的value的正则表达式.也就是说你的value必须满足该正则表达式断言才算通过
+- Header=[HeaderKey],[HeaderValue]			//带上请求头
+- Host=[HostName]					//请求的Host的值必须是什么(这个Host的值也包含在整个请求当中,详情打开浏览器),同样支持Ant风格
+- Method=[GET/POST]					//必须是什么请求才允许访问
+- Path=[Path]
+- Query=[QueryKey],[QueryValue]			//带上请求参数
+11.路由和断言已经讲过,现在了解一下过滤器,Gateway默认有三十几种局部过滤器和十几种全局过滤器,过滤器和断言不一样要注意!
+spring:
+    cloud:
+	gateway:
+	    discovery:
+		locator:
+		    enabled: true		
+	    routes:				
+		- id: [RoutesID]		
+		uri: lb://[CloudName]		
+		filters: - AddRequestParameter=[RequestParameterKey],[RequestParameterValue]		//添加一对请求头,对于通过断言的请求而言,该过滤器会给当前请求添加请求头(请求头的Key和value就是RequestParameterKey/Value),所以过滤器能做更丰富的事情.
+		predicates: - Path= [Path]	
+12.编写自定义过滤器,该过滤器要编写在Gateway模块下,并且要添加到容器中
+public class MyGateWayFilter implements GlobalFilter,Ordered{		//需要实现这两个接口
+	
+    @Override
+    public Mono<Void> filter(ServerWebExchange exchange,GatewayFilterChain chain){
+	return exchange.getResponse().setComplete();			//如果过滤失败调用该命令
+	return chain.filter(exchange);					//如果过滤成功则继续调用下一级过滤连    
+    }
+
+    @Override
+    public int getOrder(){
+	return 0;
+    }
+
+}
+实现Order接口就是表明各个过滤链之间的优先级!
+
+13.两个接口详解
+ServerWebExchange:
+
+GatewayFilterChain:
+
+
+
+服务配置之Config:
+1.做到现在随之出现的一个问题,就是每一个模块(服务)都要编写一个application.yml,如果后期服务多了有几百个服务,那么这些配置文件到时候改起来会很麻烦,所以服务配置就是来解决这个问题的,用Config Server(服务配置)来完成集中化的外部配置支持.
+2.所以服务配置的思想就是,该抽象出来统一使用的就直接从Config Server中继承,如果需要单独配置的就单独配置.
+3.服务配置的好处在于,运行期间如果要更新配置,一次更新底下所有的服务的配置会立即感知(而不是一个一个地去修改).而且服务配置推荐和Git进行整合.
+4.服务配置中心本身也是一个服务(模块),需要注册到注册中心中去
+5.服务配置分为服务端和客户端,服务端提供配置,客户端读取服务端的配置.
+5.Config Server依赖
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-config-server</artifactId>
+</dependency>
+6.Config Server的application.yml
+spring:
+    cloud:
+	config:
+	    server:
+		git:
+		    uri: 				//项目的远程仓库地址
+		    search-paths: - [Repository]	//搜索远程仓库的哪个路径(一般就是填项目名称,注意前面要加个-)
+		label: master				//读取哪个分支
+上面说过Config Servert是和Git进行整合使用的,所以这里需要读取远程仓库上面的配置(GitHub/gitee),而且服务配置只认远程仓库上的内容.
+7.在主启动类上添加@EnableConfigServer注解
+8.这个时候去访问服务配置的IP+端口/[branch]/[configName](即IP+端口/[分支]/[配置名称])那么浏览器就会显示该配置的内容.另外根据约定配置文件的命名应遵循:config-(dev/test/prod)这种形式,以config开头然后加一个分号-
+9.Config Client依赖
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-config</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+注意spring-boot-starter-actuator这个监控依赖基本上除了服务网关之外一般都要加载,添加该依赖之后就可以暴露监控端点.
+10.Config Client的bootstrap.yml
+spring:
+    cloud:
+	config:
+	    label: [dev/master/prod]			//当前读取Config Server的哪个分支(也就是读取远程仓库的哪条分支)
+	    name: [config]				//第8条说过约定配置文件名要遵守config-[dev/master].yml 那么这里的name就填上远程仓库配置文件分号-的前缀
+	    profile: [dev/master/prod]			//这里填上后缀
+	    uri: [Config Server URI]			//填入Config Server的URI地址(也就是当前要读取哪个Config Server)
+通过以上这些配置就能确定一个唯一的配置文件,注意Config Client从Config Server中读取配置,而Config Server是从远程仓库中读取配置.
+11.什么是bootstrap.yml?实际上该配置文件和application.yml配置文件效果一样都是来配置的,只不过bootstrap.yml会先去读取外部的配置(也就是先读取Config Server的配置)然后再读取当前配置文件内的配置.
+12.但现在又出现了一个问题,假设现在远程仓库的配置发生改变并提交,Config Server可以理解响应变动,但是Config Client却无法响应这次更改,还是使用之前的那次配置(虽然重启可以解决但是太麻烦)
+13.Config Client的bootstrap.yml
+management:
+    endpoints
+	web:
+	    exposure:
+		include: "*"
+14.在所有和配置文件绑定的属性所在的类上添加@RefreshScope注解,因为配置是要和属性绑定的,所以配置的修改就是属性的重置,所以我们要在被绑定的属性的类上添加@RefreshScope注解
+@Server
+@RefreshScope
+public class Service{
+    @Value("${userInfo}")
+    private String userInfo;
+}
+15.完成以上这些,现在远程仓库配置更改Config Client还是感知不到,我们还需要向Config Client发送一个请求,该请求就代表告知目标服务配置要刷新了
+http://[IP]:[Port]/actuator/refresh			//注意得是POST请求
+16.就目前而言服务配置以及很完美了,但问题是假设现在有很多微服务,那一个微服务就要执行一个POST请求,虽然写个自动化脚本也可以做也挺简单的,但有没有一种好方法可以一次通知所有的都接收到呢?再或者可以定点通知,需要刷新的刷新不需要刷新的不刷新?所以这就需要通过服务总线来完成.
+
+
+服务配置之Nacos Config:
+1.Nacos Config没有所谓的客户端和服务端,Nacos Config Server实际上就是Nacos(Nacos是一个软件独立运行的)
+2.Nacos Config Client的依赖
+<dependency>
+    <groupId>com.alibaba.cloud</groupId>
+    <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+</dependency>
+3.Nacos Config Client的bootstrap.yml
+spring:
+    application:
+	name: nacos-config-client
+    cloud:
+	nacos:
+	    config:
+		server-addr: [IP]:[Port]		//添加nacos的地址,端口号默认是8848(详情看nacos注册中心)
+		file-extension: yaml			//指定yaml配置文件的格式
+4.Nacos Config Client的application.yml
+spring:
+    profiles:
+	active: dev			//表示开发环境
+这里起到的作用很微妙,boostrap.yml配置文件是全局配置表明要从nacos服务配置中读取配置,而application.yml指明当前的环境,表明bootstrap要从远端读取哪个配置(因为配置不可能只有一个,包括dev/test/prod)
+5.在要动态刷新的Bean中添加@RefreshScope注解,和服务配置Config第14条类似
+6.在Nacos控制界面中,左侧配置管理-配置列表,点击右侧加号(+),在Data ID这一行中填入:[CloudName(服务名称)]-[环境(application.yml中spring.profiles.active的值)].[spring.cloud.nacos.config.file-extension]的值
+配置格式和配置内容搭配使用,配置格式就表明配置内容的格式,当然这里最好也和[spring.cloud.nacos.config.file-extension]保持一致.如果是properties的话就填properties.另外nacos好像不支持yml,只支持yaml
+7.现在我们直接去修改Nacos Config Server上的配置,然后不需要做任何操作,Nacos Config Client就可以刷新了.
+8.Nacos Config有命名空间这个概念,各个命名空间相互隔离,可以用命名空间来区分不同的环境.
+9.我们可以对Nacos Config Client进行分组
+spring:
+    application:
+	name: nacos-config-client
+    cloud:
+	nacos:
+	    config:
+		server-addr: [IP]:[Port]		
+		file-extension: yaml			
+		group: DEV_GROUP			//如果不指定分组则默认是DEFAULT_GROPU组的
+现在在nacos控制面板中,左侧配置管理-配置列表,点击右侧加号(+),之前第6条讲的是Data ID,在Data DI下还有一行Group,假如现在Group里的分组是DEV_GROUP.
+则此时更新配置Nacos Config Client能感知到,所以服务配置更新的时候会先匹配Data ID再匹配Group从而确定一个唯一的配置,这样假设有多个服务,它们的Data ID都相同时,就可以通过Group来更新特定服务的配置.
+10.新建命名空间,来到nacos控制面板,点击左侧服务管理-命名空间,点击右侧加号(+),起一个命名空间名称,创建之后会产生一个命名空间ID(流水号)
+11.我们设置Nacos Config Client命名空间
+spring:
+    application:
+	name: nacos-config-client
+    cloud:
+	nacos:
+	    config:
+		server-addr: [IP]:[Port]		
+		file-extension: yaml			
+		group: DEV_GROUP			
+		namespace: [UUID]			//命名空间的UUID,详情可看第10条(这里不是填命名空间的名称!)
+所以服务配置更新的时候会先匹配namespace(命名空间),再匹配Group最后再匹配Data ID,从而确定一个唯一的配置(这是对第9条的补充,以此条为准)
+
+
+服务总线之Bus:
+1.一般服务总线都是和服务配置搭配使用的,而且服务总线(或者至少说是Bus)也要和消息中间件搭配使用.
+2.既然是通过消息中间件来完成的,那么消息中间件里面有个概念叫主题,主题一旦发送消息所有的订阅者就会接收该消息,基本原理就是如此.
+在微服务中通常会构件一个主题,并且将所有的微服务都订阅这个主题,由于该主题产生的消息会被所有的监听者(订阅者)消费,所以就它们为消息总线. 
+3.Config Server添加依赖(再次强调为什么是Config Server,因为服务总线就是用来解决服务配置中产生的问题的),另外以下的内容基本上都是服务配置最终版本上新加的
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-bus-amqp</artifactId>
+</dependency>
+引入对RabbitMQ支持Bus依赖,注意目前服务总线的消息队列仅支持RabbitMQ和kafka这两个消息队列.
+4.Config Server的application.yml
+rabbitmq:			//引入rabbitMQ的支持
+    host: [host]
+    port: [port]
+    username:
+    password:
+management:			//rabbitMQ相关配置,暴露bus刷新配置的端点
+    endpoints:
+	web:
+	    exposure:
+		include: 'bus-refresh'		//暴露的刷新地址
+5.Config Client添加依赖
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-bus-amqp</artifactId>
+</dependency>
+6.Config Client的bootstrap.yml
+rabbitmq:			//引入rabbitMQ的支持
+    host: [host]
+    port: [port]
+    username:
+    password:
+7.现在给Config Server发送一条POST请求,因为我们在第4条中配置的是bus-refresh,所以我们往Config Server发送http://[IP]:[Port]/actuator/bus-refresh
+此时我们只刷新了Config Server但是所有的Config Client全部都刷新了!但现在还有个问题,虽然Config Client全部都刷新了,但是还没有完成之前说的定点通知,还没有做到我希望哪些配置刷新哪些配置不刷新!
+8.实际上想要做到这一点很简单,发送的请求发送一些改变http://[ConfigServerIP]:[ConfigServerPort]/actuator/bus-refresh/[CloudName]:[IP]	CloudName:是被通知的服务名称 IP是被通知的服务IP
+
+
+消息驱动之Cloud Stream:
+1.目前市面用的最多的有四种消息中间件,ActiviteMQ、RabbitMQ、RocketMQ、Kafka.很多时候不同的公司使用不同的MQ(有些时候一个项目可能使用多个MQ),那么对于程序员而言学习成本太高,维护成本高!
+此时就可以引入Cloud Strem屏蔽底层中间件的差异,统一消息编程的模型(也就是只操作Cloud Stream就可以了)
+2.Cloud Stream仅仅支持RabbitMQ和Kafka
+3.Cloud Stream使用绑定器来屏蔽差异,input是消息消费者,output是消息生产者.(Cloud Stream分为生产者和消费者,就是经典的消息中间件那一套)
+4.消息发送者模块的依赖,消息生产者本身也是一个服务,也要注册到注册中心中去
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-stream-rabbit</artifactId>
+</dependency>
+5.消息发送者的application.yml
+spring:
+    cloud:
+	stream:
+	    binders:			//在此处配置要绑定的rabbitMQ的服务信息
+		defaultRabbit:		//表示定义的名,用于binding整合
+		    type: rabbit	//消息组件类型(可以是rabbit/kafka)
+		    environment:	// 设置rabbitMQ的相关的环境配置
+			spring:
+			    rabbitmq:
+				host: [Host]		//rabbitMQ的IP/主机名
+				port: [Port]		//rabbitMQ的端口
+				username: [UserName]	//rabbit的账号
+				password: [PassWord]	//rabbit的密码
+	    bindings:		//服务的整合处理
+		output:		//output表明是消息的发送者(消息生产者)
+		    destination: studyExchange		//表示要使用Exchange名称定义(也就是设置该消息队列中rabbitMQ中的名字,也就代表消息生产者生产的消息往哪个消息队列里面发送)
+		    content-type: application/json	//设置消息类型,本次为json,文本类型设置为text/plain
+		    binder: defaultRabbit		//设置要绑定的消息服务的具体位置
+6.消息发送者的业务代码
+@EnableBinding(Source.class)		//定义消息的推送管道(消息发送者,里面填的是Source.class,这里不需要再添加Service注解也能添加到容器中)
+public class MessageProvider{
+    @Autowired
+    private MessageChannel output:
+
+    public String send(){
+	output.send(MessageBuilder.withpayLoad("你好").build());		//这样就往消息队列中(当然这里的消息队列就是rabbitMQ)发送一条消息了!
+    }
+
+}
+
+7.API详解(注意包名,这里的很多类都可能重名的!)
+@EnableBinding:
+
+MessageChannel:消息发送通道// todo
+send(Message) return void;		//发送一条消息到消息队列中
+
+MessageBuilder:消息构建者// todo
+<T> withpayLoad(T) return 
+
+Message:
+
+
+8.消息消费者的依赖
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-stream-rabbit</artifactId>
+</dependency>
+9.消费者的application.yml
+spring:
+    cloud:
+	stream:
+	    binders:			
+		defaultRabbit:		
+		    type: rabbit	
+		    environment:	
+			spring:
+			    rabbitmq:
+				host: [Host]		
+				port: [Port]		
+				username: [UserName]	
+				password: [PassWord]	
+	    bindings:		
+		input:			//注意这里不一样,因为上面是消息生产者是output,而这里是消息消费者所以是input		
+		    destination: studyExchange		//这个代表消息消费者从哪个队列中去读消息(和上面正好对应)
+		    content-type: application/json	
+		    binder: defaultRabbit		
+10.消费者的业务代码
+@EnableBinding
+@Component
+public class MessageListener{
+
+    @StreamListener(Sink.INPUT)
+    public void input(Message<String> message){
+    	System.out.println(message.getPayload());
+    }
+
+}
+input方法就表明它需要去消费消息(该方法被@StreamListener注解修饰),当消息生产者生产消息时(发送消息时),该消息就会作为参数传入当前方法.
+11.现在出现一个新问题,假设现在有两个消费者(两个服务/模块),消息生产者生产消息后,两个消费者均能获取到消息,这就存在重复消费的问题(当然也可以理解为现在是主题和订阅模式).
+那么怎么避免这种问题?在CloudStream中,可以通过分组的方式来解决该问题.在同一个组中一个消息只能被一个成员消费,当消息生产者生产消息会将该消息发送给所有的组!所以组内成员是竞争消费的关系.所以在CloudName中虽然消费者同属一个主题但每个消费者都是一组(默认)
+12.RabbitMQ默认的分组名是一串流水号,实际上可以通过配置自定义分组名
+生产者的application.yml
+spring:
+    cloud:
+	stream:
+	    bindings:		
+		output:
+		   group: groupA
+消费者的application.yml
+spring:
+    cloud:
+	stream:
+	    bindings:		
+		output:
+		   group: groupB
+这样这两个消费者就分别分为组A和组B
+
+假设现在这两个组名相同,此时消息生产者生产就不会产生重复消费的问题了.(即同一个组的服务实例只有一个服务能拿到消息)
+13.消息丢失问题,假设现在两个消费者都是组A的,然后这两个消费者宕机后,生产者生产消息.此时让一个消费者的组名改为流水号(也就是之前没有出现的过的组)
+另一个消费者不动,现在两个服务重新启动,只有组名还是A的消费者能消费到消息,组名改变的消费者无法消费消息(消息丢失).原因我猜测大概是,虽然两个服务都宕机了
+但是消息生产者已经将消息生产到rabbitMQ中的A组了已经持久化了,但是这条消息发出的时候只有组A,所以组A等待消费者消费.所以组A服务再起启动时可以消费消息,但是另外一个消费者
+由于已经改名了,也就代表之前消息生产者生产的时候没有生产到这个新组里面(因为当时这个组还不存在),所以新组无法消费消息,消息丢失. 
+
+
+
+链路跟踪之Sleuth
+1.当服务数量变多,服务之间相互调用的链路就会变得很复杂,那么此时就需要去进行链路跟踪.
+2.Sleuth需要和Zipkin搭配使用,先从https://dl.bintray.com/openzipkin/maven/io/zipkin/java/zipkin-server/上下载Zipkin.下载以exec.jar结尾的jar包.然后通过java -jar 命令来运行该jar包即可
+3.访问localhost:9411/zipkin 就可以来到zipkin的管理界面
+4.链路跟踪是跟踪服务提供者的
+5.Eureka Client的依赖(想要被监控的服务都需要添加的依赖)
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-zipkin</artifactId>
+</dependency>
+6.Eureka Client的application.yml
+spring:
+	zipkin:
+	    base-url: http://localhost:9411	//这里添加zipkin的访问地址(和上面第3条对应)
+	sleuth:
+	    sampler:
+		probability: 1		//采样率值介于0到1之间,1则表示全部采集,采样率越高消耗坑定也就越高 
+
+
+
+集群和持久化配置之Nacos:
+1.之前我们在服务注册中心、服务配置中使用的nacos都是单机版的,那么还是那句老生常谈的问题,为了保证nacos注册中心的高可用,肯定不能只有一台nacos,需要集群部署nacos.
+nacos互相直接并不能直接关联,而是需要通过一个VIP(这个VIP不是会员的意思),这个VIP有点类型与Nginx(当然也不好说).
+2.nacos上的各种配置,比如服务配置的那些配置是持久化的,也就是说如果关掉nacos再重启这些配置不会消失,nacos默认采用本地数据库来完成该功能的持久化.但是当有
+多个nacos的时候,各个nacos之间的数据一致性就可能有问题,所以推荐让所有的nacos的配置全部持久化到mysql上.
+3.nacos从本地数据库切换到mysql步骤
+来到nacos根目录下的conf目录,去执行该目录下的nacos-mysql.sql脚本,初始化一个nacos-config数据库,该数据库里面就存放nacos的配置信息(持久化内容)
+接着同样打开该目录下的application.properties配置文件,在里面拉倒最后一行添加如下配置
+spring.datasource.plateform=mysql		//表明切换到mysql数据库
+
+db.num=1
+db.url.0=jdbc:mysql://[IP]:[Port]/nacos_config?		//连接mysql数据库,里面的值填上数据库的连接地址(IP+端口)
+characterEncoding=utf8&connectTimeout=1000&sockerTimeout=3000&autoReconnect=true
+db.user=[UserName]			//数据库的用户名
+db.password:[PassWord]			//数据库连接的密码
+4.集群部署nacos(在Linux上)
+运行hostname -i查询主机IP(比如结果是192.1638.111.144)
+打开nacos/conf目录下的sluster.conf文件在里面先删除原本的内容,然后添加以下内容
+192.1638.111.144:3333
+192.1638.111.144:4444
+192.1638.111.144:5555
+这三个端口就代表有三个nacos,当它们的端口是这三个端口是表明它们是一个组的.
+5.现在我们要解决一个问题,nacos每次启动都有一个默认的端口8848,现在我们希望修改这个端口(因为现在要起多个nacos端口肯定不可能相同),用vim编辑器打开 startup.sh 修改以下配置
+while getopts ":m:f:s:p:" opt
+
+s)
+    SERVER=$OPTARG;;
+p)
+    PORT=$OPTARG;;
+
+nohup $JAVA -Dserver.prot={$PORT} ${JAVA_OPT} nacos.nacos
+
+现在我们在运行start命令时可以通过 startup.sh -p 3333 来指定nacos服务的端口号(记得要和sluster.conf保持一致)
+6.在第一条的时候说过nacos之间互相不联系,需要靠VIP(Nginx)来做反向代理,所以Nginx是挡在nacos之前的,所以集群部署的情况下nacos要和nginx配合使用.(具体怎么个配合法还是比较复杂的)
+7.现在对于Nacos Client服务而言,要把它注册到nacos注册中心中去,需要修改服务的application.yml的spring.cloud.nacos.discovery.server-addr=[IP]:[Port]
+此时要填入Nginx的IP和端口(不需要关注具体的nacos的IP和端口,由Nginx去做转发),我在想如果Nginx本身也要集群部署的话,估计这里的地址就要填虚拟IP了(关于虚拟IP如果不懂,请回看Nginx集群部署的方式)
+
+
+
+分布式事务之Seata:
+1.在大型的系统中,往往不止一个数据库(而且这些数据库都担当不同的功能),比如订单一个库、商品存储一个库、账单一个库.假设现在订单服务要调用商品服务,而这些服务需要和不同的数据库交互.
+此时为了保证数据之间的一致性问题,就需要使用分布式事务,保障多个数据库之间的数据的一致性.
+2.Seata中有三个组件(概念了解即可)+全局唯一的事务ID来完成分布式事务
+TC(事务协调者):维护全局和分支事务的状态,驱动全局事务提交或回滚.(就相当于我们启动Seata这个软件,Seata Server)
+TM(事务管理器):定义全局事务的范围,开始全局事务、提交或回滚全局事务(哪个方法被@GlobalTransaction注解修饰哪个方法就是TM,谁是事务的发起方)
+RM(资源管理器):管理分支事务处理的资源,与TC交谈以注册分支事务和报告分支事务的状态,并驱动分支事务提交或回滚.(事务的参入方,参数该事务的服务)
+Transaction ID:每一个事务都有一个全局的唯一ID
+3.TM向TC申请开启一个全局的事务,TC创建全局事务并生成一个全局的唯一ID(Transaction ID),这个ID将贯穿整个服务的调用链路,直到最后TC调度Transaction ID,将完成该ID下管辖的所有事务的提交或者回滚.
+4.Seata直接去官网上下就行,也是个软件,以前spring提供了一个@Transaction注解,但该注解只针对本地(一个)数据库,而分布式事务对于多个数据库可以使用@GlobalTransaction注解
+5.来到Seata的conf文件夹中修改file.conf中的配置
+service{
+  vgroup_mapping.my_test_tx_group = "[groupName]_tx_group"			//给当前的分组起个名称
+}
+store{
+  mode = "db"				//修改存储方式为db(默认是file以文件的方式存储)
+}
+db{
+  driver-class-name = "com.mysql.jdbc.Driver"		//mysql驱动
+  url = "jdbc:mysql://[IP]:[Port]/seate"		//URL(老几样)
+  user = "[UserName]"
+  password = "[PassWord]"
+}
+6.数据库新建库seate,在seate库里运行db_store.sql脚本(该脚本在Seata的conf文件夹中)
+7.来到Seata的conf文件夹中修改registry.conf中的配置
+registry{
+
+  type = "nacos"					//表明当前服务注册到哪个注册中心中去(默认是file)(指明注册中心)
+
+  nacos{
+    serverAddr = "[IP]:[Port]"				//nacos的IP+端口
+  }
+}
+8.先启动nacos注册中心,再来到seate的bin目录下启动seata-server.bat 所以seate也是一个服务
+9.建立所有的库(把多个库建立好以及表,也就是环境搭建好),然后在每一个库中去运行db_undo_log.sql脚本((该脚本在Seata的conf文件夹中)
+10.Seata Client依赖
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-alibaba-seata</artifactId>
+    <exclusions>
+	<exclusion>
+	    <artifactID>seata-all</artifactID>		//引入当前jar会自动引入seata-all,但是seata-all的版本可能和我们下载的seata软件版本不一致,所以我们单独指定版本
+	    <groupId>io.seata</groupId>
+	</exclusion>
+    </exclusions>
+</dependency>
+<dependency>
+    <groupId>io.seata</groupId>
+    <artifactId>seata-all</artifactId>
+    <version>[Version]</version>			//填入seata软件的版本
+</dependency>
+
+11.Seata Client的application.yml(注册到nacos和连接数据库的配置不说了)
+spring:
+    cloud:
+	alibaba:
+	    seata:
+		tx-service-group: [Value]		//与我们在第5条中指定的vgroup_mapping.my_test_tx_group的值对应
+12.在当前resources文件夹下创建一个文件file.conf,这个文件和Seata目录下conf文件夹里面的file.conf有点类似,但是conf目录下的是总控,这里的是单独的内容不完全一样,具体内容到时候也许可以参考官网和视频.
+service{
+  vgroup_mapping.[groupName]_tx_group = "default"		//和第5条中指定的vgroup_mapping.my_test_tx_group的值对应.后面的default是自定义数组组的名称
+}
+
+db{
+  db-type = "mysql"
+  driver-class-name = "com.mysql.jdbc.Driver"			//mysql驱动
+  url = ""
+  user = ""
+  password = ""
+}
+13.在当前resources文件夹下创建一个文件registry.conf,道理和第12条有点类似,conf文件夹下是总控
+14.具体业务代码
+@Service
+public class Service{
+
+    @GlobalTransaction				//分布式事务注解,此时如果方法内部出现异常,会自动回滚.
+    puiblic void buy(){
+	//调用别的服务,其中涉及到多个库的修改.
+    }
+
+}
+
+15.@GlobalTransaction:
+int timeoutMills() default 60000;
+String name() default "";
+Class<? extends Throwable>[] rollbackFor() default {};			//哪些异常才回滚(如果是Exception代表所有异常都回滚)
+String[] rollbackForClassName() default{};
+Class<? extends Throwable>[] noRollbackFor() default {};
+String[] noRollbackForClassName() default {};
+
+16.Seata有如下几种模式
+AT(默认):提供无侵入自动补偿的事务模式
+TCC:支持TCC模式并可与AT混用,灵活度更高
+SAGA模式:为尝试无提供有效的解决方案
+XA模式(开发中):支持以实现XA接口的数据库的XA模式
+
+17.AT模式是如何做到无侵入式的自动补偿事务模式的?
+第6条运行那条sql语句之后,seate数据库有三个表:branch_table、global_table、lock_table
+第9条在每个数据库中运行那条sql语句之后,会新建一个undo_log表
+一阶段:分析SQL语义,找到这些SQL要更新的业务数据(表),在表被更新之前,创建一份该数据的镜像(before image).执行目标SQL(就是执行我们写的SQL),并再对执行完SQL的业务数据(表)再创建一份镜像(after image)(现在有两个镜像,一个是执行之前的,一个是执行之后的).执行完之后最后生成行锁.这些操作全都在一个数据库事务内完成(也就是Seata Server的数据库),保证了该阶段的原子性.
+二阶段提交:如果一阶段执行过程中没有产生异常(也就是所有服务全部正常执行完毕),此时直接对要更新业务数据的数据库执行提交(commit)命令.(因为此时SQL已经作用到目标数据库上了).并且将两份镜像以及行锁删除.
+二阶段回滚:如果一阶段执行过程中产生异常,则就需要回滚一阶段执行的SQL,还原业务数据.回滚的方式就是通过在一阶段表更新之前创建的那份镜像,在还原之前,首先要检查当前业务数据的内容和after image镜像是否吻合,如果吻合就还原(反向补偿),不吻合代表有脏写,需要人工处理.
+
+
+雪花算法(snowflake):
+1.需求:在分布式高并发的集群部署的系统中,我需要一个全局的唯一性ID.并且存放到数据库中
+2.解决方案:
+通过JDK自带的UUID类来实现,答案不合适,因为UUID生成出来的字符太长(而且无规律,下一刻生成出来的毫无逻辑可言),不适合放到数据库中加索引(或者作为主键).
+通过mysql的主键作为全局唯一性ID,答案不合适,虽然mysql主键保证了唯一性,但是当mysql是集群部署的时候,多台mysql的主键都是从1开始,就不能保证唯一性了(除非你是单机).而且这么做会有性能问题.我们一直在强调的是mysql尽量少干事
+通过redis来生成,答案不合适,相较于mysql已经好很多了,但是怎么解决集群redis之间自增的Key不重复?假设现在有5台redis,则第一台redis从1开始每次增加5,第二台从2开始每次也增加5.这样就保证了全局唯一的ID,但现在问题时假如又要新增一台redis怎么办?所以这种方式不利于扩展,每次增加的值要在一开始就确定好.
+3.雪花算法中的ID是一个long类型的值(64bit),其中第1位是符号位(这个是java的特性),其中前41bit表明时间戳(时间从1970年开始,毫秒级别),中间10bit表明工作进程位.最后12bit是序列号位.
+工作进程ID用来记录工作机器的ID,包括5位datacenterID和5位workerID(可以表示1024个节点(集群机器),也就是每个机器都有自已单独的ID)
+序列号ID用来记录同毫秒内产生的不同的ID,一台机器1毫秒能产生4095个序列号ID 
+4.雪花算法可以保证所有生成的ID随时间趋势递增,整个分布式系统内不会产生重复ID.生成ID性能高、不依赖数据库等第三方系统(java代码可以直接做)
+5.雪花算法缺点:
+依赖机器时钟,如果机器时钟回拨会生成重复ID
+在单机上是递增的,但由于涉及到分布式环境,每台机器上的时钟不可能完全同步,有时候会出现不是全局递增的情况.(此缺点无所谓)
+
+
+#所有配置
+Eureka Server
+eureka:
+    instance:
+	hostname: eurekaserver.com		//Eureka Server的实例名称
+	instance-id: Eureka-Client-8080		//Eureka Server显示的服务的Status信息,默认是主机名+服务名称+端口号
+	prefer-ip-address: true		//访问路径可以显示IP地址
+    client:
+	register-with-eureka: false		//表示不向注册中心注册自已
+	fetch-registry: false			//之前说过Eureka Server自已本身就是一个服务,只不过这个服务对外不提供服务,只是维护Eureka Client而已
+	service-url:
+	    defaultZone: http://eurekaserver.com:port/eureka	//表明当前服务注册到哪个地址中去
+
+
+
+
+

@@ -1,0 +1,984 @@
+目录:
+1.java语言的特性
+2.深入理解类加载全过程.
+3.OOA OOD OOP
+4.常量池和JVM原理
+5.javaSE
+6.javaEE
+7.权限
+8.重载
+9.重写+多态
+10.集合
+11.数据结构和算法
+12.java异常
+13.java泛型
+14.NIO
+
+1.java语言的特性:
+java是面向对象语言.注重于数据之间的交互关系.摒弃了C++的多继承和容易造成程序错误的内存管理.java是编译语言.
+java为什么可以实现跨平台?
+在计算机中有这么几个关键的东西:硬件、操作系统、编程语言.
+硬件被操作系统管理,C和C++是直接和操作系统进行交互,所以依赖操作系统.而java的class文件依赖于JVM虚拟机.java编写的代码是和JVM虚拟机进行交互的,然后jvm虚拟机在和操作系统进行交互.这样对于java程序员而言只需要和代码打交道,在不同的操作系统上只需要安装一个JVM虚拟机即可,代码原封不动.所以基于JVM虚拟机的kotlin语言也是跨平台的.
+
+
+2.深入理解类加载全过程.
+
+---------------------
+比如这里有Hello.java文件,调用javac命令对java文件进行编译编译成class字节码文件.这个字节码文件只有符合虚拟机的规范才可以被执行.
+当我们执行java Hello 命令时发生的哪些步骤?
+
+首先将字节码文件通过类加载器加载到虚拟机的方法区当中.					//步骤一:加载
+然后对这个字节码文件进行验证,看是否满足虚拟机加载的规范.				//步骤二:验证
+把类的类变量初始化为初始化值.如果有final关键字修饰,那么直接初始化为这个变量该有的值.	//步骤三:准备
+											//步骤四:解析
+按照顺序将静态变量初始化应有的值,执行静态代码块.					//步骤五:初始化
+找到main方法,开始执行.只有当一个类被实例化的时候,会先初始化实例变量为JVM默认值,之后再初始化为该有的值.而且优先于普通代码块(构造器)所以第七个步骤是建立在被new的情况下								//步骤六:使用
+											//步骤七:卸载
+
+什么是类构造器方法和对象构造器方法:
+类构造器方法就是在步骤四这个阶段执行,它会保证先执行当前类的父类的类构造方法.这个方法JVM帮助我们执行,执行的具体内容就是将当前类的静态变量和静态代码块按顺序融为一体执行.
+对象构造器方法就是当一个类被实例化的时候,执行当前对象的构造方法.
+
+什么是实例变量、实例方法什么是类变量:
+实例变量就是有没有static修饰的变量
+类变量就是有static修饰的变量.
+
+将类变量或实例变量初始化:
+byte 0
+short 0
+int 0
+long 0L
+float 0.0f
+double 0.0d
+char '/u000'	实际上就是''	中间没有值
+boolean false
+如果是引用类型:null
+
+为什么static方法无法访问非静态属性(实例变量):
+因为实例变量只有在被new(或者是被调用构造器)的时候才会创建.静态方法被加载的时候就已经被加载到方法区了,比如在静态代码块中访问一个实例变量,这个变量还没有被创建你就能访问了?此时你访问的实例变量还根本不存在.
+
+注意:如果一个类被调用了构造器,那么不管是怎么调用的,其性质就相当于被new了.
+
+----------------------
+public class Hello{
+	public static void main(String[] args){
+		Hello hello = new Hello();
+	}
+}
+
+运行这段代码的过程:
+JVM会自动寻找到主函数的main方法.为main方法在栈内存中开辟一个栈帧.这个栈帧做了哪些事?
+1.在线程池中声明了一个对象 Hello hello;
+2.在JVM的堆内存申请了一片空间地址,然后将Hello相关信息如:实例变量、实例方法从方法区加载到堆内存中.
+	在堆内存中创建对象的时候执行顺序:
+	2.1加载实例信息进入开辟的内存中
+	2.2执行对象的构造方法
+	堆内存中开辟的对象结构:对象由对象的头部信息和实例的信息组成.
+	头部信息:
+	1.对齐填充
+	2.持有指向方法区的指针(一些静态方法和静态属性是存储在方法区当中的,对象的静态内容实际上是指向方法区的静态内容)
+	3.描述信息(持有当前对象的锁的线程的id和持有对锁线程的个数,在gc中存活的声明周期,偏向锁的标志.)
+		偏向锁:当线程对此对象上锁后,执行完毕如果下一次访问该对象的线程也是上一次的线程那么不需要此线程重新上锁.
+3.另外线程栈(栈帧)的大小默认为1M.
+
+-------------------
+public class Father {
+    static {
+        System.out.println("Father静态代码块");
+    }
+
+    {
+        System.out.println("Father普通代码块");
+    }
+
+    public Father() {
+        System.out.println("Father构造方法");
+    }
+}
+
+class Son extends Father{
+
+    static {
+        System.out.println("Son静态代码块");
+    }
+
+    {
+        System.out.println("Son普通代码块");
+    }
+
+    public Son() {
+        System.out.println("Son构造方法");
+    }
+
+    public static void main(String[] args) {
+        new Son();
+    }
+}
+
+输出结果:
+Father静态代码块
+Son静态代码块
+Father普通代码块
+Father构造方法
+Son普通代码块
+Son构造方法
+
+原因:
+
+总结来说当每个类进行到步骤五之前,都会去检测该类是否有父类.如果有父类优先加载父类的静态代码块,然后再加载子类的静态代码块.在步骤六使用的时候 会调用构造器,构造器默认添加了super关键字,所以会调用父类的构造器,记住一个我总结出来的特性,super是构造器执行的第一行代码,当这行代码执行完毕之后直接去调用当前类的普通方法块,然后再接着执行super后面的代码.
+
+
+
+3.OOA OOD OOP
+
+OOA:面向对象分析
+OOD:面向对象设计
+OOP:面向对象编程
+
+·例子:
+你要去火车站买票然后坐火车回家.
+
+OOA:分析出这里面有几个对象
+人、火车站、票、地点、火车
+
+OOD:
+对人进行OOA:
+1.属性:年龄、性别、身份证号、姓名
+2.行为:买票、取票、走路
+.
+.
+.
+
+OOP:对OOD出来到对象之间的交互关系进行编程(编码).
+
+
+
+
+
+4.常量池和JVM原理(重点是常量池)
+
+常量池包括:符号引用(以表的形式存在)
+
+常量表类型			标志值(表的大小)(单位byte)	描述
+CONSTANT_Utf8			1				UTF-8编码的Unicode字符串(保存字符串的Unicode编码)
+CONSTANT_Integer		3				int类型的字面值	
+CONSTANT_Float			4				float类型的字面值
+CONSTANT_Long			5				long类型的字面值	
+CONSTANT_Double			6				double类型的字面值
+CONSTANT_Class			7				对一个类或接口的符号引用
+CONSTANT_String			8				String类型字面值的引用
+CONSTANT_Fieldref		9				对一个字段的符号引用
+CONSTANT_Methodref		10				对一个类中方法的符号引用
+CONSTANT_InterfaceMethodref	11				对一个接口中方法的符号引用
+CONSTANT_NameAndType		12				对一个字段或方法的部分符号引用
+
+当虚拟机加载一个类时,当这个类里面有字符串时.JVM会将该类的所有字符串转换为其对应的Unicode编码.然后把这个Unicode编码放到CONSTANT_Utf8这张表里.然后会为该字符串生成一个TAG(标记)这个标记对应一个索引,存放到CONSTANT_String表里.然后再根据CONSTANT_String这个表里的索引,指向CONSTANT_Utf8表里具体的Unicode编码.
+所有的字面值都是存储在这张表里面的,什么是字面值?上面说的字符串是其中的一种.实际上类名、方法名、形参名称所有非java语法,开发人员可自行定义的文字都是字面值.
+
+·用这个知识来解决问题:
+问题1:
+String str1 = "String";
+String str2 = "String";
+System.out.println(str1==str2);		//输出true
+
+原因:
+当JVM加载到str1时.会将str1对应的Unicode编码存放到CONSTANT_Utf8表里,然后在CONSTANT_String表里生成一个Tag 这个Tag又指向CONSTANT_Utf8表对应的Unicode编码.当JVM加载到str2时也会生成一个对应的TAG,然后这个TAG指向和str1一样的Unicode编码.所以这两个的内存地址相同.
+
+问题2:
+String str1 = "String";
+String str2 = new String("String");
+System.out.println(str1==str2);			//输出false
+
+原因:
+要区别这两个语句的本质区别.刚才的(上面的)str1和str2是直接指向CONSTANT_String表的.现在str1还是直接指向CONSTANT_String表的.但是现在的str2所指向的是对内存当中的String对象.然后这个String对象再指向方法区.所以现在str2的指针是指向堆内存的.
+
+
+1.java中==是用来比较数据的地址的(除了基本类型)
+2.equals方法默认与==一样,也就是说从Object对象里继承过来的方法默认比地址
+3.在java中所有对象的超类都是Object.
+
+什么是超类?
+假如类A继承了类B,类C继承了类B.那么类A就是类C的超类.
+
+·toString:
+System.out.println(new Demo());		//当我们输出当前对象 输出的值是当前对象的equals方法的返回值.
+
+·native:
+在java中方法修饰符native表示这个方法是通过JNI来调用C语言或C++来执行的.
+这些方法存储在本地方法栈.之前所说的栈以及开辟栈帧实际上就是线程栈.
+
+·intern:
+String str1 = "String";
+String str2 = new String("String");
+System.out.println(str1==str2.intern());		//输出true
+
+原因:
+虽然之前将str1和str2指向的内容不同.但是String的intern方法返回值是常量池里面字面值的地址(也就是将CONSTANT_String表里对应的索引值(字面值)返回).如果常量池里面没有这个索引值,那么先把这个字面值放到常量表里面之后再返回常量表的地址.(其实也很好里面,要调用该对象的方法之前肯定想声明内容)
+
+·拼接字符串:
+String str1="String";
+String str2 = "Str"+"ing";
+System.out.println(str1==str2);			//输出true
+
+原因:
+像这种静态的拼接,就认为JVM是直接将拼接后的内容存放到CONSTANT_String表的.然后str1和str2指向同一个CONSTANT_Utf8表里的Unicode编码.
+
+String str1="String";
+String str2="Str";
+String str3=str2+str1;
+System.out.println(str3==str1);		//输出false
+
+原因:
+动态的拼接在运行时通过stringbuilder拼接后返回的toString().所以此时str3指向的是stringbuilder的内存地址.
+
+·关于类变量的坑:
+class TestStatic {
+	static String name = "你好";
+}
+
+此时name类变量可以被任何类访问到,可以直接通过 类名.name就直接对该变量进行修改.如果该类被创建实例 TestStatic testStatic = new TestStatic();
+虽然是实例了一个新的对象,但是还记得之前所说的吗?静态变量是存放在方法区当中的,所以对于name类变量而言,栈空间中的testStatic指向堆空间的实例地址,堆空间中的name类变量又是指向方法区当中的.所以对于这个变量只要一处动处处全动,不代表一个新的对象 这个对象中的name属性就有新的内存地址.
+
+
+5.javaSE
+目录:
+5.1.基本数据类型
+5.2.包装类
+5.3.集合
+5.4.IO流
+5.5.网络编程
+5.6.JDBC
+
+ 
+5.1.基本数据类型:
+
+	类型		占用字节大小
+
+整型:
+	byte		1
+	short		2
+	int		4
+	long		8
+	char		2			一个字符就是两个字节
+
+浮点型:
+	float		4
+	double		8
+	
+特殊性:
+	boolean		1或4
+	returnaddress	
+
+returnaddress是什么:
+该数据类型是在虚拟机堆栈里面的一个基本数据类型,该数据类型表示方法的返回值.只不过我们引用不到.
+
+boolean:
+对于这个数据类型,并没有给出合理的大小解释.Boolean使用整型来存储的,在java中不可以用0和1来代表true和false.
+
+局部变量是存储在栈内存中的.使用引用类型会加重堆内存(垃圾回收器的负担),而且堆内存是不连续的.具体内容在深入java内存里
+
+
+
+5.3.集合:
+
+容器家族:
+Iterable	迭代器顶级接口
+Collection	继承了Iterable
+Collection的子接口:List、Queue(队列)、Set
+
+List的实现类:Vector、ArrayList、LinkedList、CopyOnWriteArrayList
+Queue的子接口:Deque、BlockingQueue(阻塞单向队列)
+Queue的实现类:ConcurrentLinkedQueue
+BlockingQueue的实现类:LinkedBlockingQueue、ArrayBlockingQueue、DelayQueue
+Deque的实现类:ArrayDeque
+Set的实现类:照着Map的实现类来
+
+容器家族:
+Map		键值段顶级接口
+
+Map的实现类:
+HashMap、Hashtable、ConcurrentHashMap、ConcurrentSkipListMap、TreeMap、WeakHashMap、LinkedHashMap、 EnumMap
+
+·List和Set有何区别:
+
+·HashMap是如何保存元素的.equals和hashcode.
+
+
+
+
+5.4.IO流
+
+·分类:InputStream、OutputStream		//都是抽象类(模板方法模式)
+
+
+InputStream的实现类:
+FilterInputStream->BufferInputStream
+ObjectInputStream				//序列化和反序列化
+FileInputStream
+
+OutputStream的实现类:基本一致
+
+
+
+5.5.网络编程
+
+·
+1.UDP和TCP区别
+2.java如何实现UDP和TCP
+3.TCP/IP协议栈四层
+
+·分类:UDP、TCP、HTTP协议
+
+
+TCP(重点):
+
+·考点:
+1.TCP三次握手
+2.一次网站访问经过哪些步骤.
+
+
+5.6.JDBC
+
+
+
+
+6.javaEE(偏向javaweb)
+
+知识点:JTS、RML、Servlet、JSP、JPA、JMS、JNDI.
+
+·Servlet:
+servlet和jsp有何区别
+servlet是不是线程安全的
+servlet的生命周期
+
+·jsp:
+三大指令
+九大对象
+会不会用JSTL和EL表达式
+如何自定义JSTL标签
+jstl标签解决了哪些问题
+什么是域对象有哪些(四个)
+
+·JPA:
+什么是JPA
+
+·JMS:
+消息队列,activitMQ就是Apache的实现这个规范
+
+·JNDI:
+这个是用来干什么的
+
+
+
+
+7.权限
+
+public:所有类对象都可以访问
+protected:只有该类和子类可以访问.该类和子类的实例都可以访问.
+private:只有该类可以访问.其子类也不可以访问.该类的实例(对象)不可以访问.
+
+通过字节码我们可以看到我们在平时调用private的时候是通过this关键字来调用的.而private方法的信息保存在CONSTANT_Methodref这张常量表里面,也可以总结出JVM中的
+invokespecial指令是用来调用类的构造器和私有方法.
+invokevirtual指令调用实例方法.
+
+一个方法在JAVAC编译的时候就已经确定了这个方法的描述也就是方法的访问权限和方法栈深度、本地变量个数和参数个数都已经确定好了,所以我们在调用方法压入栈帧的时候,栈帧的大小都在javac编译的时候确定好了.
+
+
+8.重载
+
+·例子:
+
+public void out(int i){
+	System.out.println(i+1);
+}
+public void out(long l){
+	System.out.println(l+1);
+}
+public int out(Integer i){
+	System.out.println(i+1);
+	return 1;
+}
+
+调用javcap查看字节码文件的内容:
+
+1.参数是int类型的
+public void out(int);
+descriptor:(I)V			//方法描述符,实际上是通过参数类型来描述括号里面的内容.V代表方法的返回值为void
+flags:ACC_PUBLIC		//方法权限修饰符
+Code:
+  stack=3,locals=2,args_size=2	
+  //栈深度是3,本地变量2,参数类型2.		为什么参数类型是2个?因为默认第0个参数就是this,只不过看不到.
+
+    0:getstatic
+    3:iload_1			//指代第一个形参
+    4:iconst_1			//指代i+1的1
+    5:iadd			//执行该命令,会从栈内存中弹出i和1进行相加,然后再放到栈顶.
+    6:invokevirtual		//Method java/io/PrintStream.println:(I)V		//执行println方法
+    9:return
+	
+
+
+2.参数是long类型的
+public void out(long);
+descriptor:(J)V
+flags:ACC_PUBLIC
+Code:
+  stack=5,locals=3,args_size=2
+  //为什么本地变量是3?实际上本地变量也指向下面的这张表.而下面这张表每一位都需要4个字节(32位).那么上面是2的原因就是,第一位放了this,第二位直  //接放int.但是现在long是4字节一位放不下,所以需要再多一位.
+		
+    0:getstatic
+    3:iload_1			//实际上这个是指向方法区的某张表.就当前方法而言,这个表的第一位数值是参数0(this),第二位的值就是具体传入的值.
+    4:iconst_1			
+    5:ladd			
+    6:invokevirtual		
+    9:return
+
+
+3.参数是Integer类型的		//注意只要方法描述符
+public int out(java.lang.Integer);
+descriptor:(java/lang/Integer;)I
+flags:ACC_PUBLIC,ACC_STATIC
+Code:
+  stack=3,locals=1,args_size=1
+  //为什么本地变量是3?实际上本地变量也指向下面的这张表.而下面这张表每一位都需要4个字节(32位).那么上面是2的原因就是,第一位放了this,第二位直    //接放int.但是现在long是4字节一位放不下,所以需要再多一位.
+		
+    0:getstatic
+    3:iload_0			//实际上这个是指向方法区的某张表.就当前方法而言,这个表的第一位数值是参数0(this),第二位的值就是具体传入的值.
+
+
+·总结:
+java中的方法的重载在编译期就已经产生了方法的描述,在执行的时候根据方法的描述符和传入的参数选择方法执行,这样的形式称之为编译期的多态.
+
+
+9.重写+多态
+
+class A{
+	public void out(){
+		System.out.println("A");
+	}
+}
+
+class Demo extends A{
+	public void out(){			
+		System.out.println("Demo");
+	}
+	public static void main(String[] args){
+		A a = new Demo();
+		a.out();
+	}
+}
+
+输出结果:
+Demo		//这是多态的基本知识
+
+·子类重写父类方法,那么子类重写的方法的权限一定要大于父类的权限.原因:如果这里Demo类的out方法的权限是private,那么在使用多态的时候out方法是调不到的.所以子类的权限一定要大于父类.
+
+·并且子类重写的方法也不可以加上静态的修饰符,但是可以加上final常量修饰符.而且如果父类方法有异常,那么子类继承重写的方法也会默认有父类的异常.
+而且子类只能抛出父类抛出异常的子类异常,子类抛出的异常不能比父类高.	
+
+·底层分析:类A和类Demo的out方法都是存放在方法区的CONSTANT_Methodref这张表里面.这两个out方法的指针分别指向不同的TAG.当Demo对象被实例化的时候,Demo的out方法是指向自已的TAG的.之前说过方法的名称是存储在CONSTANT_Utf8这张表里面的.
+
+
+
+
+10.集合
+
+目录:
+10.1ArrayList集合
+10.2LinkedList
+10.3Arrays.copyof
+
+
+10.1ArrayList集合:
+
+·ArrayList继承体系:
+Collection接口
+AbstractCollection抽象类实现了Collection接口的部分方法
+List接口继承了Collection接口,并扩展出更多的抽象方法
+AbstractList抽象类继承了AbstractCollection抽象类实现了List接口
+ArrayList实现了List接口继承了AbstractList抽象类
+
+这里面使用了模板方法模式
+
+·为什么ArrayList不但继承了AbstractList又实现了List接口?
+主要的原因是为了实现JDK的动态代理.想想如果ArrayList没有实现List接口.那么根据继承关系你使用的就是多态.List list = new ArrayList();这样是可以的.但是在JDK动态代理里面,如果ArrayList没有实现List.那么就无法获取到List.现在ArrayList实现了List相当于是接口的实现类.
+
+·ArrayList:
+集合默认大小是10.如果大小不够用,按照底层算法可知,ArrayList是按照原大小的0.5倍增长的.建议给容器一个初始的大小.不要太小也不要太大.太小的话,数组的扩容是很消耗内存的,太大的话浪费空间.由于ArrayList底层是通过数组实现的,所以ArrayList又被称之为线性表,便于查找(直接根据索引进行查找),访问时间复杂度o(1).但是不便于修改.应用场景:少改多查.
+
+
+
+10.2LinkedList:
+
+·LinkedList继承体系:
+Collection接口
+AbstractCollection抽象类实现了Collection接口的部分方法
+List接口继承了Collection接口,并扩展出更多的抽象方法
+AbstractList抽象类继承了AbstractCollection抽象类实现了List接口
+AbstractSequentalList抽象类继承了AbstractList抽象类
+LinkedList继承了AbstractSequentalList抽象类实现了List和Deque接口.
+
+
+·LinkedList:
+LinkedList底层通过链表来实现,所以便于修改单不便于查找.不连续的地址空间通过next指针来串联起来,查找的时间复杂度为o(n),查删改的时间复杂度是o(1).由于LinkedList实现的Deque队列接口,所以它是支持首位移除的(高并发).LinkedList内部有两个指针,一个指向链表的第一个节点,一个指向链表的最后一个节点.每个节点又有两个指针(pre,next),一个指向当前节点的上一个节点,一个指向当前节点的下一个节点.头节点的pre指向null.尾结点的next指向null.应用场景:多改少查.
+
+·要求(重点):在java中使用Equals方法,必须使用"".equals(xxx)方法,也就是确定调用equals的对象不为null,这样就完美的避免了空指针异常.
+
+
+
+
+10.3Arrays.copyof:
+
+当我们查看源码时会发现一个问题:
+
+String string = "test";
+System.out.println(string.getClass()==String.class);		//输出true
+
+原因:
+从其本质上来看,都是获取String类的字节码文件(源文件),所以是true.
+
+String string = "test";
+System.out.println((Object)string.getClass()==(Object)String.class);		//为什么还是输出true?
+
+原因:
+首先要弄明白获取到class文件是什么,当一个类被加载到虚拟机当中,在准备和解析这两个阶段之间,该类的class文件就被加载到方法区当中了.class文件在方法区内存中只有一份,代表对象本身.
+
+Object object[] = {};
+System.out.println(object.getClass()==Object[].class);		//输出true
+
+原因:
+之前一直所讲的数组本身也是对象.某个对象类型的数组类型也相当于一个class文件会被加载到虚拟机当中.
+这种比较就等价于 object instanceof Object[]		//输出true
+
+
+
+
+
+
+
+
+11.数据结构和算法
+
+数据结构:
+数据结构是数据存放的一种方式,用来组织数据,使得磁盘或者内存空间更有效率的存放数据.通俗来说就是提高空间的利用率和数据的查找速度.
+
+算法分类;
+11.0.1:蛮力法
+11.0.2:分治法		就像使用二叉树进行数据的查找,而不是循环查找
+11.0.3:贪心法		按照概率最大的可能性先查找
+11.0.4:回溯法		选择一条路径查询,如果没有查询到,再返回选择另外的路径查询.
+11.0.5:动态规划法	
+
+动态规划法:
+例如计算斐波那契函数,f(n)=f(n-1)+f(n-2) f(1)=1.例如计算f(3)时 就要拆分成 f(3)=(f2)+f(1) 然后f(2)=f(1)+f(0) 这样拆分.每次拆分出来的内容单独计算,然后再将每次计算的结果同意合并.
+
+
+
+
+12.java异常
+在java中异常信息的父类永远是Throwable这个类,他爹生了两个孩子:
+Throwable的子类是Error和Exception
+12.1.exception:又生了两个
+12.1.1检查型异常(比如Thread.sleep();这个方法很有可能产生异常,于是通过一个try模块来跟踪代码.一旦出现问题直接catch)
+12.1.2非检查异常(RunTime Exception)运行时异常
+
+12.2error:直接就是JVM的错,如JVM outofmemoryerror,stackoverflowerror(内存溢出),error是最严重的错误,应用程序不处理error.
+
+
+运行时异常(非检查异常)不强制捕获(运行时异常是需要程序员自已去处理的,比如数组越界、转型失败、空指针异常,出现这种异常是希望程序停止,程序员修改代码).
+受检异常必须要处理(throws或者是try catch).异常要是还不懂我就完了.
+在异常处理中,若try中的代码可能产生多种异常则可以对应多个catch语句,若catch中的异常类型有父类子类关系,此时应该将父类放在后面,子类放在前面.(有限捕获子类异常)
+如果父类有方法抛出了异常,则子类重写该方法在不调用父类方法的情况下,子类重写的方法可以不抛出该异常.构造函数是可以抛出异常的.
+
+不管是什么异常(包括我们自定义的异常),它都应该至少有两个构造方法.因为这两个方法是Throwable对象的构造器
+构造器(String);
+构造器(String,Throwable);
+
+Throwable:
+printStackTrace(PrintWriter) return void;				//将当前完整的堆栈信息输出到一个PrintWriter对象中		
+printStackTrace(PrintStream) return void;			//将当前完整的堆栈信息输出到一个PrintStream对象中
+getMessage() return String;					//得到某个异常的提示信息,也就是这个异常被创建出来方法构造器中的message信息.也就是上面构造器里的第一个参数.
+								//当然你可以直接重写这个方法,定制你的错误信息.
+
+这两个构造器分别用在什么时候?
+当该异常是我们抛出的,就使用第一个构造器,例如:
+if(判断条件){
+
+}else{
+    throw new RuntimeException("提示信息");
+}
+
+当我们想在catch里面创建异常时就用第二个构造器:
+try{
+    //捕获的代码
+}catch (Exception e){		//有的时候如果产生了异常你可以选择不抛出异常.也就是不 throw 异常对象
+    throw new RuntimeException("提示信息", e);			//需要把捕获的这个异常传到构造器里面.
+}
+
+上面都是运行时异常,什么时候该抛出检查异常?
+public void run() throws Exception{
+
+    if(判断条件){
+
+    }else {
+	throw new Exception("提示信息");
+    }
+
+}
+
+使用throws方法是你作为方法的设计者,当别人调用你的方法的时候可能会产生什么异常.你希望别人去处理这个异常的时候才使用throws.
+如果当前方法可以处理这个异常,那么就在当前方法try catch.否则就throws交给方法的调用者处理.
+
+检查性异常用来指示一种调用方能够直接处理的异常情况(例如:用户输入错误,程序可以直接捕获并处理,提示用户输入错误)
+而RuntimeException是用来指调用方本身无法处理或回复的程序错误(例如,你封装个库给别人用,当别人调用你库中某个方法时,需要传入某些参数,如果用户传入的参数不合法,你自己没办法处理,那么你抛出的就应该是运行时异常).
+
+对于调用方无法纠正的异常抛出运行时异常,对于调用方可以纠正的异常抛出检查异常(告诉调用方哪里错了,请重试,这个重试很关键)
+
+如果一个异常被try catch了那么该方法接下来的代码依旧会执行,例如:
+public void testRuntimeException() {
+    try {
+	int i = 1 / 0;
+    } catch (Exception e) {
+
+    }
+	System.out.println("Hello World");		//会执行该方法
+}
+
+如果一个异常没有被try catch那么该方法接下来的代码不会执行,例如:
+public void testRuntimeException() {    
+    int i = 1 / 0;
+    System.out.println("Hello World");			//不会执行
+}
+
+public void testRuntimeException() {
+    try {
+        int i = 1 / 0;
+    } catch (Exception e) {
+        throw new RuntimeException();
+    }
+    System.out.println("Hello World");			//不会执行
+}
+
+public void testRuntimeException() {
+    try {
+        int i = 1 / 0;
+    } catch (Exception e) {
+        try {
+            throw new RuntimeException();
+        } catch (Exception e1) {
+        
+        }
+    }
+    System.out.println("Hello World");			//会执行
+}
+
+throw newException();					//调用方法抛出异常
+
+public Exception newException(){			
+    return new RuntimeException();
+}
+
+异常的几种场景:
+捕获并返回一个静态的缺省值
+捕获并执行一个异常处理方法或动态计算一个候补值来顶替
+捕获并再包装为某一个业务相关的异常,然后再抛出业务异常
+捕获记录错误日志,然后继续抛出
+使用finally来清理资源,或使用Java 7引入的try-with-resource
+
+12.5:自定义异常的高端技巧,一般一个自定义的异常就需要创建一个异常类然后去继承RuntimeException,这样太麻烦了而且类太多.
+我们可以创建一个枚举异常:
+public enum EnumException extends RuntimeException{
+
+    构造器(ErrorCodeEnum);
+    构造器(ErrorCodeEnum,Throwable);
+}
+
+public enum ErrorCodeEnum{
+    FILE_NOT_FOUND_EXCEPTION("文件未找到");
+    String message;
+    public ErrorCodeEnum(String message){
+	this.message = messgae;
+    }
+}
+
+这样我们抛出自定义异常的时候只需要 throw new EnumException(ErrorCodeEnum.FILE_NOT_FOUND_EXCEPTION);
+然后在EnumException的构造器中去解析这个异常,并将枚举元素的message传给父类构造器.
+
+12.6:如何得到一个异常的堆栈信息:
+再次之前要弄明白,getMessage()得到的是提示信息.也就是这个异常被创建出来的信息,例如 new Exception("提示信息")		//得到的是提示信息
+现在要得到堆栈信息和提示信息是不一样的!
+public String getStackTrace(final Throwable throwable){			//Throwable是异常和错误父类,所以该方法表明你可以传入任意的异常 
+	final StringWriter sw = new StringWriter();
+        final PrintWriter pw = new PrintWriter(sw, true);		//args0:参数表明当前PrintWrite的信息要写入哪个地方.有很多重载方法. agrs1:是否自动刷新,和IO流操作类似,如果这里设置为									false,则需要手动调用PrintWrite的flush方法.
+        throwable.printStackTrace(pw);					//打印当前的堆栈信息到一个PrintWriter或者PrintStream流中.
+	return sw.getBuffer().toString();				//调用StringWrite的getBuffer获得存放当前堆栈信息的StringBuffer然后从StringBuffer中得到堆栈信息.
+					//所以总结教训,以后想这种自已本身存放String信息的对象,如果调用toString方法获得的不是存放的信息,一般该对象内部会有别的存放Sting信息的对象来获得字符串.
+}
+
+PrintWriter:
+write(String) return void;		//输出一个字符串
+
+13.java泛型
+静态方法的泛型可以直接指定
+class A{
+
+    public static <T1,T2> Map<T1,T2> create() {
+	//...
+    }
+}
+
+A.<String,String>create();			//可以直接这么调用
+
+13.1泛型类、接口
+泛型类的定义方法和普通类的定义方法没有什么区别,只要在类名后面加上一个尖括号里面填入泛型类型即可,定义了泛型类型的类,在类中就可以使用该泛型.例如变量的类型、方法返回值的类型、形参类型.定义泛型类可以理解为一个类型的占位符,它可以像正常的类型
+一样被使用,只是具体类型未知而已(等待程序员动态指定该类型).
+实际上万物皆是Object,根本没有泛型这一说法,都是编译期间做的功劳,只管怎么使用就可以了.
+public class Class<E>{		//定义方式,在类名后面加上一对尖括号内部声明泛型类型
+
+}
+
+Class class = new Class();		//若声明时不指定泛型类型,则泛型类型默认指定为Object
+统一泛型类根据不同的数据类型创建的对象,本质上是同一类型.System.out.print(new Class<Integer>().getClass() == new Class<Long>().getClass());//输出的结果为true
+泛型最难的一点就在于,虽然是同一个类型,但内部却有不同的结构.
+
+13.2泛型类的子类
+public ChildClass<T> extends Class<T>{		//如果子类是泛型类,则子类和父类的泛型类型保持一致
+
+}
+
+public ChildClass extends Class<String>{		//如果子类不是泛型类,则要指定父类泛型类型的具体数据类型
+
+}
+
+13.3泛型方法
+只有声明了泛型列表的方法才是泛型方法,泛型类中使用了泛型的成员方法并不是泛型方法.泛型方法指定的泛型类型和类后面指定的泛型类型是不相关的.
+public class Class<E>{
+    public E getE(E value){		//该方法不是泛型方法
+        return value;
+    }
+}
+
+public class Class<E>{
+    public static E getE(E value){		//类的静态成员方法是不可以用泛型的××××××××
+        return value;
+    }
+}
+
+
+public class Class<T>{
+    public <T,R> R getR(T t){		//此方法才是泛型方法,这里的泛型类型T和类指定的泛型类型T是不相关的.
+        return R;
+    }
+}
+
+public class Class<T>{
+    public static <T,R> R getR(T t){		//静态的泛型方法是可以√√√
+        return R;
+    }
+}
+
+Class.<String,String>getR();			//可以直接这么调用
+
+13.4类型通配符
+通配符主要用于解决泛型的多态问题,泛型是没有多态的,看下面这个例子,这个例子很关键
+public class<T> Box{
+    private T value;
+    public void setValue(T value){
+        this.value = value;
+    }
+    public T getValue(){
+        return this.value;
+    }
+}
+
+Box<Integer> boxOne = new Box<>();
+print(boxOne);				//这一步会报错,因为虽然print方法接受的是Box类型,但是传入的参数和接受的参数的类型在结构上不匹配.
+public void print(Box<Number> box){
+
+}
+
+public void print(Box<Integer> box){		//如果定义了该方法,该方法处会报错,因为这里并不构成重载.
+
+}
+
+通配符用?来表示,代表它可以匹配任意的泛型类型! 它可以匹配任意的泛型类型! 它可以匹配任意的泛型类型! (通配符一般都用于泛型方法内),而使用通配符就相当于Object
+public void print(Box<?> box){
+    Object value = box.getValue();			//此时调用getValue方法返回的就是Object类型
+}
+Box<Integer> boxOne = new Box<>();
+print(boxOne);				//此时不会报错
+
+13.5泛型的上限和下限
+假设现在有这些类:Animal<-Dog<-GoldDog<-BlackGoldDog  Dog<-LALA 这是他们的继承关系
+https://www.zhihu.com/question/20400700/answer/117464182  
+声明看左边运行看右边  
+List<? extends Dog> list list = new ArrayList<xxx>();
+左侧指定了上限为Dog,那么右侧的泛型可以是任意的Dog的子类,假设我运行时右侧指定的泛型是BlackGoldDog,请问这个List能把GoldDog、Dog、LALA、Animal放进去吗?此时内部的T类型就是BlackGoldDog,如果塞入进入相当于 BlackGoldDog t = new GoldDog、Dog、LALA、Animal 需要强转显然是不可能的,所以干脆就不允许add操作  
+但对于这个集合不管你内部的元素是什么,至少有一点可以保证,它们起码是Dog类型,所以这里可以get  
+List<? super Dog> list list = new ArrayList<xxx>();
+左侧指定了下限为Dog,那么右侧的泛型可以是任意Dog的父类,假设我右侧运行时指定的泛型是Dog,此时不管怎么说至少集合中最低的类型就是Dog,此时内部T的类型就是Dog,那么这个List当然可以把GoldDog、Dog、LALA放进去了,相当于Dog t = new GoldDog、Dog、LALA;但是没办法放入Animal,因为放入Animal又会导致强制类型转换,我不知道你具体创建的是什么,所以干脆不允许你放比Dog的父类型;对于get操作,假设右侧指定的是Animal,在取的时候能把Animal转成任意的子类型吗?肯定是不可用的,所以干脆禁用get操作,不过这里有特例就是,至少可以确定该类型是Object类型的  
+
+public void print(List<? extends Dog> list){		//指定泛型的上限,代表当前通配符最多只能匹配到Dod.传入的泛型必须是Dog或Dog的子类
+    list.add(new Animal());			//报错
+    list.add(new Dog());			//报错
+    list.add(new GoldDog());			//报错 因为这里采用的是上限通配符,并不能确定传入的List的泛型类型到底是什么数据类型,有可能我传入的是List<GoldDog>那你能往里面放Dog吗?所以干脆这里就不允许你add
+    list.get(0);				//并且这里调用get方法的返回类型只能是Dog和Dog的父类!!!
+}
+public void print(List<? super Dog> list){		//指定泛型的下限,代表当前通配符最多只能匹配到Dog.传入的泛型必须是Dog或Dog的父类
+    Animal animal = list.get(0);			//报错 super指定下限不能get,因为并不能确定传入的List的泛型类型到底是什么数据类型,有可能我传入的是List<Animal>那你能得到Dog吗?所以干脆这里不允许你get
+    Dog dog = list.get(0);			//报错
+    Object o = list.get(0);         //这个是可以的
+    GoldDog goldDog = list.get(0);		//报错
+    list.add(new GoldDog());			//这里的add方法只能添加Dog和Dog的子类	
+
+}
+
+上限和下限是针对后面那个类而言的,例如 ? extends Dog 就是说通配符能匹配大于等于Dog的,也就是说所有Dog和它的子类都可以匹配,那不就是说Dog是这个匹配的上限吗?super也是同理  
+
+
+
+13.6泛型的擦除
+泛型的擦除分为无限制擦除和有限制擦除,泛型的擦除使得每个类在编译的时候具体的类型是确定的,并且其类型只有两种情况(实际上大部分是Object类型). 运行时所有的类型都已经确定了!
+所以编译期间做的操作非常多.
+
+无限制擦除:
+public class<T> Box{				
+    private T value;
+    public void setValue(T value){
+        this.value = value;
+    }
+    public T getValue(){
+        return this.value;
+    }
+}
+编译之后为:
+public class Box{				
+    private Object value;
+    public void setValue(Object value){
+        this.value = value;
+    }
+    public Object getValue(){
+        return this.value;
+    }
+}
+
+有限制擦除:
+public class<T extends Number> Box{				
+    private T value;
+    public void setValue(T value){
+        this.value = value;
+    }
+    public T getValue(){
+        return this.value;
+    }
+}
+编译之后为:
+public class Box{				
+    private Number value;
+    public void setValue(Number value){
+        this.value = value;
+    }
+    public Number getValue(){
+        return this.value;
+    }
+}
+
+同样对于泛型方法的类型擦除,也分为有限制和无限制类型擦除:
+public <T> T getValue(T value){
+}
+编译之后:
+public Object getValue(Object value){
+}
+
+public <T extends Number> T getValue(T value){
+}
+编译之后:
+public Number getValue(Number value){
+}
+
+最重要的桥接方法:
+public interface Info<T>{
+    T info(T var);
+}
+编译后:
+public interface Info{
+    Object info(Object var);
+}
+
+假设现在有个类实现了该接口,并且指定了泛型类型,如下:
+public class InfoImpl implements Info<Integer>{
+    @Override
+    public Integer info(Integer var){
+        return var;
+    }
+}
+编译后:
+public class InfoImpl implements Info{
+    public Integer info(Integer var){
+        return var;
+    }
+    // 桥接方法,保持接口和类的实现关系
+    @Override
+    public Object info(Object var){
+        return info((Integer)var);
+    }
+}
+
+
+14.NIO
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,1202 @@
+							排序
+{
+·冒泡排序:实际上就是int类型的数组的排序
+·实际上我自已是可以摸所出来的最优化版本
+·注意事项:需要通过一个临时的变量来替换数据,两次循环,分为大循环和小循环,每次小循环执行结束之后小循环遍历的次数应该-1,需要在每次大循环遍历之前定义一个flag标识,同于检测当前的排序是否结束.如果在小循环里面没有执行替换,则说明数组已经排序完毕了.此时直接跳出循环.
+·另外一种方式:直接使用java中提供的Arrays类.通过Arrays.sort(values);		//传入一个数组,会按照从小到大依次排列
+·具体代码:无解释版本,最优化版本
+int[] values = new int[]{3,1,6,2,9,0,7,4,5,8};
+        for(int j = 0;j<values.length-1;j++){
+            boolean flag = true;
+            for(int i = 0;i<values.length-(j+1);i++){
+                if(values[i]>values[i+1]){
+                    int temp = values[i];
+                    values[i] = values[i+1];
+                    values[i+1] = temp;
+                    flag = false;
+                }
+            }
+            if (flag){
+                break;
+            }
+        }
+        System.out.println(Arrays.toString(values));
+·具体代码:加上解释版本
+int[] values = new int[]{3,1,6,2,9,0,7,4,5,8};
+        for(int j = 0;j<values.length-1;j++){
+            boolean flag = true;				//增加是否不继续执行遍历的标识
+            for(int i = 0;i<values.length-(j+1);i++){		//每当遍历完一次之后,就可以少遍历一次
+                if(values[i]>values[i+1]){
+                    int temp = values[i];
+                    values[i] = values[i+1];
+                    values[i+1] = temp;
+                    flag = false;				//如果替换的数据说明还没有遍历成功,否(继续执行循环)
+                }
+            }
+            if (flag){						//如果为true则不继续执行循环,跳出当前循环
+                break;
+            }
+        }
+        System.out.println(Arrays.toString(values));
+
+
+}
+
+{
+·业务排序
+·排序(比较器):Comparable
+·介绍:这个接口相当于一个标识,里面只有一个compareTo方法.如果一个类需要和自已相同的类进行排序,就可以实现这个接口,重写compareTo方法.
+·适用范围:数据类型是引用数据类型(实现Comparable接口的类)
+{
+·Comparable排序的接口:主要用于包装类,是jdk自已实现的排序
+	基本数据类型					包装类
+	    byte					 Byte
+	    boolean					 Boolean
+	    short					 Short
+	    char					 Character
+	    int						 Integer
+	    long					 Long
+	    float					 Float
+	    double					 Double
+·介绍这些所有的包装类都实现了Comparable接口,意味着这些包装类都需要实现Comparable接口的compareTo(T o)方法.compareTo方法需要返回一个int值.
+通过包装类对象.compareTo(相同类型的包装类对象) 进行比较
+例如:
+Integer T1 = 10;
+Integer T2 = 20;
+System.out.println(T1.compareTo(T2));
+·比较规则:
+Integer		//根具基本数据类型的大小,Doubel,short等同理
+Character	//根具Unicode编码顺序
+String		//先一个一个字符比较.有不相同的就返回字符编码的差值.如果没得比较了.就返回两个字符长度的差值
+Date		//根据时间的长整形数比较(long)
+·比较结果:
+T1.compareTo(T2)		//如果T1<T2为-1,T1=T2为0,T1>T2为1		Integer类型
+C1.compareTo(C2)		//根具Unicode编码顺序,返回C1-C2后的
+S1.compareTo(S2)		//对两个字符串的每一个字符进行比较,如果发现有一个字符不相等,就返回当前这两个字符的Unicode编码					只差,如果这两个字符串的长度不相同,例如"abcde"和"abc"这两个字符串的前三个字符都相等,但是比较到					第四个字符的时候,一个有字符一个没有字符无法比较的时候就返回当前两个字符串的长度差
+D1.compareTo(D2)		//根据日期的长整型数进行比较(long),比较结果和Integer类似
+
+{
+·应用:只展示了String数组的排序,其余的不做过多的赘述
+int[] values = new int[]{3,1,6,2,9,0,7,4,5,8};
+        for(int j = 0;j<values.length-1;j++){
+            boolean flag = true;
+            for(int i = 0;i<values.length-(j+1);i++){
+                if(values[i]>values[i+1]){
+                    int temp = values[i];
+                    values[i] = values[i+1];
+                    values[i+1] = temp;
+                    flag = false;
+                }
+            }
+            if (flag){
+                break;
+            }
+        }
+int值数组的排序规律:通过比较数组中的第n个值和第n+1个值的大小关系
+那现在如果我要对一个String数组或者其他包装类的排序该怎么办呢?
+·具体代码:无解释版本
+        String[] str={"a","abcd","abc","def"};
+        for(int j = 0;j<str.length-1;j++){
+            boolean flag = true;
+            for(int i = 0;i<str.length-(j+1);i++){
+                if(((Comparable)str[i]).compareTo(str[i+1])>0){
+                    String temp = str[i];
+                    str[i] = str[i+1];
+                    str[i+1] = temp;
+                    flag = false;
+                }
+            }
+            if (flag){
+                break;
+            }
+        }
+        System.out.println(Arrays.toString(str));
+·具体代码:解释版本
+        String[] str={"a","abcd","abc","def"};				☆
+        for(int j = 0;j<str.length-1;j++){
+            boolean flag = true;
+            for(int i = 0;i<str.length-(j+1);i++){
+                if((str[i].compareTo(str[i+1]))>0){			☆
+                    String temp = str[i];				☆
+                    str[i] = str[i+1];
+                    str[i+1] = temp;
+                    flag = false;
+                }
+            }
+            if (flag){
+                break;
+            }
+        }
+        System.out.println(Arrays.toString(str));
+对于三处☆的解释:
+第一处:定义String数组,当然也可以是任意的包装类或者其他类(Date等)
+第二处:if((str[i].compareTo(str[i+1]))>0)
+利用我们刚才所学的知识,通过当前类型compareTo方法的特性来进行排序,这里我只对String类型的进行解释,利用上面的知识,当两个元素进行比较后>0可以确定,当前n元素应该方法n+1元素的后面.
+第三处:与数组类型对应
+
+对于第二处的补充说明:由于这里排序是按照从小到大排序,所以当比较结果>0时才发生置换,如果我们想从大到小排序,就只要改成<0即可
+}
+
+{
+·利用Object实现排序的工具类:无解释版本,注意这是针对包装类的排序(也就是传入的类必须是实现Comparable接口的)
+    public static void sort(Object[] obj){
+        for(int j = 0;j<obj.length-1;j++){
+            boolean flag = true;
+            for(int i = 0;i<obj.length-(j+1);i++){
+                if(((Comparable)obj[i]).compareTo((Comparable)obj[i+1])>0){
+                    Object temp = obj[i];
+                    obj[i] = obj[i+1];
+                    obj[i+1] = temp;
+                    flag = false;
+                }
+            }
+            if (flag){
+                break;
+            }
+        }
+    }
+
+·利用Object实现排序的工具类:解释版本
+    public static void sort(Object[] obj){						☆
+        for(int j = 0;j<obj.length-1;j++){
+            boolean flag = true;
+            for(int i = 0;i<obj.length-(j+1);i++){
+                if(((Comparable)obj[i]).compareTo((Comparable)obj[i+1])>0){		☆
+                    Object temp = obj[i];						☆
+                    obj[i] = obj[i+1];
+                    obj[i+1] = temp;
+                    flag = false;
+                }
+            }
+            if (flag){
+                break;
+            }
+        }
+    }
+
+第一处:传入一个Object数组(传入任何类型的数组)
+第二处:由于Object没有实现Comparable接口,所以这里将传入的类型强制转换为Comparable以便调用compareTo方法
+第三处:替换
+}
+
+{
+·利用泛型实现排序的工具类:无解释版本
+    public static <T extends Comparable<T>>void sort(T[] arr){
+        for(int j = 0;j<arr.length-1;j++){
+            boolean flag = true;
+            for(int i = 0;i<arr.length-(j+1);i++){
+                if(((Comparable)arr[i]).compareTo((Comparable)arr[i+1])>0){
+                    T temp = arr[i];
+                    arr[i] = arr[i+1];
+                    arr[i+1] = temp;
+                    flag = false;
+                }
+            }
+            if (flag){
+                break;
+            }
+        }
+    }
+
+·利用泛型实现排序的工具类:解释版本
+    public static <T extends Comparable<T>>void sort(T[] arr){				☆
+        for(int j = 0;j<arr.length-1;j++){
+            boolean flag = true;
+            for(int i = 0;i<arr.length-(j+1);i++){
+                if(((Comparable)arr[i]).compareTo((Comparable)arr[i+1])>0){
+                    T temp = arr[i];							☆
+                    arr[i] = arr[i+1];
+                    arr[i+1] = temp;
+                    flag = false;
+                }
+            }
+            if (flag){
+                break;
+            }
+        }
+    }
+}
+第一处:利用不确定的类型来进行排序
+第二处:与传入的类型同步
+}
+
+{
+·利用泛型实现容器排序的工具类:
+    public static <T extends Comparable<T>>void sort(List<T> list){
+        Object[] obj = list.toArray();						☆
+        sort(obj);								☆
+        for (int i = 0; i < obj.length; i++) {					☆
+           list.set(i, (T) obj[i]);
+        }
+    }
+设计思路:
+步骤一:将容器转为数组
+步骤二:改变容器中对应的值
+·三处五角星:
+第一处:通过list.toArray();将list转换为Object数组.该方法返回一个Object数组
+第二处:调用数组的排序方法(在上面)
+第三处:这个for循环,是改变容器中每个数组的位置
+}
+}
+}
+
+
+{
+·排序规则的业务类:Comparator
+·介绍:实现自已的业务排序规则
+·与Comparable的区别:Comparable类适用于各种包装类(引用类型)是jdk写好的,他们的排序规则有时不能满足需求.使用Comparator自定义自已  的排序业务
+·使用方法:继承Comparator接口,加上泛型Comparator<泛型 泛型>,重写compare方法.compare(T o1,T o2)
+{
+·应用:这里列举的排序规则是比较两个字符串的长度,不通过Unicode码来比较.最简单的例子,引用类型的自定义排序
+·业务类:实现Comparator的类:
+public class StringComp implements Comparator<String> {
+    @Override
+    public int compare(String o1, String o2) {
+        int len1 = o1.length();
+        int len2 = o2.length();
+        return len1-len2;			//直接返回o1-o2的长度
+    }
+}
+
+·如何使用业务类?这个业务类要搭配工具类进行使用:对数组进行排序
+工具类代码:无解释
+    public static void sort(Object[] obj, Comparator com){
+        for(int j = 0;j<obj.length-1;j++){
+            boolean flag = true;
+            for(int i = 0;i<obj.length-(j+1);i++){
+                if(com.compare(obj[i],obj[i+1])>0){
+                    Object temp = obj[i];
+                    obj[i] = obj[i+1];
+                    obj[i+1] = temp;
+                    flag = false;
+                }
+            }
+            if (flag){
+                break;
+            }
+        }
+    }
+工具类代码:有解释
+    public static void sort(Object[] obj, Comparator com){			☆
+        for(int j = 0;j<obj.length-1;j++){
+            boolean flag = true;
+            for(int i = 0;i<obj.length-(j+1);i++){
+                if(com.compare(obj[i],obj[i+1])>0){				☆
+                    Object temp = obj[i];
+                    obj[i] = obj[i+1];
+                    obj[i+1] = temp;
+                    flag = false;
+                }
+            }
+            if (flag){
+                break;
+            }
+        }
+    }
+·两处修改的地方:
+第一处:拥有新的新参,调用方法时我们需要传入排序类
+第二处:调用自定义排序类的compare方法,将当前数组的第n个元素和第n+1个元素进行比较.
+}
+
+{
+·通过泛型来排序容器的自定义业务类:工具类
+相当于代码的结合:
+    public static <T>void sort(List<T> list,Comparator<T> com){				☆
+        Object[] obj = list.toArray();			
+        sort(obj,com);									☆
+        for (int i = 0; i < obj.length; i++) {
+            list.set(i, (T) obj[i]);
+        }
+    }
+思路:
+和上面的思路一样
+步骤一:将容器转为数组
+步骤二:改变容器中对应的值
+
+第一处:同样是形参传入排序类
+第二处:调用当前工具列的排序方法
+}
+
+}
+
+{
+·Comparable和Comparator的区别:
+Comparable称之为内部比较器
+Comparator称之为外部比较器
+Comparable的耦合性比Comparator更高
+
+使用Comparable的方法:
+需要实体类实现Comparable方法,就像Integer这个类一样,排序的方法是直接写在当前这个类里面的
+在自定义业务排序的实体类里面,就必须包含排序业务
+
+使用Comparator的方法:
+实体类与排序类解耦,实现在外部
+如果在排序业务里面,一开始给的就是字节码文件没有源码,要排序的时候Comparable接口就无法使用,只能用Comparator接口
+由于Comparator接口只有一个方法,所以我们可以不提供Comparator接口的实现类,直接使用Lambda表达式.javaSE搜索Lambda
+
+容易忘记的返回值!!!:
+这两个方法最后一定要有一个返回值,并且该返回值只有三种情况	>0	=0	<0
+这三个返回值是用于排序的比较
+
+}
+
+
+
+{
+·实现自定义类型(自定义类)的业务排序
+·实现方法:使用Comparable接口
+·使用原因:直接在实体类里面进行业务排序
+·例子:我们这里做一个对新闻信息的排序,排序的规则是:首先按时间排序,然后是点击量,最后是标题
+{
+·实体类源码:
+public class NewItem implements Comparable<NewItem> {
+    //标题
+    private String title;
+    //点击量
+    private int hits;
+    //时间
+    private Date date;
+
+    public NewItem(){
+
+    }
+
+    public NewItem(String title, int hits, Date date) {
+        this.title = title;
+        this.hits = hits;
+        this.date = date;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public int getHits() {
+        return hits;
+    }
+
+    public void setHits(int hits) {
+        this.hits = hits;
+    }
+
+    public Date getDate() {
+        return date;
+    }
+
+    public void setDate(Date date) {
+        this.date = date;
+    }
+
+    @Override
+    public int compareTo(NewItem o) {
+        int result = 0;
+        result = this.date.compareTo(o.date);
+        if(result==0){
+            result = this.hits-o.hits;
+            if(result==0){
+                result = this.title.compareTo(o.title);
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("标题:").append(this.title);
+        sb.append(",时间").append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(this.date));
+        sb.append(",点击量").append(this.hits).append("\n");
+        return sb.toString();
+    }
+}
+·实体类源码:解释版本
+public class NewItem implements Comparable<NewItem> {
+    //标题
+    private String title;
+    //点击量
+    private int hits;
+    //时间
+    private Date date;
+
+    public NewItem(){
+
+    }
+
+    public NewItem(String title, int hits, Date date) {
+        this.title = title;
+        this.hits = hits;
+        this.date = date;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public int getHits() {
+        return hits;
+    }
+
+    public void setHits(int hits) {
+        this.hits = hits;
+    }
+
+    public Date getDate() {
+        return date;
+    }
+
+    public void setDate(Date date) {
+        this.date = date;
+    }
+
+    @Override
+    public int compareTo(NewItem o) {				☆
+        int result = 0;
+        result = this.date.compareTo(o.date);
+        if(result==0){
+            result = this.hits-o.hits;
+            if(result==0){
+                result = this.title.compareTo(o.title);
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public String toString() {					☆
+        StringBuilder sb = new StringBuilder();
+        sb.append("标题:").append(this.title);
+        sb.append(",时间").append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(this.date));
+        sb.append(",点击量").append(this.hits).append("\n");
+        return sb.toString();
+    }
+}
+第一处:重写的compareTo方法就是用来比较的
+那么这个方法具体是如何实现排序的呢?其实是通过当前类的属性和传入类的属性进行比较的.
+返回一个int值,返回规则满足上述的规则
+
+第二处:用于显示的类
+
+特点:排序的具体实现必须写在实体类里面
+
+·测试代码:
+public class NewItemApp {
+    public static void main(String[] args) {
+        List<NewItem> list = new ArrayList<NewItem>();
+        list.add(new NewItem("1",100,new Date()));
+        list.add(new NewItem("2",50,new Date(System.currentTimeMillis()-1000*60*60)));
+        list.add(new NewItem("3",60,new Date(System.currentTimeMillis()-1000*60*60)));
+        System.out.println(list);
+        //Collections.sort(list);			☆
+        Utils.sort(list);				☆
+        System.out.println(list);
+    }
+}
+
+第一处:Collections类本身就拥有一个排序的代码,传入一个容器,直接调用该容器的泛型类型的排序方法,所以想要使用Collections.sort(list);方法,那么泛型类型的这个类就必须实现Comparable接口
+第二处:也可以直接使用我们写好的工具类,实际上我们的工具类就是直接调用传入的类型的compareTo方法.
+}
+}
+
+{
+·实现自定义类型(自定义类)的业务排序
+·实现方法:使用Comparator接口
+·使用原因:实体类不可更改,并且要求对实体类进行业务排序
+·例子:这里我们做一个淘宝商品排序
+
+·实体类:
+public class Goods {
+    //商品名
+    private String name;
+    //价格
+    private double price;
+    //收藏量
+    private int fav;
+
+    @Override
+    public String toString() {
+        return "商品名:"+name+",收藏量:"+fav+",价格"+price;
+    }
+
+    public Goods(){
+
+    }
+
+    public Goods(String name, double price, int fav) {
+        this.name = name;
+        this.price = price;
+        this.fav = fav;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public double getPrice() {
+        return price;
+    }
+
+    public void setPrice(double price) {
+        this.price = price;
+    }
+
+    public int getFav() {
+        return fav;
+    }
+
+    public void setFav(int fav) {
+        this.fav = fav;
+    }
+
+}
+
+·按照价格排序的业务排序类:
+public class GoodsPriceComp implements Comparator<Goods>{
+
+    @Override
+    public int compare(Goods o1, Goods o2) {
+        return -(o1.getPrice()-o2.getPrice()>0?1:o1.getPrice()==o2.getPrice()?0:-1);		
+    }
+}
+
+根据逻辑自已解释即可
+
+·按照收藏量排序:
+public class GoodsFavComp implements Comparator<Goods>{
+
+    @Override
+    public int compare(Goods o1, Goods o2) {
+        return -(o1.getFav()-o2.getFav()>0?1:o1.getFav()==o2.getFav()?0:-1);
+    }
+}
+
+·客户端类:
+public class GoodsApp {
+    public static void main(String[] args) {
+        List<Goods> list = new ArrayList<Goods>();
+        list.add(new Goods("老马视频",2000,100));
+        list.add(new Goods("老裴视频",500,0));
+        list.add(new Goods("高琪视频",1000,50));
+        System.out.println(list);
+        //Utils.sort(list,new GoodsPriceComp());			☆
+        Utils.sort(list,new GoodsFavComp());				☆
+        System.out.println(list);
+    }
+}
+
+关于两处五角星的综合解释:
+同样是调用我们写好的工具类,传入具体的排序类,这样写的好处就是实现了实体类和排序类的耦合.达到解耦的目的.具体的排序规则根据传入的具体的排序类来排序,不需要修改已有代码.是经典的策略模式.
+注意:由于Comparator接口只有一个方法,所以我们可以不提供这个接口的实现类,而是通过Lambda表达式,来实现排序规则,关于Lambda表达式在javaSE里,可以搜所Lambda.
+}
+
+{
+·对于jdk自身提供的业务排序说明:
+Arrays.sort(T[] a ,Comparator<? super T> c);
+和下面的马士兵排序教程知识点进行结合:
+·分析:这个排序使用的是Merge排序(归并排序),所以他是稳定的,由于是迭代排序所以执行的效率非常高.使用的时候传入一个Comparator外比较器实现类即可.
+·调用注意(TimSort()):在这个方法里里面有一个判断,如果LegacyMergeSort.userRequested为true就调用归并排序,而且这个值如果开发者不设置的话默认就是true,但是如果这个值是false,那么就会调用TimSort();这个方法.
+·TimSort():改进的归并排序.非常复杂,暂不考虑.
+}
+
+{
+·对于jdk自身提供的基本数据类型的排序:
+Arrays.sort();采用快速排序的双轴快排.
+·对于稳定性的分析:由于是基本数据类型,即使交换了数据也无从得知,而且数组元素是值引用不是地址引用的话,其实是无伤大雅的.
+}
+
+
+{
+·马士兵的排序教程:
+·常见排序列表:
+名称			平均时间复杂度		最坏时间复杂度		最好时机复杂度		空间复杂度		稳定性
+
+选择排序(Selection)	n2			n2			n2			1			不稳
+冒泡排序(Bubble)	n2			n2			n			1			稳
+插入排序(Insertion)	n2			n2			n			1			稳
+
+堆排序(heap)		nlog2n			nlog2n			nlog2n			1			不稳
+希尔排序(shell)		n的1.3次方		n2			n			1			不稳
+归并排序(Merge)		nlog2n			nlog2n			nlog2n			n			稳
+快速排序(Quick)		nlog2n			n2			nlog2n			log2n			不稳
+桶排序(Bucket)		n+k			n2			n			n+k			稳
+计数排序(Counting)	n+k			n+k			n+k			n+k			稳
+基数排序(Radix)		n*k			n*k			n*k			n+k			稳
+					
+					可以不记		可以不记
+最重要的四种排序:插入排序、堆排序、归并排序、快速排序.
+
+{
+·对于各个数组的优化不同的名称:
+插入排序的优化版本--->希尔排序
+插入排序的优化版本--->双插入排序(pair insertion sort)	双插入排序比传统的插入排序效率要高		
+归并排序的优化版本--->Timsort
+经典快速排序(单轴快排)的优化版本--->双轴快排Arrays.sort();
+}
+
+
+
+·对于稳定性的解释:
+这里使用选择排序和冒泡排序来进行比较:
+如果有这样一个数组:int values = {1,9,6,7,3,5,9}
+你会发现这个数组里面有两个元素是相同的.我们可以把这两个元素分为前9和后9.
+使用冒泡排序的时候不会颠倒前9和后9的位置,但是使用选择排序的时候会颠倒前9和后9的位置.
+所以我们称冒泡排序的稳定性为稳,选择排序的稳定性为不稳.主要就是相同数值的相对位置会发生改变.
+
+·分类:
+简单排序:选择排序、冒泡排序、插入排序.最重要的是插入排序
+
+
+{
+·如何检测算法是否正确:
+1、产生足够多的随机样本
+2、用确定正确的算法计算样本结果
+3、对比被验证算法的结果
+}
+
+{
+·这里提供了一个模块用于生成随机数:
+    static int[] getRandom()
+
+    {
+        Random random = new Random();
+        int[] arr = new int[10000];			//样本容量
+        for (int i = 0; i < arr.length; i++) {
+            arr[i] = random.nextInt(10000);		//随机数区间[0,10000]
+        }
+        return arr;
+    }
+}
+这是一个静态方法,直接调用返回一个数组.
+制造两个相同的样本,注意内存不能相同!!!
+int[] arr = getRandom();
+int[] arr2 = new int[arr.length];
+System.arraycopy(arr,0,arr2,0,arr.length);		//拷贝数组的内容,注意此时两个数组的地址不同
+Arrays.sort(arr);					//调用jdk写好的,排序算法.基本数据类型jdk采用的是双轴快排.
+语句;							//调用你写好的排序算法
+boolean same = true;
+	for (int i = 0; i < arr2.length; i++) {
+		if(arr[i]!=arr2[i])
+		same = false;
+	}
+        System.out.println(same==true?"right":"wrong");	//打印是否相同(算法是否正确)
+}
+
+
+{
+·选择排序:
+·介绍:最简单但是最没用的排序算法,也有优化空间.为什么没用呢?时间复杂度很高,不稳定.基本上在工程上不会使用.
+·为什么说时间复杂度很高呢?因为这种排序方法就算这个数组一开始就是有序的,他也要进行排序一遍.所以无需和有序没有差别.所以很没用.
+·排序规则:基本思想试一遍又一遍过滤这个数组,找到这个数组最小的那个数,把它放到前面来.此时第一个数就是最小的那个数.当第二次在查找的时候,由于第一个数已经确认了,所以从第二个数开始查找.然后重复刚才的过程.
+·具体实现:我们对每一个元素都提供一个下标,下标默认为0也就是第一个元素.让第一个元素和后面的元素进行比较.如果发现有一个元素的数值比当前的下标的数值小,那么就将下标的位置变为数值较小的那个元素的索引.然后接着进行比较.只要有一个数值较小那么下标的位置就变为当前较小数值的下标.当一次循环结束时,将当前下标下的元素和当前检索区域内的第一个元素的位置进行替换.
+·具体实现代码:无解释版本
+        int[] values = {5,3,6,8,1,7,9,4,2};
+        for(int j = 1;j<values.length;j++){
+            int index = j-1;
+            for(int i = j;i<values.length;i++){
+                if(values[index]>values[i]){
+                    index = i;
+                }
+            }
+            int temp = values[j-1];
+            values[j-1] = values[index];
+            values[index] = temp;
+        }
+·这段代码适用于数组长度较短的数组排序
+·上所说的时间复杂度和空间复杂度都是针对当前算法的而不是下面的优化版本.
+
+·优化的版本(不绝对):实际上代码的执行数量可能并没有减掉很多,是否是优化版本我也不好说
+·设计思路:上面的选择排序是每次遍历的时候找出最小那个数并且置换到顶端.实际上我们在每次遍历的时候不仅可以找出最小的那个数还可以找出最大的那个数,这两循环遍历的次数就减少了一倍.变为原来的二分之一.
+·具体实现代码:终极优化版本
+
+    public static int[] sort(int[] values) {
+        for (int j = 0; j < values.length/2; j++) {
+            int minIndex = j;
+            int maxIndex = j;
+            for (int i = j; i < values.length - j - 1; i++) {
+                minIndex = values[minIndex] > values[i + 1] ? i + 1 : minIndex;
+                maxIndex = values[maxIndex] < values[i + 1] ? i + 1 : maxIndex;
+            }
+            maxIndex = values[j] == values[maxIndex]?minIndex:maxIndex;
+
+            int minTemp = values[j];
+            values[j] = values[minIndex];
+            values[minIndex] = minTemp;
+
+            int maxTemp = values[values.length - j - 1];
+            values[values.length - j - 1] = values[maxIndex];
+            values[maxIndex] = maxTemp;
+        }
+        return values;
+    }
+
+·虽然减少了遍历的次数,但是这里会涉及到数组个数是偶数还是奇数的边界情况,所以需要额外的if语句去判断.从而导致单次循环的代码增多.
+·经过上诉所说的实验证明:使用优化版的排序算法虽然单词循环的代码变多,但是减少了一倍的遍历次数,所以最后优化版的时间是比较短的.
+·实际上当前的优化版本还可以在进行优化.
+}
+
+{
+·冒泡排序:
+上述已经介绍不在赘述
+}
+
+{
+·插入排序
+·介绍:是简单排序中最重要的排序方法
+·排序规则:这种排序方法对于基本有序的数组最好用.举个例子.一个有序的数组例如{1,7,9}现在我要把6放到这个数组里面,就要把6插入到这个有序的数组里面这个时候用插入排序很好用.
+·具体实现:首先游标指向1,游标的循环时一个大循环,每次增加1.没什么好说的这是死的.实际上如果游标为1就代表游标前面有1个数.接着再写一个循环.初始的变量等于当前的游标指向,每次遍历减去1.条件得是大于0.那么就只会比较指针的大小次数.同样和冒泡排序一样.如果在一次循环中当前的数值比上一个大,那么就没必要继续比较下去了.
+·具体代码(最终优化版本):
+        int[] values = {9, 6, 1, 3, 5,-1,11,63,-23,0};
+        for (int i = 1; i < values.length; i++) {
+            boolean change = false;
+            for (int j = i;j>0;j--){
+                if(values[j]<values[j-1]){
+                    int temp = values[j-1];
+                    values[j-1] = values[j];
+                    values[j] = temp;
+                    change = true;
+                }
+                if(!change){
+                   break;
+                }
+            }
+        }
+这个排序比较适合哪种经常需要插入元素进行排序的数组,也就是在每次插入元素进入一个数组的时候这个数组最好本身就有顺序.效率和选择排序比起来还可以.但没有选择排序的优化版本快.
+}
+{
+·简单排序的效率:
+选择排序>插入排序>冒泡排序			
+·数据特征:足够随机,数组大小足够大.数组本身没有顺序.
+}
+
+{
+·希尔排序:改进的插入排序
+·设计思想:对一个数组提供个一个gap(间隔),把这个数组按间隔数拆分下来,然后第一次把每个查分下来的第一个数进行插入排序.然后再把第二个数进行插入排序.
+这里用个具体的实例:
+int[] values = {9,6,11,3,5,12,8,7,10,15,14,4,1,13,2};
+我们提供这个间隔数为4,那么第一次比较应该就拿9,5,10,1来进行比较.
+比较之后的结果应该就是:1,6,11,3,5,12,8,7,9,15,14,4,10,13,2.
+第二次比较就应该拿6,12,15,13.以此类推.
+当你排完这个数组之后,数组的情况应该是:1,6,2,3,5,12,8,4,9,13,11,7,10,15,14.
+你会发现这个数组里大致的小的数都排到前面来了,大致的大的数都排到后面来了.
+接下来,你需要缩小这个间隔数(gap).
+但到了最后一定要以间隔为1排一遍.此时这最后一遍就相当于普通插入排序.
+
+·那么这种算法为什么会比普通插入排序效率高呢?:
+在上述提供的原始数组里面,如果这个一要排到最前面就要和之前的每一个数进行交换,但是如果用希尔排序,只需要挪很少的位置就可以排到最前面.因为他在间隔比较大的时候挪的次数比较少,他在间隔比较小的时候,挪的距离比较小.间隔比较大的时候交换的次数比较少,间隔比较小的时候移动规定距离比较短.所以希尔排序比普通的插入排序效率高.
+
+·关于稳定性:由于希尔排序是跳着排所以他不稳定.
+
+·关于gap数值的算法:
+采用Kunth序列:
+△h=1			解释:这个数列的最小值肯定是1
+△h=3*h+1		解释:增加的时候就按照这个算法来增加,所以j就是1,4,13......我们所采用的那个序列数这个序列能对这个数组使			用的最大的序列.就是这个h必须要小于这个数组长度的3分之一.再大的就不适合使用了.因为如果再大3*h+1就大于整				个数组的长度了.
+·具体代码:最终优化代码,采用Kunth序列
+        int[] values = {9, 6, 11, 3, 5, 12, 8, 7, 10, 15, 14, 4, 1, 13, 2};
+        int gap = 1;
+        while (gap < values.length / 3) {
+            gap = gap * 3 + 1;
+        }
+        for (; gap > 0; gap = (gap - 1) / 3) {
+            for (int i = gap; i < values.length; i++) {
+                boolean change = false;
+                for (int j = i; j > gap - 1; j -= gap) {
+                    if (values[j] < values[j - gap]) {
+                        int temp = values[j - gap];
+                        values[j - gap] = values[j];
+                        values[j] = temp;
+                        change = true;
+                    }
+                    if (!change) {
+                        break;
+                    }
+                }
+            }
+        }
+·关于效率:效率比插入排序更快.但是由于不稳定所以不怎么使用,好处就是最坏的情况和最好的情况时间复杂度差不多.不同的序列他们的时间复杂度是不同的.
+
+
+}
+
+{
+·归并排序:用到递归的知识
+·设计思想:前提:对一个数组,前半截有序后半截有序.我们把这个数组当成半截数组来排序.(一分为二)
+·排序规则:重写分配另外一个数组和元素组等长.(这个长度是原来的数组的长度,并且这个数组是空的).我需要分配三个指针.第一个指针指向第一个数组(前半截数组)开始的位置(指针命名为i).第二个指针指向第二个数组(后半截数组)开始的位置(指针命名为j).第三个指针值新数组开始的位置.(指针命名为k).然后用i和j作比较,如果是i这个值小于j这个值,就把i这个值赋值到新数组里面,然后i++,k++.然后再让i和j进行比较,把较小的值放到新数组里面,同样的我们要把较小值所在数组的那个指针的位置向后加一位.
+·注意事项:这个排序规则只能适用于可被一分为二的有序的数组,如果是个全无序数组则无法使用这个排序.
+·具体实现代码:我的算法(优化版本),只针对上述内容的优化算法.
+
+        int[] arr = {1, 4, 6, 7, 10, 2, 3, 5, 8,9};
+        int[] copyArr = new int[arr.length];
+        if (arr.length % 2 == 0) {
+            int j = 0;
+            int i = arr.length / 2;
+            for (int k = 0; k < arr.length; k++) {
+                if (i == arr.length) {
+                    copyArr[k] = arr[j];
+                    break;
+                } else if (j == arr.length / 2) {
+                    copyArr[k] = arr[i];
+                    break;
+                }
+                copyArr[k] = arr[j]<arr[i]?arr[j++]:arr[i++];
+            }
+        } else {
+            int j = 0;
+            int i = (arr.length + 1) / 2;
+            for (int k = 0; k < arr.length; k++) {
+                if (i == arr.length) {
+                    copyArr[k] = arr[j];
+                    break;
+                } else if (j == (arr.length+1) / 2) {
+                    copyArr[k] = arr[i];
+                    break;
+                }
+                copyArr[k] = arr[j]<arr[i]?arr[j++]:arr[i++];
+            }
+        }
+·马士兵的算法:只能排奇数的数组
+
+        int[] arr = {1, 4, 6, 7, 10,2, 3, 5, 8,9};
+
+        int mid = arr.length/2;
+        int[] temp = new int[arr.length];
+
+        int i = 0;
+        int j = mid+1;
+        int k = 0;
+
+        while (i<=mid&&j<arr.length){
+            temp[k++] = arr[i]<=arr[j]?arr[i++]:arr[j++];
+        }
+        while (i<=mid)
+            temp[k++] = arr[i++];
+        while (j<arr.length)
+            temp[k++] = arr[j++];
+}
+
+{
+·在归并排序中实现自定义的排序阶段:废弃
+·介绍:比如一个有序的数组int[] arr = {1, 4, 6, 7, 10, 2, 3, 5, 8};我不想从第一个开始排到最后一个.比如我想从第二个排到倒数第三个的算法实现:
+public class MyMerge02 {
+    public static void main(String[] args) {
+        int[] arr = {1, 4, 6, 7, 10, 2, 3, 5, 8};
+        int rightPtr = arr.length%2==0?arr.length/2:(arr.length+1)/2;
+        sort(arr,1,rightPtr,-1);
+    }
+
+    public static int[] sort(int[] arr,int leftPtr,int rightPtr,int rightBound) {
+        if(leftPtr>rightPtr||rightPtr>rightBound||leftPtr<0||rightPtr<0||rightBound<0||leftPtr>arr.length||		rightPtr>arr.length||rightBound>arr.length)
+            try {
+                throw new Exception("指针索引传递错误");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        int[] copyArr = new int[rightBound-leftPtr+1];
+            int j = leftPtr;
+            int i = rightPtr;
+
+            for (int k = 0; k < copyArr.length; k++) {
+                if (i == arr.length) {
+                    copyArr[k] = arr[j];
+                    break;
+                }
+
+                if(arr.length%2==0){
+                    if (j == arr.length / 2) {
+                        copyArr[k] = arr[i];
+                        break;
+                    }
+                }else {
+                    if (j == (arr.length+1) / 2) {
+                        copyArr[k] = arr[i];
+                        break;
+                    }
+                }
+
+                copyArr[k] = arr[j] < arr[i] ? arr[j++] : arr[i++];
+            }
+        System.out.println(Arrays.toString(copyArr));
+        return arr;
+    }
+}
+
+{
+·最终版本:可以对任意数组进行排序,太难了直接使用马士兵写好的算法,使用迭代.
+·使用方法:直接传入数组,注意传入的长度.
+public class MSBMerge02 {
+    public static void main(String[] args) {
+        int[] arr = {1, 6, 4, 9, 3, 7, 8, 4};
+        sort(arr, 0, arr.length - 1);
+        System.out.println(Arrays.toString(arr));
+    }
+
+    public static void sort(int[] arr, int left, int right) {
+        if (left == right)
+            return;
+        int mid = left + (right - left) / 2;
+        sort(arr, left, mid);
+        sort(arr, mid + 1, right);
+        merge(arr, left, mid + 1, right);
+    }
+
+    public static void merge(int[] arr, int leftPtr, int rightPtr, int rightBound) {
+        int mid = rightPtr - 1;
+        int[] temp = new int[rightBound - leftPtr + 1];
+
+        int i = leftPtr;
+        int j = rightPtr;
+        int k = 0;
+
+        while (i <= mid && j <= rightBound) {
+            temp[k++] = arr[i] <= arr[j] ? arr[i++] : arr[j++];
+        }
+        while (i <= mid)
+            temp[k++] = arr[i++];
+        while (j <= rightBound)
+            temp[k++] = arr[j++];
+        for (int m = 0; m < temp.length; m++)
+            arr[leftPtr + m] = temp[m];
+    }
+}
+
+}
+
+{
+·归并排序:效率是真的高,但是空间复杂度较高.数据也是稳定的.
+甩简单排序几条街
+}
+
+{
+·快速排序:经典的是单轴快排,优化的是双轴快排.要用到递归.
+·单轴快排的设计思想:对于一组数据,首先找到一个数据作为轴(标准),这个轴可以是随机的.找到这个轴之后的设计思想是,比这个轴小的都排到前面去,比这个轴大的都排到后面去.当然这时排在轴前面的虽然都是比这个轴小的,但是这些个小的并没有按照顺序排好.同样比轴大的也没有排好顺序.此时你可以理解这个数组被分成了三部分,第一部分是比这个轴小的,第二部分是和这个轴一样大的,第三部分是比这个轴大的.然后再对较小部分和较大部分进行同样的运算规则.一直算下去,直到只剩下一个的时候.
+·具体实现:
+对于一个数组,从数组的左边(从零开始)和数组的右边(从最后开始)同时找数,从左往右找的时候,一直找到第一个比轴大的数,从右往左找的时候一直找到比轴小的数,这两个数一旦找到这两个数直接做交换.
+·单轴快排的实现代码:最终版本,使用迭代器,效率非常高,和归并排序有的一拼.
+public class Quick {
+    public static void main(String[] args) {
+        int[] values = {};
+        sort(values, 0, values.length - 1);
+    }
+
+    public static void sort(int[] values, int leftBound, int rightBound) {
+        if (leftBound >= rightBound)
+            return;
+        int mid = partition(values, leftBound, rightBound);
+        sort(values, leftBound, mid - 1);
+        sort(values, mid + 1, rightBound);
+    }
+
+    public static int partition(int[] arr, int leftBound, int rightBound) {
+        int pivot = arr[rightBound];
+        int left = leftBound;
+        int right = rightBound - 1;
+        while (left <= right) {
+            while (left <= right && arr[left] <= pivot)
+                left++;
+            while (left <= right && arr[right] > pivot)
+                right--;
+            if (left < right) {
+                int temp = arr[left];
+                arr[left] = arr[right];
+                arr[right] = temp;
+            }
+        }
+        int temp = arr[left];
+        arr[left] = arr[rightBound];
+        arr[rightBound] = temp;
+        return left;
+    }
+}
+}
+
+{
+·双轴快排:Arrays.sort()jdk就是采用的双轴快排.
+·设计思想:与单轴快排不同的是,双轴快排我们需要找两个数,把整个数组分成三个区域.比第一个轴小的数放左边,大于等于第一个轴,小于等于第二个轴放中间,大于第二个轴放后面.保障的前提是第一个数要比第二个数小.
+·具体实现:
+记录几个区域.小于第一个数的区域为小于区,称之为less.还有一个区域也是在这个位置上,大于等于第一个轴,小于等于第二个轴.称之为mid区.
+比第二个轴还要大的位置称之为more区.然后数组没读一个数出来看这个数处于哪个位置.比如它在less位置,那你less的值就要+1.同样你的mid值也要衡量.如果是more区域那么你的值也要加.整体的算法过程就是这三个区域不断的吃掉中间还没有被处理的数的过程.
+·具体实现的代码就不敲了,这个算法非常的复杂,是java集合的创始人写出来的算法,大牛的算法,直接用就行了.
+·对于java集合的Arrays.sort()双轴快排的源码分析:
+如果你这个数组的长度小于286个数,那么就去使用Timsort,否则使用非归并排序
+在Timsort方法里(使用Timsort的过程中),他把这个数组分成好多小块,如果这个块数小于67块,那么才可以使用Timsort(改进的归并排序).
+如果不适合用Timsort,就用非归并排序.
+在非归并排序里,如果这个数组块数小于47,那么就直接使用插入排序的优化版本(双插入排序).否则就用快速排序(此时还不能确定是单轴快排还是双轴快排).
+此时正式进入快速排序(此时要根据找轴结果来进一步分析,这个数组是适用于单轴的还是双轴的)
+如何找轴?首先算法数组长度的七分之一,找到数组的中点作为一个轴,从中点减去这个范围(数组长度的七分之一).找到一个轴.再减这个范围找到一个轴,.然后从中点加上这个范围找到一个轴,再加上这个范围找到一个轴.这样就找到了五个数.这样就找到了E1,E2,E3,E4,E5.
+把这五个轴进行排序,E1<E2<E3<E4<E5
+然后对这五个轴进行判断,看是否相等,如果这五个轴都不相等时
+使用第二个和第四个这个数作为轴.即E2和E4
+此时有了两个轴,就可以执行上述具体实现里面的后面的操作.进行递归等待.
+如果这五个数里面有相等的情况时,使用单轴快排
+整体的这个数组的可能相等的数可能比较多,所以这时候我们能用一个轴来排(单轴快排),但是他用的是三相划分法来做的整个快速排序
+此时这三个区域,第一个区域是小于这个轴的,第二个区域是等于这个轴的,第三个区域是大于这个轴的.(这个算法叫做Duch National Flag,荷兰国旗问题)
+}
+
+{
+·计数排序:
+·介绍:非比较排序,桶排序思想的一种.适用于数组量大,但是范围小.比如某大型企业数万名员工年龄排序.如何快速得知高考排名(腾讯面试).
+解释一下高考,因为高考总分是固定的(范围很小),但是每年的考生有很多(数量大).
+·设计思想:我们创建一个新的数组用来计数,数组的长度是可以取值的范围的长度,比如数值的范围是[0,60],那么数组的长度就是61.
+然后我们去读取这个数组,比如这个数组是0,2,3,1,0,1.每当我们读到一个0的时候,就把数组索引为0的那个元素数值+1.如果我们读到1,就把索引为1的元素的数值+1,读到什么数,就把对应的数组的数值+1.相当于我们统计了每个数出现了多少次,然后再把这个数作为索引,把出现的次数存到新的数组对应的索引上.这个新的数组就叫计数数组.然后我们只要把计数数组里面的值依次取出来就可以了.
+·问题:如果这个数组的取值范围不是从零开始,该怎么办?而且现在这种算法是不稳定的,怎样变成稳定的呢?
+·关于改进:在第一次遍历新数组之后,我们把这个新的数组再遍历一次,从索引1开始遍历每次遍历把当前索引对应的值加上前一个元素对应的值.此时这个计数数组就记录着对应的每一个下标值,他的最后哪一位应该在什么位置上.(当然这个索引还需要-1).
+·具体代码:最终优化代码
+    public static int[] sort(int[] arr, int max) {
+        int[] result = new int[arr.length];
+        int[] count = new int[max];
+        for (int i = 0; i < arr.length; i++) {
+            count[arr[i]]++;
+        }
+        for (int i = 1; i < count.length; i++) {
+            count[i] = count[i] + count[i - 1];
+        }
+        for (int i = arr.length - 1; i >= 0; i--) {
+            result[--count[arr[i]]] = arr[i];
+        }
+        return result;
+    }
+·优化:现在的数组的取值范围任意,而且是稳定的.
+·使用注意事项:如果你发现这个排序没有排序成功.注意当前的这个方法并不会排序传入的数组,而是有一个结果数组.所以你需要让原数组的内存等于返回值,注意第二个新参直接填入数组取值范围的最大值.
+·特点:计数排序是非比较排序、适用于特定问题,也就是对源数据有要求.
+·关于效率:在特定的情况下是非常快的,比目前已知的所有排序都快.比双轴快排还快.
+}
+
+{
+·基数排序:
+·介绍:非标排序,桶思想的一种,多关键字排序.
+·设计思想:例如这里有一个数组:
+int[] values = {421,240,115,532,305,430,124};
+然后按照他们的个位数进行排序:240,430,421,532,124,115,305	其中{240,430}、{421}、{532}、{124}、{115,305}分别为一个桶
+当个位数排好的情况下再来排十位数:305,115,421,124,430,532,240	其中{305}、{115}、{421,124}、{430,532}、{240}为一个桶
+当十位数排好的情况下再来排百位数:115,124,240,305,421,430,532	其中{115,124}、{240}、{305}、{421,430}、{532}
+·细节把控:这里的数组都是三位数,如果有一个四位数或者两位数该怎么办呢?反正排序都是从最大的数开始,比如从一个四位数1122开始,也是从各位开始,对于比他小的数只要在前面填上一个零即可.
+·具体代码:使用低位优的最终版本
+    public static int[] sort(int[] arr) {
+        int[] result = new int[arr.length];
+        int[] count = new int[10];
+
+        int maxMath = 0;
+        int index = 1;
+        for (; index < arr.length; index++)
+            maxMath = arr[maxMath] < arr[index] ? index : maxMath;
+        index = 0;
+        maxMath = arr[maxMath];
+        for (; maxMath > 0;index++)
+            maxMath /= 10;
+
+        for (int i = 0; i < index; i++) {
+            int division = (int) Math.pow(10, i);
+            for (int j = 0; j < arr.length; j++) {
+                int num = arr[j] / division % 10;
+                count[num]++;
+            }
+            for (int m = 1; m < count.length; m++) {
+                count[m] = count[m] + count[m - 1];
+            }
+            for (int n = arr.length - 1; n >= 0; n--) {
+                int num = arr[n] / division % 10;
+                result[--count[num]] = arr[n];
+            }
+            System.arraycopy(result, 0, arr, 0, arr.length);
+            Arrays.fill(count, 0);
+
+        }
+        return result;
+    }
+·关于效率:效率也非常块,但是和计数排序比起来还是,慢一点.所以计数排序用的的基数排序多
+·特点:
+△可以排字符串
+△本质上是一种多关键字排序
+△有低位优先和高位优先两种
+  △LAS MSD(Least Significant Digif first)
+  △MSD属于分治的思想
+△百度百科的程序有问题
+ △空间复杂度变高
+}
+
+{
+·桶排序:
+·介绍:普通思想上的桶排序用的不是特别多,用的比较多的是桶排序的特殊例子,计数排序和基数排序.但其实计数排序用的最多.
+·设计思想:
+例如这里有一个数组:double values[] = {0.0,0.12,0.18,0.93,0.45,0.76,0.89,0.03,0.55,0.98,0.67,1.0};
+现在假如把这12个小数分成四个桶,当然桶的个数可以你自已定
+第一个桶存放数的区间为:[0.0,0.25)
+第二个桶存放数的区间为:[0.25,0.5)
+第三个桶存放数的区间为:[0.5,0.75)
+第四个桶存放数的区间为:[0.75,1.0]
+遍历数组找出最大值和最小值,计算最大值和最小值的差值,来得到每个桶的范围是多少.然后遍历数组里面的每一个元素,看这个元素属于哪个桶,然后把它放进这个桶里.放完之后再在每个桶里进行单独的排序.全部拍完之后再把每个桶之间合并起来,最后得到排完序的结果.
+·需要注重的点:
+每个桶的大小该是多少?
+如果使用的是数组,并且你的数据排布的不是那么分散,基本都在0.0-0.25之间,那么你的桶的大小基本上要和原数组大小差不多,当然你也可以使用ArrayList,用它的自动扩容,但是这样会带来性能上的损失.
+如果使用链表,那对于大小就不需要分配那么多了.但是如果使用链表,则对于链表的排序将非常麻烦,你需要使用冒泡排序的思想一次次的去遍历这个链表,那么效率将非常低.
+·常见版本:
+一般是将ArrayList作为桶,先把数据装进去之后,在使用归并排序或者快速排序进行排序.
+}
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

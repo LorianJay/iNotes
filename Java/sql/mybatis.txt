@@ -1,0 +1,3502 @@
+							Mybatis
+·使用到的数据表:
+表名:User
+
+id 		int 		
+name		varchar		
+age 		int
+
+·需要引入的jar包:
+compile group: 'mysql', name: 'mysql-connector-java', version: '8.0.16'
+还要引入mybatis
+
+目录:
+0.1配置大全
+0.2XML映射文件
+1.准备工作
+2.深入Mybatis配置文件
+3.测试Mybatis
+4.测试insert
+5.测试delete
+6.测试update
+7.测试select查询多个数据
+7.5.SQL片段(和15节一致)
+8.mapper动态代理方式的增删改查(官方推荐)
+9.通过动态代理实现增删改查(8和9两章联合) 通过Mapper接口查询数据
+10.深入Mybatis配置文件(config.xml)
+11.深入输入参数(parameterType)+#{}与${}的区别
+12.Mybatis调用存储过程
+13.深入返回值类型(resultType)
+13.5深入返回值映射(resultMap)
+14.Mybatis实现动态Sql
+16.mybatis关联查询(不重要)(不是说关联查询不重要,详情内容放在13.5中)
+17.日志
+18.延迟加载
+19.查询缓存(mybatis一级缓存和二级缓存)
+20.逆向工程
+21.SQL语句构建器
+
+0.1配置大全
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+
+    <properties resource="" | url="">											//该标签代表配置(properties)集合 resource:properties配置文件的路径 url:除了用resource外还可以用url(比如用file:///就代表本地的一个文件,或者网络上的文件都可以)
+        <property name="" value=""/>											//除了加载外部的properties中的内容外,还可以直接在当前配置文件中指定内容 这里的K和V就相当于外部的properties 这里有个问题是如果配置重叠了,在Mybatis中配置的优先级是:编程式指定的配置>外部配置文件(Properties)>内部的K-V(也就是这里指定的配置)
+	<property name="org.apache.ibatis.parsing.PropertyParser.enable-default-value" value="true"/>			//开启mybatis支持占位符含有默认值 固定配置从Mybatis3.4.2开始
+    </properties>
+
+    <settings>														//设置Mybatis这项设置会改变Mybatis运行时的行为 详情看17节日志全放到这一节里面讲了
+        <setting name="logImpl" value="NO_LOGGING"/>									//设置日志等级
+    </settings>
+    
+    <typeAliases>													//别名集合
+        <typeAlias type="com.github.entity.Student" alias="Student"/>							//设置类别名 type:类全限定名 alias:类全限定名的别名
+    	<package name="com.github.entity"/>										//批量设置类别名,指定一个包 则该包下面的Entity类的全限定名的别名就是类名的首字母小写(该标签只对返回值和入参有效)
+    </typeAliases>
+
+    <typeHandlers>													//该标签用于声明Java类型和SQL类型互转集合
+        <typeHandler handler="com.github.Convert" javaType="Boolean" jdbcType="INTEGER"/>				//handler:类型转换器类的全限定名(该类要实现特定接口,具体见下方) args1:Java类型的全限定名(这里能用Boolean可能是mybatis自动注册了,也可能是常用类或者lang包) args2:SQL中的类型 详情见下面
+    	<package name="com.github.typehandlers"/>									//让Mybatis帮我们查找类型处理器
+    </typeHandlers>
+
+    <objectFactory type="" >												//对象工厂
+        <property name="" value=""/>											//这些属性配置会在Mybatis的任何setProperties(Properties)方法中回调传入 记住在Mybatis中的配置文件中所有的这种K-V键值对都会放在一个Properties实例中
+    </objectFactory>
+
+    <plugins>														//该标签用于声明Mybatis插件集合
+    	<plugin interceptor="com.github.interceptors.MyInterceptor">							//添加插件 interceptor插件的类全限定名
+            <property name="name" value="张三"/>										//这些属性配置会在Mybatis插件的setProperties(Properties)方法中回调传入
+    	</plugin>
+    </plugins>
+
+    <environments default="development">										//default选择当前的环境ID,可以通过切换环境ID切换不用的连接数据库的方式
+
+        <environment id="development">											//代表一个环境 ID代表当前环境的环境ID
+            <transactionManager type="JDBC"/>										//设置事务管理器
+            <dataSource type="POOLED">											//设置连接池
+                <property name="driver" value="com.mysql.cj.jdbc.Driver"/>						//设置驱动器
+                <property name="url" value="jdbc:mysql://localhost:3306/mybatis?serverTimezone=UTC"/>			//设置连接数据库的URL
+                <property name="username" value="root"/>								//设置连接的用户名
+                <property name="password" value="13218526138"/>								//设置连接的密码
+            </dataSource>
+        </environment>
+
+    </environments>
+
+    <databaseIdProvider type="DB_VENDOR">										//该标签代表数据库厂商集合
+        <property name="MySQL" value="mysql"/>										//可以用于指定数据库别名MySQL->mysql
+  	<property name="Oracle" value="oracle"/>								
+    </databaseIdProvider>
+
+    <mappers>														//映射文件集合
+        <mapper resource="mapper/mapper.xml"/>										//设置映射文件 resource指定映射文件的路径 url指定映射文件的URL路径 class指定映射接口(Mapper接口)的包路径,注意如果这里直接指定映射接口,则该映射接口中的方法必须被@Select等标签修饰才能查到结果
+	<package name="com.github.mapper"/>										//指定某个包下下面的接口全部作为映射器(这些接口就是基于接口方式开发的Mybatis)
+    </mappers>
+
+
+</configuration>
+
+0.2XML映射文件
+<!DOCTYPE <...在mapper之前能添加的配置...> mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+cache				该命名空间的缓存配置(详情见第19节缓存查询)
+cache-ref			引用其它命名空间的缓存配置(详情见第19节缓存查询)
+resultMap			描述如何从数据库结果集中加载对象
+sql				可被其它语句引用的可重用语句块
+select
+insert
+update
+delete
+
+1.准备工作:
+
+1.1创建javabean对象
+private Integer id;
+private String name;
+private Integer age;
+
+提供get/set方法,以及带参构造无参构造
+
+1.2配置映射文件(personMapper.xml):
+·文件作用:这中类型的文件存储着所有的查询语句
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="xyz.entity.personMapper">			
+    <select id="queryPersonById" resultType="xyz.entity.Person" parameterType="int">
+        select * from person where id= #{id}		没有分号;
+    </select>
+	.
+	.
+	.
+	存放各种语句
+
+
+</mapper>
+
+值内容:很重要
+namespace=""		填入当前配置文件的相对路径
+id=""			起一个id,便于指定调用哪个sql语句
+resultType=""		对应的javabean对象的全路径.(不能写容器)
+
+select * from person where id= #{id}
+分析这段语句的注重点:	#{id}相当于jdbc的一个占位符.		如果根据name查找:	where name= #{name}
+然后在jdbc里面设置占位符类型的时候是调用指定的方法的,这里是设置parameterType
+
+parameterType=""		指定占位符的值类型	
+
+
+1.3配置mybatis文件(config.xml):mybatis的配置文件,用于配置mybatis通过SqlSessionFactoryBuilder构建SqlSessionFactory
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+    <environments default="development">
+        <environment id="development">
+            <transactionManager type="JDBC">
+	    </transactionManager>
+            <dataSource type="POOLED">
+                <property name="driver" value="com.mysql.cj.jdbc.Driver"/>
+                <property name="url" value="jdbc:mysql://localhost:3306/mybatis?serverTimezone=UTC"/>
+                <property name="username" value="root"/>
+                <property name="password" value="13218526138"/>
+            </dataSource>
+        </environment>
+    </environments>
+    <mappers>
+        <mapper resource="xyz/entity/personMapper.xml"/>
+    </mappers>
+</configuration>
+
+
+值内容:
+default值和id值保持一致	暂时不改
+transactionManager type:事务处理的方式	JDBC:手动处理	MANAGED:将事务交由其他组件去托管(spring,jobss)用完后会关闭连接.对于MANAGED这种事务处理器,默认情况下它会关闭连接但是有些容器不希望关闭连接,则可以使用以下配置来阻止此行为.在Spring中不必要配置事务管理器,因为Spring的配置会覆盖该配置(Spring是老大)<transactionManager type="MANAGED"><property name="closeConnection" value="false"/></transactionManager>
+dataSource type:默认的连接池	POOLED:打开连接池	UNPOOLED:关闭连接池(不推荐)	JNDI:tomcat自带的
+
+当dataSource的type为UNPOOLED时它提供以下属性配置:
+driver					驱动的Java类全限定名(下面的都是和上面对应的)
+url					数据库的URL地址
+username				数据库的同户名
+password 				登录数据库的密码
+defaultTransactionIsolationLevel 	默认连接的事务隔离级别
+defaultNetworkTimeout 			等待数据库完成的默认网络超时时间(等待数据库的超时时间)
+driver.encoding				可选配置,还可以设置编码,该配置应该是作为driver下的子集
+
+POOLED提供了上述属性外很多额外的属性:
+poolMaximumActiveConnections 		任意时间存在的可用的连接数量(最多多少个连接同时被使用)默认值为10
+poolMaximumIdleConnections 		任意时间可能存在的空闲连接数(个人理解为最大的空闲连接数)
+poolMaximumCheckoutTime 		在被强制返回之前池中连接被踢出的实现 默认20000毫秒(20S)
+poolTimeToWait				如果连接数据库花费了相当长的时间就打印日志并重新获取一个新的连接(避免一直卡死等待) 默认20000毫秒(20S)
+poolMaximumLocalBadConnectionTolerance 	新增于3.4.5 如果从连接池中拿到一个坏的连接,则数据源会尝试重新获取一个新的连接.但这个获取的时间不应该超过poolMaximumIdleConnections与poolMaximumLocalBadConnectionTolerance之和 当前配置的默认值为3
+poolPingQuery 				发送到数据库的侦测查询,用来检验连接是否正常工作并准备接受请求.默认是"NO PING QUERY SET"
+poolPingEnabled 			是否开启侦测查询,如果开启则需要poolPingQuery属性为一个可执行的SQL语句(最好是一个非常快的SQL语句) 默认值为false
+poolPingConnectionsNotUsedFor 		配置poolPingQuery的发送频率 可以设置为和数据库连接超时异常来避免不必要的麻烦 默认为0代表所有连接每一刻都被侦测
+
+JNDI用于EJB或应用服务器这类容器中使用,该选项只有两个配置
+initial_context 			用来在InitialContext中寻找上下文 这是个可选属性如果忽略则会直接从InitialContext中寻找data_source属性
+data_source				这是引用数据源实例位置的上下文路径.提供了initial_context配置时会在其返回的上下文中进行查找,没有提供时则直接在InitialContext中查找
+其余的数据源配置类似,可以通过添加前缀env.*把配置传递给InitialContext,比如env.encoding=UTF8会在InitialContext实例化时往构造方法里添加UTF8的encoding属性
+
+
+需要更改的四个property name的values值:和jdbc的驱动操作类似
+driver后面的value=""		你所使用的数据库的Driver接口,注意不要使用废弃的.
+url后面的value=""		选择连接的ip数据库名称端口号,还是看jdbc
+username后面的value=""		用户名
+password后面的value=""		密码	
+
+resource=""			调用的映射文件的全路径
+
+1.4通过编程的方式创建SqlSessionFactory,在Mybatis中SqlSessionFactory是通过SqlSessionFactoryBuilder创建的,而SqlSessionFactoryBuilder可以通过mybatis-config的XML配置或者编码的方式创建.
+·SqlSessionFactoryBuilder:该对象的作用域是局部变量,用于创建SqlSessionFactory 一旦创建了SqlSessionFactory就应该及时废弃该对象不应保留 可以通过该对象创建多个不同的SqlSessionFactory(这样就能实现分库的查询)
+build(Reader) return SqlSessionFactory;						//直接从一个Reader对象创建SqlSessionFactory
+build(InputStream) return SqlSessionFactory;					//直接从一个InputStream输出流创建SqlSessionFactory对象
+build(Configuration) return SqlSessionFactory;					//还可以通过一个Configuration对象创建SqlSessionFactory,用Configuration对象创建的SqlSessionFactory就是这里说的基于编码的方式创建的.
+build(Configuration,String) return SqlSessionFactory;				//args1:指定当前选择的环境ID
+build(Configuration,String,Properties) return SqlSessionFactory;		//args1:指定当前选择的环境ID args2:指定外部的Properties(就类似于上面的Properties标签)
+
+
+·TransactionFactory:Mybatis的事务管理器(和Spring的事务管理器不冲突)实际上如果使用Spring可以不配置事务管理器,因为Spring会覆盖该配置
+setProperties(Properties) return void;						//回调传入config.xml配置文件中的所有properties配置或者传入SqlSessionFactoryBuilder中build方法提供的Properties实例
+
+
+JdbcTransactionFactory:直接创建该对象,使用JDBC默认的事务管理器
+ManagedTransactionFactory:该事务管理器代表交由别的事务管理器去管理事务(选择该事务管理器就可以通过Spring来管理事务)实际上如果使用Spring可以不配置事务管理器,因为Spring会覆盖该配置
+
+·DataSource:Java原生类,代表数据库原信息对象,包含用户名、密码、URL、连接池等信息 该对象就可以通过JDBC的DriverManager类来得到
+
+
+·Environment:表示环境的对象,一个环境只包含三个信息(这和上面的XML是对应的)transactionManager和dataSource这两个标签包含在environment中还有一个环境ID
+Environment(String,TransactionFactory,DataSource);	//创建环境对象(还可以通过Builder构建器对象创建该对象) args0:指定当前的环境ID(ID的作用和下面的切换多个数据库相似) args1:事务管理器 args2:数据源(包含连接的目标数据库的信息)
+
+·Configuration:Mybatis的配置类 该类配置就相当于拥有Configuration标签下所有子标签的功能
+Configuration(Environment);				//根据环境创建Configuration
+
+addMapper(Class<T>) return void;			//该方法可以添加一个映射类(这个映射类就是Mybatis中的Mapper接口)
+getTypeAliasRegistry() return TypeAliasRegistry;	//得到类型别名注册器 该类也帮我们注册了(Mybatis框架常用的类别名)
+getLogImpl() return Class<? extends Log>;		//得到当前的日志实现
+setLogImpl(Class<? extends Log>) return void;		//设置日志实现(Log的实现类)
+getLogPrefix() return String;				//得到日志的前缀
+setLogPrefix(String) return void;			//设置日志的前缀
+setMapUnderscoreToCamelCase(boolean) return void;	//是否开启驼峰命
+...还有更多的设置,详情见Javadocs
+
+
+·TypeAliasRegistry:类型别名注册器,内部通过封装一个Map来实现 该类帮我们注册了很多常用的类型别名(该类主要注册JDK自带的类别名) 在Mybatis中基本类型前面要加_int=int 而int=Integer类
+registerAliases(String) return void;			//批量注册别名
+registerAlias(Class<?>) return void;			//注册单个类型别名,别名为类型的类名大写 如果通过@Alias注解修饰则用该注解内指定的别名
+registerAlias(String,Class<?>) return void;		//注册单个类型别名 agrs0:类型别名(字符串) args1:类型
+getTypeAliases() return Map<String, Class<?>>;		//得到这个Map
+
+·TransactionIsolationLevel:Mybatis中的事务隔离级别的枚举类
+NONE
+READ_COMMITTED
+READ_UNCOMMITTED
+REPEATABLE_READ
+SERIALIZABLE
+
+·Executor:执行器,我们的SQL语句最终是通过Executor+MappedStatement完成的
+
+BaseExecutor:Executor的抽象实现
+
+·ExecutorType:预处理语句的执行策略,每一个策略对应一个Executor的实现(和一个BaseExecutor的子类)
+SIMPLE				该策略会为每一个语句的执行创建一个预处理语句,默认执行策略(对应的实现类:SimpleExecutor)
+REUSE				该策略会复用预处理语句(对应的实现类:ReuseExecutor)
+BATCH				该类型的执行器会批量执行所有更新语句,详情见Mybatis高级13节Executor执行器策略之BATCH(对应的实现类:BatchExecutor)
+
+
+·SqlSessionFactory:顶级接口 该对象的作用域是应用程序 见名知意用于创建SqlSession的工厂 在运行期间该对象一旦创建就没有理由丢弃它或重新创建一个内容相同的实例
+注意SqlSessionFactory是根据SqlSessionFactoryBuilder创建的,而SqlSessionFactoryBuilder封装了Configuration而Configuration又封装了Environment环境对象,Environment环境对象中又封装了DateSource 所以SqlSessionFactory中封装了一个DataSource(这个DataSource是JDBC的接口) 通过SqlSessionFactory创建的SqlSession本质上就是通过DataSource获得的Connection连接
+openSession() return SqlSession;				//得到SqlSession 1.不自动提交事务 2.将由当前环境配置(Environment)中的DataSouce获得Connection对象 3.事务隔离级别将会使用驱动或数据源的默认设置 4.预处理语句不会被复用,也不会批量处理更新
+openSession(boolean) return SqlSession;				//args0:是否自动提交事务 和第一条的第1点的区别是自动提交事务
+openSession(Connection) return SqlSession;			//args0:手动传入的链接 和第一条的第2点的区别是使用自定义连接 Mybatis没有提供同时设置是否自动提交事务和自定义连接的方法,这是因为Mybatis会根据传入的Connection来判断是否要启动自动提交事务
+openSession(TransactionIsolationLevel) return SqlSession;	//args0:设置事务隔离级别 和第一条第3点的不同
+openSession(ExecutorType) return SqlSession;			//args0:设置预处理语句策略 和第一条第4点的不同
+openSession(ExecutorType,boolean) return SqlSession;		//可以同时指定是否自动提交事务以及预处理语句的策略
+......
+
+getConfiguration() return Configuration;		//得到该SqlSessionFactory中封装的数据库Configuration配置
+
+·SqlSession:该对象是线程不安全的,不能被共享 所以每个请求(线程)都应该创建一个新的SqlSession 所以该对象的作用域是当前线程(对于Web来说作用域是一次HTTP请求回话)
+selectOne(String,Object) return T;			//方法作用:执行一条sql语句
+
+参数1:指定执行那条sql语句.你需要指定personMapper.xml文件中对应的语句.例如:"xyz.entity.personMapper.queryPersonById"
+参数2:站位符内容
+返回值:返回Object或者resultType定义的映射对象(返回值为泛型)
+
+selectList(String,Object) return List<T>;		//用法类似,返回查询到的所有数据(返回值类型:List)
+selectList(String,Object,RowBounds) return List<T>;	//用法类似 args2:略过指定数量的记录,并限制返回结果的数量
+select(String,Object,RowBounds,ResultHandler) return void;	//用法类似 args3:ResultHandler参数允许自定义每行结果的处理过程(高级用法详情见Mybatis官方文档)
+insert(String,Object)					//参数二:映射文件里该sql语句对应的参数类型(可以简单理解为映射对象)
+delete(String,Object)					//参数二:占位符内容
+update(String,Object)					//参数二:映射文件里该sql语句对应的参数类型,具体使用看例子
+
+
+getMapper(Class<T>) return T;				//传入配置好的Mapper接口的Class对象,返回值类型:该接口 最常用方法!!!!!!
+
+flushStatements() return List<BatchResult>;		//将ExecutorType设置为ExecutorType.BATCH时,可以使用这个方法清除(执行)缓存在JDBC驱动类中的批量更新语句
+
+如果当前使用的事务管理器是JDBC(JdbcTransactionFactory)事务管理器,则下面的commit和rollback才会生效,如果在创建SqlSession的时候指定了自动提交事务则下面的两个方法也不会生效(因为自动提交)
+commit();						//手动提交事务
+rollback() return void;					//回滚事务
+
+clearCache() return void;				//清除本地缓存(清除当前SqlSession的一级缓存)
+
+close()							//关闭连接,在每一次查询完成之后都应该关闭该连接
+
+
+·RowBounds:配合select语句使用,用于告知Mybtais略过指定数量的记录,并限制返回结果的数量
+RowBounds(int,int);					//args0:从哪个数据开始 args1:数据量(拿多少数据量) 该对象一旦创建就无法改变
+
+比如现在select * from student 查询出1000个学生,那么就可以通过创建RowBounds(100,20)来告诉Mybatis筛选查询结果 从查询到的数据的第100位开始取,取20个.它就相当于SQL中的limit查询条件
+
+
+
+2.深入Mybatis配置文件:多个数据库切换
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+
+    <environments default="development">
+        <environment id="development">
+            <transactionManager type="JDBC"/>
+            <dataSource type="POOLED">
+                <property name="driver" value="com.mysql.cj.jdbc.Driver"/>
+                <property name="url" value="jdbc:mysql://localhost:3306/mybatis?serverTimezone=UTC"/>
+                <property name="username" value="root"/>
+                <property name="password" value="13218526138"/>
+            </dataSource>
+        </environment>
+
+        <environment id="online">
+            <transactionManager type="JDBC"/>
+            <dataSource type="POOLED">
+                <property name="driver" value="com.mysql.cj.jdbc.Driver"/>
+                <property name="url" value="jdbc:mysql://192.163.1.108:3306/mybatis?serverTimezone=UTC"/>
+                <property name="username" value="root"/>
+                <property name="password" value="13218526138"/>
+            </dataSource>
+        </environment>
+
+
+    </environments>
+    <mappers>
+        <mapper resource="xyz/entity/personMapper.xml"/>
+    </mappers>
+</configuration>
+
+值内容:
+environments default=""			具体调用的数据库id值
+environment id=""			创建一个新的连接对象
+
+可以看到现在这个配置文件有两个environment,这两个environment就代表两个不同地方的数据库.
+比如第一个数据连接的id是development,他就代表开发人员测试的连接的数据库,第二个的id是online就代表上线的数据库.
+这两个数据库有可能ip不一样,数据库名称不一样,账户不一样.此时要切换各个数据库我们就可以使用environments default属性来具体指代当前需要跑在哪个数据库上.
+另外你可以在项目加载Mybatis的阶段修改这个默认值:在下面的第一步
+SqlSessionFactory sessionFactory = new SqlSessionFactoryBuilder().build(reader,"online");参数二:指定数据库
+
+
+3.测试Mybatis:步骤记住就行了
+SqlSession类的常用方法:
+selectOne(String var1,Object var2);		方法作用:执行一条sql语句	
+
+参数1:指定执行那条sql语句.你需要指定personMapper.xml文件中对应的语句.例如:"xyz.entity.personMapper.queryPersonById"
+参数2:站位符内容
+返回值:返回Object或者resultType定义的映射对象
+
+selectList(String var1, Object var2)		//用法类似,返回查询到的所有数据(返回值类型:List)
+insert(String var1, Object var2)		//参数二:映射文件里该sql语句对应的参数类型(可以简单理解为映射对象)
+delete(String var1, Object var2)		//参数二:占位符内容
+update(String var1, Object var2)		//参数二:映射文件里该sql语句对应的参数类型,具体使用看例子
+
+<T> T getMapper(Class<T> var1);			//传入配置好的接口的Class对象,返回值类型:该接口
+
+
+commit();					//手动提交事务
+
+close()						//关闭连接,在每一次查询完成之后都应该关闭该连接
+
+
+
+
+//1.加载Mybatis配置文件(为了访问数据库)
+Reader reader = Resources.getResourceAsReader("xyz/config.xml");				参数:mybatis配置文件的全路径
+
+//2.创建SqlSessionFactory工厂类:
+SqlSessionFactory sessionFactory = new SqlSessionFactoryBuilder().build(reader);		参数:刚才的输入流
+
+//3.通过工厂类创建SqlSession类:
+SqlSession sqlSession = sessionFactory.openSession();
+
+//4.指定配置文件中的sql语句
+String statment = "xyz.entity.personMapper.queryPersonById";
+
+//5.通过SqlSession对象我们就可以执行相关的sql语句:
+sqlSession.selectOne(statment,1);				
+
+//6.关闭流:
+sqlSession.close();
+
+
+
+4.测试insert语句:
+
+//1.第一步还是在Mybatis文件中定义语句:
+    <insert id="addPerson" parameterType="xyz.entity.Person">
+        insert into person(id,name,age) values(#{id},#{name},#{age})
+    </insert>
+
+分析:
+id的值是addPerson和上面一样没问题
+关键是现在的person表里面的字段有多种类型,但parameterType只能指定一个类型.
+所以parameterType要填一个类,这个类里面的属性的类型要和表的类型对应(我这里直接采用映射文件,这样就一定是对应的)
+!最关键的占位符括号里面的内容一定要填我们指定的类型的属性名称,而且这里的顺序要对应(类型位置同时对应)
+
+//2.替换占位符执行sql语句:
+String statment="xyz.entity.personMapper.addPerson";
+sqlSession.insert(statment,new Person(3,"王五",17));		//参数二:简单理解为映射对象
+sqlSession.commit();						//采用JDBC的事务处理需要手动commit(提交事务)
+
+4.1.增强insert、update、delete语句 这些语句下能填的标签
+id				在命名空间中唯一的标识符,可以被用来引用这条语句
+parameterType			入参的类型的全限定名 如果查询的时候要用到入参类型的属性,比如根据Person的ID查询数据 则#{field}引用的是类的属性
+flushCache			将其设置为true后只要语句被调用,都会导致本地缓存和二级缓存缓存被清空 对于insert、update、delete而言默认值是true会清除缓存,但如果你不想这三条语句清除缓存可以设置为false 详情见19节查询缓存
+timeout				在抛出异常前,驱动程序等待数据库返回请求结果的秒数 默认未设置
+statementType			设置STATEMENT、PREPARED(默认)、CALLABLE其中之一 这会让Mybatis分别使用Statement、PreparedStatement(默认)、CallableStatement 这三个东西是在JDBC官方API中执行SQL语句的
+useGeneratedKeys		仅用于insert和update 如果设置为true则Mybatis会使用JDBC的getGeneratedKeys来生成数据库内部的主键(比如Mysql的主键就不需要我们设置了)
+keyProperty			仅用于insert和update 指定能够唯一识别对象的属性,MyBatis会使用getGeneratedKeys的返回值或insert语句的selectKey子元素设置它的值 如果生成列不止一个,可以用逗号分隔多个属性名称
+keyColumn			仅用于insert和update 设置生成键值在表中的列名 在某些数据库(像PostgreSQL)中,当主键列不是表中的第一列的时候,是必须设置的.如果生成列不止一个,可以用逗号分隔多个属性名称.
+databaseId			详情见14.7Mybatis动态SQL之环境切换
+lang				插入脚本语言(详情见14.8)
+
+比如上面的语句中ID字段在数据库中是自增的,那么就可以把useGeneratedKeys设置为true并把keyProperty设置为自增的目标字段,则上述语句可以改为:因为在mysql中自增键不一定是主键,所以只要把keyProperty设置为自增的那个键即可.
+<insert id="addPerson" useGeneratedKeys="true" keyProperty="id" parameterType="xyz.entity.Person">
+    insert into person(name,age) values(#{name},#{age})
+</insert>
+
+4.2.增强insert、update、delete语句 insert、update、delete标签内的子标签(动态SQL 具体子标签的内容放到动态SQL中讲解)
+selectKey			生成主键(详情见4.4) 只适用于insert和update
+include				导入SQL片段(详情见14.1SQL片段)
+trim				详情见14节Mybatis动态SQL
+where				详情见14节Mybatis动态SQL
+set				详情见14节Mybatis动态SQL
+foreach				详情见14节Mybatis动态SQL
+choose				详情见14节Mybatis动态SQL
+if				详情见14节Mybatis动态SQL
+bind				没多大软用(也属于动态SQL范畴)
+
+
+4.3.结合14节的动态SQL 这里官方文档想表达的意思是,Mybatis的动态SQL支持一次性增加多条数据,对于多条数据这里的自增键也是同样可用的(也就是为了说明useGeneratedKeys支持多数据插入)
+
+4.4.除此之外还可以通过selectKey来指定主键(selectKey顾名思义就是用来指定主键的) 比如上面就可以改成 其实selectKey也可以作为动态SQL的一种
+<insert id="addRandomStudent" parameterType="Student">
+    <selectKey keyProperty="id" resultType="_int" order="BEFORE">
+        SELECT FLOOR((RAND() *1000))
+    </selectKey>
+    insert into student(id,Name) values (#{id},#{name})
+</insert>
+
+其中selectKey标签的意思是帮助当前外部的语句(insert和update)查找主键,所以selectKey标签下存放的是主键生成的语句(生成一个随机主键)该语句执行的结果(输出)将作为底下insert语句的ID主键的输入.
+keyProperty			当前selectKey生成的结果应该被设置到的目标属性(比如这里想将结果作为目标的KEY就设置为Key,和占位符匹配) 如果当前selectKey语句返回的属性不止一个则字段之间用逗号,隔开
+keyColumn			返回结果集中生成列属性的列名 如果生成列不止一个,可以用逗号分隔多个属性名称	
+resultType			当前selectKey生成的结果的类型,一般情况下Mybatis可以推断出来(当然写上更好)
+order				可以设置为BEFORE/AFTER 如果设置为BEFORE则会先执行内部的selectKey语句生成主键,如果设置为AFTER则会先执行外部的insert语句再执行selectKey中的语句
+statementType			和签名一样 设置STATEMENT、PREPARED(默认)、CALLABLE其中之一
+
+5.测试delete语句:
+
+//1.定义delete语句:
+    <delete id="deletePerson" parameterType="int">
+        delete from person where id=#{id};
+    </delete>
+
+//2.替换占位符执行sql语句:
+String statment="xyz.entity.personMapper.deletePerson";
+sqlSession.delete(statment,1);
+sqlSession.commit();
+
+5.1.增强delete语句见4.1
+
+
+6.测试update语句:
+
+//1.定义update语句
+    <update id="updatePerson" parameterType="xyz.entity.Person">
+        update person set id=#{id},name=#{name},age=#{age} where id=#{id}
+    </update>
+
+//2.
+String statment="xyz.entity.personMapper.updatePerson";
+sqlSession.update(statment,new Person(2,"李小四",12));		
+//这里的修改完全是根据你所传入的映射对象来修改的,比如Mapper配置文件里的updatePerson对应的方法是根据id来修改值的,那么这里就根据我传入的映射对象的id值找到数据库中和对应的那条数据,然后修改这条数据变为当前的映射对象.
+
+sqlSession.commit();						//手动提交事务
+
+6.1.增加update语句见4.1
+
+7.测试select查询全部学生的语句:
+
+//1.定义查询全部学生的语句
+    <select id="queryAllPerson" resultType="xyz.entity.Person">
+        select * from Person
+    </select>
+
+//2.替换占位符执行sql语句:
+String statment="xyz.entity.personMapper.queryAllPerson";
+List<Person> persons = sqlSession.selectList(statment);
+System.out.println(persons.toString());				//打印查询结果
+
+7.1.增强select语句 select标签下能填写的标签
+id				在命名空间中唯一的标识符,可以被用来引用这条语句
+parameterType			入参的类型的全限定名 如果查询的时候要用到入参类型的属性,比如根据Person的ID查询数据 则#{field}引用的是类的属性
+resultType			期望从这条SQL语句中返回的实例的类全限定名或类型别名 如果返回的是集合,则应该指定为返回的类型而不是集合本身 resultType和resultMap只能二选一(关于resultType详情见13节)
+resultMap			返回值映射(关于resultMap详情见13.5节)
+flushCache			将其设置为true后只要语句被调用,都会导致本地缓存和二级缓存缓存被清空 select语句默认值为false(也就是不会导致...)详情见19节查询缓存
+useCache			将其设置为true后将会导致本条语句被缓存 默认对select语句为true 如果将其设置为false则及时当前mapper开启了缓存也不会使用缓存 (详情见19节查询缓存)
+timeout				在抛出异常前,驱动程序等待数据库返回请求结果的秒数 默认未设置
+fetchSize			给启动程序的建议值,尝试让驱动程序每次批量返回的结果行数等于这个设置值 默认未设置
+statementType			设置STATEMENT、PREPARED(默认)、CALLABLE其中之一 这会让Mybatis分别使用Statement、PreparedStatement(默认)、CallableStatement(存储过程使用) 这三个东西是在JDBC官方API中执行SQL语句的
+resultSetType			FORWARD_ONLY、SCROLL_SENSITIVE、SCROLL_INSENSITIVE、DEFAULT(默认)
+databaseId			详情见14.7Mybatis动态SQL之环境切换
+resultOrdered			该设置只针对嵌套结果select语句,如果为true...(没看懂) 默认值为false
+resultSets			这个设置仅适用于多结果集的情况.它将列出语句执行后返回的结果集并赋予每个结果集一个名称,多个名称之间以逗号分隔(详情见13.5关联查询的多结果集)
+lang				插入脚本语言(详情见14.8)
+
+7.2.增强select语句 select标签内的子标签(动态SQL 具体子标签的内容放到动态SQL中讲解)
+include				导入SQL片段(详情见14.1SQL片段)
+trim				详情见14节Mybatis动态SQL
+where				详情见14节Mybatis动态SQL
+set				详情见14节Mybatis动态SQL
+foreach				详情见14节Mybatis动态SQL
+choose				详情见14节Mybatis动态SQL
+if				详情见14节Mybatis动态SQL
+bind				没多大软用(也属于动态SQL范畴)
+
+
+8.mapper动态代理方式(Mybatis接口开发)的增删改查(官方推荐):
+·原则:约定优于配置
+
+配置方式:通过XML配置,这里举例设置name属性
+	<name>myProject</name>
+
+硬编码方式:通过java类
+	Configuration conf = new Configuration();
+	conf.setName("myProject");
+
+约定:默认值就是myProject
+
+·特点:
+第一步还是准备工作,配置文件什么的不做修改
+第二步(不同之处):上面在mian方法里面执行语句都需要写一个String statment变量,根据约定我们就可以省略statment直接执行sql语句
+
+
+//1.建立一个操作Mybati的接口PersonMapper
+
+public interface PersonMapper {
+    /*
+    1.定义的方法名称和映射文件的(Mapper.xml)的id值相同
+    2.形参类型要和映射文件的parameterType类型相同最好连字段名称也一致
+    3.返回值类型和映射文件中的resultType的值相同
+     */
+    Person queryPersonById(int id);
+    void addPerson(Person person);
+    void deletePerson(int id);
+    void updatePerson(Person person);
+    List<Person> queryAllPerson();		如果返回多个结果,注意!!!Mapper里的resultType还是只写映射类
+						但是接口类型可以写容器,不过要加上泛型约束
+}
+
+//2.如何将当前接口对应一个Mapper文件(因为有很多Mapper不知道是哪一个)
+此时修改你需要对应的那个Mapper文件的namespace属性:
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="xyz.dao.PersonMapper">		//!!!将namespace设置为接口的路径(一旦设置为接口路径就代表当前Mapper和接口绑定了)
+.
+.
+.
+.
+
+9.通过动态代理实现增删改查:
+·前提先配置好动态代理,现在只要看mian类和Mapper.xml的文件即可
+
+//1.调用getMapper方法,返回定义好的接口:
+PersonMapper personMapper = sqlSession.getMapper(PersonMapper.class);
+
+//2.调用接口的方法:查找一个id为1的数据
+Person person = personMapper.queryPersonById(1);		//根据刚才配置好的接口,传入占位符内容,返回查询结果
+
+由于注解式的编程对于复杂的查询语句显得力不从心,所以可以用Mapper接口和Mapper.xml绑定的方式来使用,表面上操作接口但实际不在接口中写SQL语句,而是放到对应的Mapper.xml中,实现更加灵活的SQL语句.
+不使用接口查询的时候,需要在SqlSession中写上目标查询语句的全限定名+查询方法名.使用接口的好处就是避免写这种字符串(因为写错一点都不行),其次是直接通过形参传参相比字符串更方便更安全(因为接口方法指定了SQL参数的类型),第三就是返回值是确定的(由接口指定).
+
+
+10.深入Mybatis配置文件(config.xml)
+目录:
+1.使用配置文件(properties)设定property name的value值(占位符)
+2.Mybatis全局变量
+3.设置别名
+4.类型处理器(类型转换器)
+5.对象工厂objectFactory
+6.影响Mybatis的settings标签(放到17节去讲)
+7.插件(放到Mybatis第二部分)
+8.数据库环境切换(详情见第2节)
+9.不同数据库类型切换(例如Oracle和MySQL切换 放到Mybatis第二部分第1节)
+
+
+1.使用配置文件(properties)设定property name的value值(占位符)
+db.properties:
+driver=com.mysql.cj.jdbc.Driver
+url=jdbc:mysql://localhost:3306/mybatis?serverTimezone=UTC
+username=root
+password=13218526138
+
+
+配置文件内容:
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+    <properties resource="xyz/db.properties">					//加上这段标签引入配置文件信息 resource:properties配置文件的路径 url:除了用resource外还可以用url(比如用file:///就代表本地的一个文件,或者网络上的文件都可以)
+    	<property name="username" value="root2"/>				//也可以在当前配置文件中指定properties的内容,假设这里把上面db.properties中的username给删掉,那么下面使用的username就是这里指定的root2
+	<property name="org.apache.ibatis.parsing.PropertyParser.enable-default-value" value="true"/>			//开启mybatis支持占位符含有默认值
+    </properties>
+    <environments default="development">
+        <environment id="development">
+            <transactionManager type="JDBC"/>
+            <dataSource type="POOLED">
+                <property name="driver" value="${driver}"/>			//${key}	key:和配置文件的key对应
+                <property name="url" value="${url}"/>
+                <property name="username" value="${username}"/>			//从Mybatis3.4.2开始,可以为占位符指定一个默认值 如果找不到该占位符就使用默认值,比如这里如果找不到${username}就使用root作为用户名(只不过该特性默认是关闭的需要通过上面的enable-default-value来设置为true来开启)
+                <property name="password" value="${password}"/>
+            </dataSource>
+        </environment>
+    </environments>
+    <mappers>
+        <mapper resource="xyz/dao/personMapper.xml"/>
+    </mappers>
+</configuration>
+
+
+2.Mybatis全局变量:
+基本不会用到,了解一下
+
+3.别名;
+·好处/作用:比如在映射文件中,我们要设置sql语句返回值为一个类,就需要把这个类的全路径写进去,每个sql语句都这么写的话就很麻烦.所以就可以通过别名来代替.
+
+·分类:
+1.设置单个别名
+2.批量设置别名
+
+
+1.设置单个别名:
+config.xml:
+    <typeAliases>
+        <typeAlias type="xyz.entity.Person" alias="Person"/>		此时Person就等同于xyz.entity.Person
+    </typeAliases>
+
+personMapper.xml:
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="xyz.dao.PersonMapper">
+    <select id="queryPersonById" resultType="Person" parameterType="int">		//在Mybatis中基本类型的别名前面要加下划线_int=int 而别名int则代表Integer
+        select * from person where id= #{id}
+    </select>
+
+    <insert id="addPerson" parameterType="Person">				全部替换成Person
+        insert into person(id,name,age) values(#{id},#{name},#{age})
+    </insert>
+
+    <delete id="deletePerson" parameterType="int">
+        delete from person where id=#{id};
+    </delete>
+
+    <update id="updatePerson" parameterType="Person">
+        update person set id=#{id},name=#{name},age=#{age} where id=#{id}
+    </update>
+
+    <select id="queryAllPerson" resultType="Person">
+        select * from Person
+    </select>
+
+</mapper>
+
+
+
+2.批量设置别名:
+config.xml:
+    <typeAliases>
+        <package name="xyz.entity"/>		传入一个包路径,此时别名就是类名的首字母小写
+    </typeAliases>
+
+问题:此时会给该包和该包的子包添加别名,如果该包中的类和子包中的类重名了,可以通过给类起别名的方式解决:
+
+@Alias("mystudent")
+public class Student {		此时这个类再被引用的话就称之为mystudent
+}
+
+
+
+4.类型处理器(类型转换器):
+·分类:
+1.Mybatis自带一些常见的类型处理器:了解一下(详情见Mybatis的Configuration类和类型注册器类)
+2.自定义类型处理器
+
+1.Mybatis自带一些常见的类型处理器:了解一下(详情见Mybatis的Configuration类和类型注册器类)
+
+2.自定义类型处理器:实现java类型和JDBC类型的转换
+这里举个例子:
+在Person类里面有:	boolean		sex	true:代表男	false:女
+在Person表里有:		int		sex	1代表男		0代表女
+
+实际上这里就是将java的布尔值转为JDBC的0或1
+
+//1.创建转换器类:
+两种方法:
+a.实现TypeHandler接口
+b.继承BaseTypeHandler类(比较简单)
+
+采用BaseTypeHandler类:
+@MappedJdbcTypes(JdbcType.INTEGER)						//该注解可以指定当前类型转换器目标数据库的类型为Integer类型(该注解可以省略不写,通过XML配置文件中的标签指定)
+public class BooleanAndIntegerConterver extends BaseTypeHandler<Boolean> {	//这里的泛型就是java的类型
+    /*
+    set:从java到数据库(boolean->int)
+    get:从数据库到java
+     */
+
+    /**
+     * @param preparedStatement:PreparedStatement对象
+     * @param i:PreparedStatement对象操作参数的位置
+     * @param aBoolean:java的类型
+     * @param jdbcType:JDBC(数据库)的类型
+     * @throws SQLException
+     */
+    @Override
+    public void setNonNullParameter(PreparedStatement preparedStatement, int i, Boolean aBoolean, JdbcType jdbcType) throws SQLException {
+        if (aBoolean) {
+            preparedStatement.setInt(i, 1);
+        } else {
+            preparedStatement.setInt(i, 0);
+        }
+    }
+
+    /*
+    提供了三种拿值的方式:
+    1.通过列名
+    2.通过下标(索引)
+    3.通过存储函数
+     */
+    /**
+     *通过列名
+     * @param resultSet:从数据库返回的数据(ResultSet结果集)
+     * @param s:字段名称
+     * @return
+     * @throws SQLException
+     */
+    @Override
+    public Boolean getNullableResult(ResultSet resultSet, String s) throws SQLException {
+        return resultSet.getInt(s) == 1 ? true : false;
+    }
+
+    /**
+     * 通过下标(索引)
+     * @param resultSet:从数据库返回的数据(ResultSet结果集)
+     * @param i:字段位置(索引)
+     * @return
+     * @throws SQLException
+     */
+    @Override
+    public Boolean getNullableResult(ResultSet resultSet, int i) throws SQLException {
+        return resultSet.getInt(i) == 1 ? true : false;
+    }
+
+    /**
+     *通过存储函数
+     * @param callableStatement:从数据库返回的数据(ResultSet结果集)
+     * @param i:字段位置(索引)
+     * @return
+     * @throws SQLException
+     */
+    @Override
+    public Boolean getNullableResult(CallableStatement callableStatement, int i) throws SQLException {
+        return callableStatement.getInt(i) == 1 ? true : false;
+    }
+
+}
+
+·JdbcType:封装数据库字段类型的枚举类
+
+·Null:枚举 Mybatis帮我们封装了很多默认的Java和JDBC类型之间的互转 如果要定义自已的类型转换器就继承自BaseTypeHandler<T>接口
+
+
+//2.在Mybatis配置文件中配置接口:
+config.xml:
+    <typeHandlers>
+        <typeHandler handler="xyz.converter.BooleanAndIntegerConterver" javaType="Boolean" jdbcType="INTEGER"/>
+	<package name="org.mybatis.typehandlers"/>
+    </typeHandlers>
+
+参数值:
+handler=""	实现类路径
+javaType=""	java的类型	通过这两个标签值我们就可以指定当前转换器转换的是哪两个类型之间的转换,配置文件的优先级会高于注解
+jdbcType=""	JDBC的类型	注意:这两个类型一定要全部大写
+name=""		包路径		我们还可以让Mybatis帮我们查找类型处理器,此时Java类型可以从类型处理器的泛型获取,而JDBC类型由于没有jdbcType标签则只能通过@MappedJdbcTypes注解指定
+
+
+//3.在映射对象(javabean对象)和表中记得添加sex这个字段.构造方法和get/set方法都要修改.
+
+
+//4.修改映射配置文件(Mapper):
+1.有返回值增加类型转换器的方法:
+	增加新的方法:
+    <select id="queryPersonByIdWithConverter" parameterType="int" resultMap="personResult">
+        select * from person where id= #{id}
+    </select>
+
+parameterType=""	占位符类型(查询参数类型)
+resultMap=""		调用一个类型转换器
+resultMap和resultType的区别:
+resultType:映射类的属性名称或者表中的字段名称能合理识别,名称一一对应或类型一一对应(类型一一对应的前提是Mybatis默认的类型转换器能对应上)
+resultMap:如果名称不能一一对应,并且类型也不能一一对应则需要.此时就需要将每个映射属性和每个字段手动对应
+
+	类型转换器:
+	主键使用:<id/>	非主键使用:<result/>
+<resultMap id="personResult" type="Person">
+    <id property="id" column="id"/>
+    <result property="name" column="name"/>
+    <result property="age" column="age"/>
+    <result property="sex" column="sex" javaType="BOOLEAN" jdbcType="INTEGER" typeHandler="..."/>
+</resultMap>
+
+property:java属性名称
+column:数据库字段名称
+
+对于要添加类型转换器的属性和字段:
+javaType:java的类型
+jdbcType:JDBC的类型
+typeHandler:类型转换器的全限定名(要已经注册进Mybatis中) 该配置所起的作用类似javaType+jdbcType二合一 因为首选类型转换器本身要注册进Mybatis,那么于此同时该类型转换器转换的类型就已经确定了(也就是通过类型转换器可以确定Java类型和JDBC类型) 而如果使用上面两个标签则代表通过两个类型匹配类型转换器 
+
+
+2.无返回值增加类型转换器的方法;	这里只有占位符内容,而没有返回值的内容
+<insert id="addPersonWithConverter" parameterType="Person">
+    insert into person(id,name,age,sex) values(#{id},#{name},#{age},#{sex,javaType=BOOLEAN,jdbcType=INTEGER})		//直接在后面添加
+</insert>
+
+
+//5.在操作Mybatis的接口(PersonMapper)中添加刚写的抽象方法
+
+
+//6.测试代码:
+PersonMapper personMapper = sqlSession.getMapper(PersonMapper.class);
+Person person = personMapper.queryPersonByIdWithConverter(1);
+System.out.println(person.toString());
+
+//7.泛型类型处理器:该处理器能够处理多个类的泛型类型处理器
+public class GenericTypeHandler<E extends MyObject> extends BaseTypeHandler<E> {
+
+  private Class<E> type;
+
+  public GenericTypeHandler(Class<E> type) {							
+    if (type == null) throw new IllegalArgumentException("Type argument cannot be null");
+    this.type = type;
+  }
+}
+该泛型类型处理器需要一个带泛型类型的Class参数的构造器,以便Mybatis创建的时候传入
+
+
+
+5.对象工厂ObjectFactory
+当数据库查询结束后,对于Mybatis要返回的实例Mybatis会通过一个对象工厂ObjectFactory来完成实例化工作,默认的ObjectFactory做的仅仅是调用目标类的无参构造方法,要么通过存在的参数映射来调用带有参数的构造方法.如果想覆盖对象工厂的默认行为,可以通过创建自已的对象工厂来实现.
+对象工厂仅仅是用来实例化对象的,一个是处理默认的无参构造的方法一个是处理带参构造的方法.
+public class ExampleObjectFactory extends DefaultObjectFactory {			//编写一个DefaultObjectFactory的子类
+}
+
+
+
+
+11.深入输入参数(parameterType)+#{}与${}的区别
+
+目录:
+1.#{}于${}的区别之 当输入类型为基本类型+String类型时的区别
+2.#{}于${}的区别之 当输入类型为JavaBean类型时的区别
+3.指定输入参数JavaBean的JavaType和与之对应的JDBCType
+
+
+
+以该语句示例:
+<select id="queryPersonByIdWithConverter" parameterType="int" resultMap="personResult">
+    select * from person where id= #{id}
+</select>
+
+输入参数:parameterType="类型" 但这一项最好不要指定
+总结:管他那么多干什么,占位符和JavaBean属性全部一一对应即可. 
+
+1.#{}于${}的区别之 当输入类型为基本类型+String类型时的区别:
+
+select * from person where id= #{id}这条语句的占位符可以有两种情况:
+#{}和$的区别:
+a.
+#{}	其中括号可以放任意值
+${}	其中括号只能放字段名称(id)
+
+b.
+#{}自动给String类型加上''	(自动类型转换)
+${}原样输出,适合于动态排序	(动态字段)	如果你要放一个String你就需要:select... name='${name}'
+
+动态查询的例子:比如现在要动态的根据某个字段进行查询
+<select id="findByColumn" resultType="Student">
+   select * from student where ${column} = #{value}
+</select>
+现在要根据哪个字段进行查询是不确定的,那么在调用该语句的时候就可以把${column}占位符替换为具体的表字段,而表字段一定是String类型的(不过下面的例子是不安全的,会造成SQL注入的风险)
+#{column} 用这种形式对于String类型Mybatis会自动添加''则语句变为 select * from student where 'id' = '1';(结果是查询不到)
+${column} 而用这种形式会不会对输入的占位符做任何操作 则语句变为 select * from student where id = '1';(数据库查询成功)
+
+
+c.
+#{}可以防止sql注入
+${}不可以
+
+#{}和$的相同之处:
+a.都可以获取对象的值(嵌套类型对象(组合对象))
+
+模糊查询的例子:
+	1:
+    <select id="queryPersonFuzzy" parameterType="Person" resultMap="personResult">
+        select * from person where id= #{id} or name like #{name}
+    </select>    
+
+	2:
+    <select id="queryPersonFuzzy" parameterType="Person" resultMap="personResult">
+        select * from person where id= #{id} or name like '%${name}%'
+    </select>
+	第一种情况:传入的Person类应该是:new Person(1,"%张%",null,null);
+	此时sql语句变为:select * from person where id=1 or name like '%张%'
+	第二种情况:传入的Person类应该是:new Person(1,"张",null,null);
+	此时sql语句:select * from person where id=1 or name like '%张%'
+	3:这个和#{}${}无关,使用bind标签
+    <select id="queryLike" parameterType="Student" resultType="Student">
+        select * from student where
+            <bind name="queryName" value="'%'+name+'%'"/>
+            <if test="name!=null ">
+                name like #{queryName}
+            </if>
+    </select>
+	第三种情况:传入的值必须是javabean对象(和返回值要对应)
+	bind标签:给传入的值添加一些内容	value=""就是将传入的值添加百分号变为:	%name%	name=""	修改后的值的字段名和if标签里面括号的值对	应
+	
+
+结果:虽然sql语句最终相同,但是第一种情况的模糊查询要比第二种模糊查询更不方便
+
+关于组合的例子:
+在表中添加两个新的字段:
+homeaddress 	varchar
+schooladdress 	varchar
+
+然后在Person(javabena对象)中添加一个新的对象:而不是直接添加这两个字段,但我觉得这是多此一举,此时也不满足ORM思想
+private Address address;	
+这个新的对象也是javabean:
+private String homeaddress;
+private String schooladdress;
+增加有参无参构造器、get和set方法
+
+    <select id="queryPersonByIdWithCombination" parameterType="Address" resultMap="personResult">
+        select * from person where schooladdress=#{address.schooladdress} or homeaddress=${address.homeaddress}
+    </select>
+
+传入一个Address对象,我们通过这个Address的schooladdress和homeaddress从Person里面找数据.
+注意看这里#{}和${}里面的值,满足 类.属性即可
+
+
+
+2.#{}于${}的区别之 当输入类型为JavaBean类型时的区别
+
+#{}	其中括号只能放javabean对应的属性名
+${}	其中括号只能放javabean对应的属性名
+
+利用HashMap查询的例子:
+<select id="queryPersonByIdWithHashMap" parameterType="HashMap" resultMap="personResult">
+    select * from person where id=#{id} or name like '%${name}%'
+</select>
+
+定义接口方法:
+List<Person> queryPersonByIdWithHashMap(Map<String,Object> map);	//泛型一般都是<String,Object> 对于parameterType和resultType而言泛型一般都是这样
+
+调用测试:
+Map<String,Object> map = new HashMap<String,Object>();
+map.put("id",1);
+map.put("name","王");
+
+然后调用接口方法,传入Map.会自动将Map中的key值匹配占位符.value值就是占位符内容.
+
+
+
+3.指定输入参数JavaBean的JavaType和与之对应的JDBCType(注意类型对应一定说的是基本类型)
+<select id="queryPersonByIdWithConverter" parameterType="Person" resultMap="...">		//因为Mybatis足够聪明,所以我们不必要总是指定parameterType,对于输入参数指定反而会有问题
+    select * from person where id= #{id,javaType=int,jdbcType=INTEGER}				//对于Mybatis而言它总是能推断出JavaType的类型,除非输入参数是Map 这个时候就需要手动指定JavaType以确保类型转换器被调用
+</select>
+
+<select id="queryPersonByIdWithConverter" parameterType="Person" resultMap="...">
+    select * from person where id= #{id,javaType=double,jdbcType=NUMERIC,numericScale=2,mode=...}
+</select>
+numericScale			在JDBCType中NUMERIC代表小数,在Mybatis中如果JDBC类型是数值还可以通过numericScale指定小数保留的位数
+mode				可以指定IN/OUT/INOUT参数(这里可能涉及到存储过程,详情见第12节)
+
+另外在JDBC中要求如果一个列允许使用null值,并且会使用null作为参数则必须要指定JDBCType
+
+
+
+12.Mybatis调用存储过程mysql的存在问题
+
+//1.创建存储过程:
+方法作用:查询某个性别的总人数
+
+分析这个存储过程:以后凡是涉及到的最好都分析一下
+输入:性别
+输出:该性别的人数
+
+使用可视化工具来创建存储过程:
+create procedure `queryCountByGradeWithAge`(in `gAge` int,out `sCount` int) 
+begin
+	select count(1) into sCount from person where age=gAge;
+end
+
+
+//2.配置mapper.xml(映射文件)
+    <select id="queryCountByGradeWithAge" statementType="CALLABLE" parameterType="HashMap">
+        {
+            call queryCountByGradeWithAge(
+                #{gAge,jdbcType=INTEGER,mode=IN},
+                #{sCount,jdbcType=INTEGER,mode=OUT}
+            )
+        }
+    </select>
+
+id=""	方法id,便于定位,和上面一样
+statementType=""	CALLABLE:调用存储过程的类型
+parameterType=""	输入参数类型,传入一个Map都是这样的.传入的就必须是个Map
+
+分析:{call queryCountByGradeWithAge(#{gAge,jdbcType=INTEGER,mode=IN},#{sCount,jdbcType=INTEGER,mode=OUT})}
+执行sql语句:call queryCountByGradeWithAge()	括号里面填入占位符
+
+两个占位符:
+#{gAge,jdbcType=INTEGER,mode=IN}	
+#{sCount,jdbcType=INTEGER,mode=OUT}
+
+#{gAge}和参数名称对应
+jdbcType=""	参数类型
+mode=""		参数模式
+
+
+//3.接口增加方法(PersonMapper):
+void queryCountByGradeWithAge(Map<String,Object> map);和映射文件对应,存储过程无返回值
+
+
+//4.测试:
+PersonMapper personMapper = sqlSession.getMapper(PersonMapper.class);
+Map<String ,Object> map = new HashMap<String, Object>();
+map.put("gAge",18);
+personMapper.queryCountByGradeWithAge(map);
+System.out.println(map.get("sCount"));
+
+这里Map容器里面的元素是有讲究的,对于in模式的参数,你需要通过key一一对应,value就是你传入的值
+对于out模式的参数:通过map.get("参数名");	通过get,直接获取返回值
+
+
+13.深入返回值类型(resultType)
+目录:
+1.返回值为基本数据类型或String类型:没什么好说的
+2.返回值为引用数据类型(javabean对象):之前讲过很多次了
+3.返回值为多个javabean对象:返回值类型还是填JavaBean类型而不是集合类型
+4.返回值为Map对象:Map的K为字段名 Map的V为结果集
+5.当不对应时还可以使用resultType
+6.通过HashMap解决不一一对应的问题:感觉没有resultMap好用
+7.返回Cursor(游标)实现数据的惰性加载
+
+4.返回值为Map对象:通过key来找value	key就是数据库字段,value就是字段的value值
+
+-做个查询id为1,返回值类型为HashMap的例子:注意哦这是仅仅是针对返回值
+<select id="queryPersonWithMap" resultType="HashMap" >
+    select id as id,name as name,age as age,sex as sex from Person where id=1
+</select>
+
+
+接着在接口中添加方法:注意一般HashMap指定的泛型的Key都是String而value是Object
+HashMap<String,Object> queryPersonWithMap();
+
+测试代码:
+PersonMapper personMapper = sqlSession.getMapper(PersonMapper.class);
+HashMap<String, Object> map = personMapper.queryPersonWithMap();
+//通过返回的HashMap中通过map.get("字段")	获取字段对应的数值
+System.out.println(map.get("id")+"--"+map.get("name")+"--"+map.get("age")+"--"+map.get("sex"));
+
+输出结果:1--张三--18--0
+
+
+-现在做个查询多行数据的方法:
+<select id="queryAllPersonWithMap" resultType="HashMap" >
+    select id as id,name as name,age as age,sex as sex from Person
+</select>
+
+在接口中添加方法:这里还是遵循之前将的resultType只填返回值不填集合(虽然这里Map也是集合具体点就是不填List) 
+List<HashMap<String,Object>> queryAllPersonWithMap();		
+
+测试代码:
+PersonMapper personMapper = sqlSession.getMapper(PersonMapper.class);
+List<HashMap<String, Object>> hashMaps = personMapper.queryAllPersonWithMap();	返回一个List容器中,泛型为HashMap
+for (HashMap<String, Object> map : hashMaps) {
+	System.out.println(map.get("id") + "--" + map.get("name") + "--" + map.get("age") + "--" + map.get("sex"));
+}
+
+
+6.通过HashMap解决不一一对应的问题
+如果字段和javabean对象的属性名称不一一对应的话,是可以采用resultMap来解决的.当然也可以通过HashMap来解决:
+比如Person(javabean)对象现在属性的名称变为:
+private Integer personId;
+private String personName;
+private Integer personAge;
+private Boolean personSex; 
+
+<select id="queryPersonWithMap" resultType="HashMap">
+    select id as personId,name as personName,age as personAge,sex as personSex from Person where id=1
+</select>
+也就是通过起别名的方式使得字段一一对应
+
+
+7.之前说过很多次,在Mybatis中如果要返回多个结果resultType应该填返回的javaBean类型而不是集合类型,同样这里如果Mapper接口方法的返回值不是List而是Cursor<T>则代表惰性加载数据.
+Cursor<Student> selectAllStudents();				//模拟Mapper接口中的方法,查询所有的学生,将结果封装在Cursor中而不是List中
+
+·Cursor<T>:该接口继承自Closeable、Iterable<T>接口 名为游标接口
+
+得到Cursor实例后可以直接增强for循环遍历这个集合,和List不同的是游标(Cursor)借助迭代器实现了数据的惰性加载
+
+
+13.5深入返回值映射(resultMap)
+
+1.首先可以用返回值映射解决数据库表字段名和JavaBean属性名不对应的问题,之前说过resultType和resultMap二选一 如果选择resultType则Mybatis还会帮我们自动映射
+<select id="selectStudentByID" parameterType="_int" resultMap="studentResultMap">
+    select * from student where id = #{ID}
+</select>
+
+<resultMap id="studentResultMap" type="Student">
+    <id property="id" column="id"/>
+    <result property="name" column="name"/>										//property支持级联属性,例如address.name
+    <result property="teacher_id" column="teacher_id" javaType="..." jdbcType="..." typeHandler="..."/>			//映射的时候同样可以指定 javaType、JDBCType、typeHandler
+</resultMap>
+
+resultMap标签下的标签
+id						返回值映射的ID
+type						当前映射返回的类型的全限定名
+autoMapping					填入true/false Mybatis是否将本结果开启/关闭自动映射 该配置会覆盖全局属性autoMappingBehavior
+extends						继承(这个在Mybatis官方文档的鉴别器中有提到过)			
+
+resultMap的子标签
+id						主键字段使用ID(也叫作对象的标识符)
+result						除了主键映射外别的字段映射使用result
+constructor					用于在类实例化时将查询结构注入到构造器中(也就是返回的映射对象的属性通过构造器指定而不是set方法)
+association					解决关联查询映射的方法
+collection					解决多个关联查询映射的方法				
+discriminator					鉴别器
+
+2.constructor构造注入使用例子
+<select id="selectStudentByID" parameterType="_int" resultMap="studentResultMap">
+    select * from student where id = #{ID}
+</select>
+
+<resultMap id="studentResultMap" type="Student" >
+    <constructor>
+        <idArg column="id" javaType="int"/>					//主键字段用idArg(对象标识符)
+        <arg column="name" javaType="string"/>					//除了主键映射外别的字段映射使用arg
+        <arg column="teacher_id" javaType="int"/>
+    </constructor>
+</resultMap>
+
+通过构造注入的这种方式,必须指定javaType避免方法重载(构造器重载),这样Mybatis就能按顺序找到最合适的构造器
+
+其中idArg和arg下的标签
+column										//指定数据库的表字段名(何时何地column都是代表的数据库字段)
+javaType									//构造器字段的类型
+name										//从Mybatis3.4.3开始,可以按照任意顺序填写idArg和arg标签 通过name来指定当前表字段映射到构造器的哪个属性名(也就是Mybatis不一定会根据构造器的顺序注入,而是通过name来对应) 要这么使用的前提是得开启虚拟机的调试模式和Spring那时候讲的一样,或者通过@Param("")注解让Mybatis在运行期间获得形参名信息(Mybatis官方推荐@Param,但实际上方法入参名对应也可以)
+jdbcType									//JDBCType
+typeHandler									//类型转换器 
+resultMap									//
+select										//关于select的用法可以见下面的association关联,总之一句话就是如果当前JavaBean的构造注入需要一个非简单类型的对象,那么就可以通过该select标签再去运行mapper.xml文件中的一条SQL语句将查询到的结果再作为该JavaBean需要注入的对象
+columnPrefix
+
+3.association关联查询使用的例子 这个例子会复杂一点
+
+1.N+1查询(不推荐)
+<select id="selectStudentAndTeacherByStudentID" resultMap="selectStudentAndTeacherByStudentIDResultMap">
+    select * from student where id = #{id}					//首先这里会根据Student的ID查询到一个学生,而Student JavaBean内又组合了一个Teacher(表明一个学生有与之对应的一个老师)
+</select>
+
+<resultMap id="selectStudentAndTeacherByStudentIDResultMap" type="Student">
+    <id property="id" column="id"/>
+    <result property="name" column="name"/>
+    <result property="teacher_id" column="teacher_id"/>
+    <association property="teacher" column="teacher_id" select="selectTeacherByID"/>		
+这条语句详解,现在是这么一个情况Student类中有一个Teacher属性,属性名为teacher(和这里的property对应上) 只不过这个Teacher需要再查询一次,根据什么查呢?就根据teacher_id查 
+所以总结下来就是两张有关联的表肯定是某些字段能够对应上,这里Student表中的teacher_id就和Teacher表中的id对应上 首先Mybatis会先根据ID查询到Student表中的id、name、teacher_id信息 然后将查询结果的teacher_id作为select标签的输入又去查询一个select语句(就是下面的这个语句)
+下面这个select查询结束后就会将结果绑定到Student的Teacher属性上 注意这里的column一定是和当前resultMap映射的表的字段对应上的(因为映射一定是在查询完成之后的,先查询了selectStudentAndTeacherByStudentID语句后,开始映射 映射的过程中发现需要一个Teacher,然后再拿到查询后的结果再去查询)
+</resultMap>
+
+<select id="selectTeacherByID" resultType="Teacher">
+    select * from teacher where id = #{id}
+</select>
+
+association下的标签
+property									//指定JavaBean属性名称
+column										//指定数据库的表字段名(何时何地column都是代表的数据库字段)
+javaType									//...
+jdbcType									//...
+select										//指定另外的查询语句(需要和column搭配使用)
+resultMap									//关联的嵌套结果集查询(使用嵌套结果集解决关联查询的1+N问题)
+typeHandler									//...
+notNullColumn
+columnPrefix									//给column(表字段)拼接前缀(解决重用嵌套结果集问题)
+resultSet									//用于加载类型负载的结果集名称(用多结果集解决关联查询的1+N问题)
+foreignColumn									//指定外键对应的列名,指定的列将与父类型中column的给出的列进行匹配.当使用多结果集时,该属性指定结果集中用于与foreignColumn匹配的列(用多结果集解决关联查询的1+N问题)
+autoMapping									//填入true/false Mybatis是否将本结果开启/关闭自动映射  这个属性会覆盖全局的属性autoMappingBehavior 本属性对外部的结果映射无效,所以不能搭配select或resultMap元素使用 默认未设置
+fetchType									//填入lazy/eager 指定属性后将在映射文件中忽略全局参数lazyLoadingEnabled
+
+这样做有什么问题?一般Mybatis把这种情况称为N+1查询,假设这里要查询多个Student(本来这是一条SQL语句就能解决的),但是现在对于每个Student都要去数据库查询一次Teacher就称为1+N(N+1)这样就会导致大量的语句被执行
+为了解决上述的问题可以使用关联的嵌套结果集(重要)
+
+2.关联的嵌套结果集查询(解决1+N查询)
+这里有几个问题需要阐述:
+<select id="selectStudentAndTeacherByStudentID" parameterType="_int" resultMap="selectStudentAndTeacherByStudentIDResultMap">
+    select student.id as student_id,student.name as student_name,student.teacher_id as student_teacher_id,teacher.id as teacher_id, teacher.name as teacher_name from student join teacher on student.teacher_id = teacher.id  where student.id = #{id}
+</select>
+第一点为什么这里指定了字段别名而上面不用指定别名?上面不指定是因为第一次查询结果作为第二次的输入,第二次的返回直接映射到返回值.
+而这里现在是联表查询(从SQL语句的角度来说,确实是一次查询 结果同时存在Student和Teacher的结果),对于Student和Teacher这两种表而言都有相同的字段(有ID和name),那么Mybatis就无法分别ID字段到底该映射到Student还是Teacher上了,所以就需要指定别名.
+
+<resultMap id="selectStudentAndTeacherByStudentIDResultMap" type="Student">
+    <id property="id" column="student_id"/>
+    <result property="name" column="student_name"/>
+    <result property="teacher_id" column="student_teacher_id"/>
+    <association property="teacher" resultMap="teacherResultMap"/>
+</resultMap>
+
+<resultMap id="teacherResultMap" type="Teacher">
+    <id property="id" column="teacher_id"/>
+    <result property="name" column="teacher_name"/>
+</resultMap>
+别的到没有什么,但是我发现这里完全可以通过级联属性来解决,比如直接指定为<result property="teacher.id" column="teacher_id"/>好像也可以
+另外还可以使用内嵌式的嵌套结果集(用以下方式也完全可以工作,只不过扩展性不好)
+<select id="selectStudentAndTeacherByStudentID" parameterType="_int" resultMap="selectStudentAndTeacherByStudentIDResultMap">
+    select student.id as student_id,student.name as student_name,student.teacher_id as student_teacher_id,teacher.id as teacher_id, teacher.name as teacher_name from student join teacher on student.teacher_id = teacher.id  where student.id = #{id}
+</select>
+
+<resultMap id="selectStudentAndTeacherByStudentIDResultMap" type="Student">
+    <id property="id" column="student_id"/>
+    <result property="name" column="student_name"/>
+    <result property="teacher_id" column="student_teacher_id"/>
+    <association property="teacher" javaType="Teacher">
+        <id property="id" column="teacher_id"/>
+        <result property="name" column="teacher_name"/>
+    </association>
+</resultMap>
+
+3.重复利用关联的嵌套结果集
+假设现在Student有id、name、teacher_id、card_id---Teacher有id、name---Card有id、name 现在想根据Student对Teacher、Card进行连表查询,按照上面的说的就需要写两个关联的嵌套结果集(resultMap) 但可以通过columnPrefix字段来重用
+<select id="selectStudentAndTeacherByStudentID" parameterType="_int" resultMap="selectStudentAndTeacherByStudentIDResultMap">
+    select student.id as student_id,student.name as student_name,student.teacher_id as student_teacher_id,student.card_id as student_card_id,teacher.id as teacher_id, teacher.name as teacher_name,card.id as card_id,card.name as card_name from student join teacher on student.teacher_id = teacher.id  join card on student.card_id = card.id where student.id = #{id}
+</select>
+
+<resultMap id="selectStudentAndTeacherByStudentIDResultMap" type="Student">
+    <id property="id" column="student_id"/>
+    <result property="name" column="student_name"/>
+    <result property="teacher_id" column="student_teacher_id"/>
+    <association property="teacher" resultMap="teacherResultMap" columnPrefix="teacher"/>
+    <association property="card" resultMap="teacherResultMap" columnPrefix="card"/>
+</resultMap>
+columnPrefix字段的作用,给嵌套结果集字段拼接字段,比如第一个association就给嵌套结果集拼接上了teacher则变为teacher_id、teacher_name 第二个拼接card就变为card_id、card_name 这样实现重用
+
+<resultMap id="teacherResultMap" type="Teacher">
+    <id property="id" column="id"/>
+    <result property="name" column="name"/>
+</resultMap>
+
+4.关联查询的多结果集(解决1+N查询):从Mybatis3.2.3开始Mybatis提供了另一种解决1+N查询的方法
+实际上这种方法就是通过SQL的存储过程来实现的,首先看存储过程(该存储过程返回两个结果,一定得是两个结果的)
+CREATE DEFINER=`root`@`localhost` PROCEDURE `selectStudentAndTeacher`(in student_id int)	//该存储过程需要一个student_id
+BEGIN
+SELECT * FROM student WHERE id = student_id;			//由于这里不会写SQL语句,实际上这里应该将第一次查询到的Student的teacher_id保存下来,作为下一行查询的入参
+SELECT * FROM teacher WHERE id = teacher_id;
+END
+
+<select id="selectStudentAndTeacherByStudentIDWithFunction" resultSets="students,teachers" resultMap="studentAndTeacherResultMap" statementType="CALLABLE">
+    {call selectStudentAndTeacher(#{id,jdbcType=INTEGER,mode=IN})}			//[id]:id这个字面值是和Mapper接口中方法参数对应的,和存储函数的输入属性名无关,但和存储函数也是对应的 JDBCType:指定该字段在存储函数中的类型(和上面存储函数对应) mode:指定模式(和上面存储函数对应,上面写的就是IN,区分大小写)
+</select>
+
+resultSets:上面说该存储过程会返回两个结果,那么用students代表第一个select查询返回的结果,用teachers代表第二个select返回的结果(resultSets为每一个结果集指定一个名称,多个名称使用逗号分开)
+statementType:当运行存储过程时该值得是CALLABLE
+
+<resultMap id="studentAndTeacherResultMap" type="Student">
+    <id property="id" column="id"/>
+    <result property="name" column="name"/>
+    <result property="teacher_id" column="teacher_id"/>
+    <association property="teacher" javaType="Teacher" resultSet="teachers" column="id" foreignColumn="id">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+    </association>
+</resultMap>
+resultSet:指定当前嵌套结果集时和上面指定的resultSets的哪个对应
+javaType:指定该结果集映射在JavaBean类型的全限定名
+column:有待商榷,可能是指定Teacher表的主键也有可能是指定Student表的主键
+foreignColumn:有待商榷,可能是指定Teacher表的主键
+
+
+4.collection 假设现在一个Student有多个喜欢吃的Food(List<Food>)也就是Student类中封装一个List<Food>该如何解决?
+
+1.1+N查询(不推荐)
+<select id="selectStudentAndTeacherAndFoodByID" resultMap="studentAndTeacherAndFoodResultMap">
+    select * from student where student.id = #{student_id};
+</select>
+
+<resultMap id="studentAndTeacherAndFoodResultMap" type="Student">
+    <id property="id" column="id"/>
+    <result property="name" column="name"/>
+    <result property="teacher_id" column="teacher_id"/>
+    <collection property="foods" javaType="ArrayList" column="id" ofType="Food" select="selectStudentLikeFoodByStudentID"/>
+</resultMap>
+
+javaType:这里指定映射到Student的foods字段是一个ArrayList实例(和之前不同如果返回值是集合可以直接指定返回的类型而不是集合类型)和之前一样Mybtais会推断出类型,所以javaType一般可以省略不写
+ofType:真正指定映射的类型是Food
+select:映射语句,通过该映射语句查询到一个集合映射到List中
+column:指定Food表的主键字段
+
+<select id="selectStudentLikeFoodByStudentID" resultType="Food">
+    select * from food where student_id = #{student_id}
+</select>
+
+2.关联查询的集合嵌套结果集(和之前一样)
+<select id="selectStudentAndTeacherAndFoodByID" parameterType="_int" resultMap="studentAndTeacherAndFoodResultMap">
+    select student.id as student_id,student.name as student_name,student.teacher_id as student_teacher_id,food.id as food_id, food.name as food_name,food.student_id as food_student_id from student join food on student.id = food.student_id  where student.id = #{id}
+</select>
+
+<resultMap id="studentAndTeacherAndFoodResultMap" type="Student">
+    <id property="id" column="student_id"/>
+    <result property="name" column="student_name"/>
+    <result property="teacher_id" column="student_teacher_id"/>
+    <collection property="foods" ofType="Food">
+        <id property="id" column="food_id"/>
+        <result property="name" column="food_name"/>
+        <result property="student_id" column="food_student_id"/>
+    </collection>
+</resultMap>
+
+当然也可以把collection再单独拎出来,和association的用法一致
+
+3.重复利用关联的集合嵌套结果集(和association的用法一致)
+4.关联查询的多结果集(和association的用法一致)通过存储过程完成
+
+
+5.discriminator:鉴别器
+之前讨论过,如果表中字段名和javabean对象的属性名称不一致,那么就需要使用resultMap来一一对应字段.
+鉴别器:对查询结果进行分支处理(当某一种情况时查询一种结果,当另外一种情况时查询另外的结果,有点类似于if标签.)
+
+·现在实现一个效果:
+使用鉴别器:如果插叙的数据的年龄为18岁则使用昵称(graname)如果年龄是22岁则使用真名(name).
+·准备工作:
+Student类:
+private Integer id;
+private String name;	//现在这个name表达的字段可以有两种情况:1.name 2.graname具体情况看鉴别器
+private Integer age;
+
+
+//1.配置Mapper文件:
+
+<select id="queryStudentWithDiscriminatorMap" resultMap="queryStudentWithDiscriminator">
+    select * from student
+</select>
+
+<resultMap id="queryStudentWithDiscriminator" type="Student">
+    <id column="id" property="id"/>
+    <result column="age" property="age"/>
+
+    <discriminator javaType="Integer" column="age">		//column:通过哪个表字段进行鉴别(鉴别器是先对查询到的结果的某个字段进行判断,这里的age就是判断的对象)	javaType:该字段的类型
+	<case value="18">					//当当前行数据的值为多少时,添加<case>标签里面的sql语句
+	    <result property="name" column="graname"/>		//column:表字段	property:对象属性名
+	</case>
+
+	<case value="22">
+	    <result property="name" column="name"/>
+	</case>
+    </discriminator>
+
+</resultMap>
+
+根据不同的情况映射不同的字段
+
+<case value="..." resultMap="..."/>				//另外也可以通过这种方法引用
+
+//2.接口添加方法
+
+
+//3.测试代码:
+IMapper iMapper = sqlSession.getMapper(IMapper.class);
+List<Student> students = iMapper.queryStudentWithDiscriminatorMap();
+students.forEach((s)->System.out.println(s.toString()));
+
+输出结果:
+Student{id=1, name='Lucy', age=18}
+Student{id=2, name='李四', age=22}
+Student{id=3, name='王五', age=22}
+Student{id=4, name='Baby', age=18}
+
+分析:可以看到,18岁的名称(name)都是昵称,22岁的都是真名.
+
+
+
+
+
+14.Mybatis实现动态Sql:
+对于一条sql语句:select * from person where name=#{name} and age=#{age};
+去实现根据不同的情况而执行不同的语句:
+如果用户传入了name那么我就执行:select * from person where name=#{name};
+如果用户只传入了age那么就执行:select * from person where age=#{age};
+如果两个参数都有则:select * from person where name=#{name} and age={age};
+
+动态SQL和鉴别器的区别在于:鉴别器是根据不同的查询结果选择不同的字段映射策略,而动态SQL是根据不同的SQL入参执行不同的SQL语句
+
+目录:
+1.SQL片段(适用于增删改查)
+2.selectKey查询主键(适用于insert、update) 关于selectKey详情见4.4 从这一条开始以下的所有标签都是select/update/insert/delete标签的子标签
+3.<if>标签
+4.<choose>标签
+5.<where>、<trim>、<set>标签
+6.<foreach>标签(用于遍历集合)
+7.数据库环境切换
+8.插入脚本语言
+9.<bind>标签
+
+1.SQL片段
+
+如果编写的很多SQL语句的片段很相似,那么就可以把这些片段抽象出来作为SQL片段,例子如下
+<sql id="userColumns">
+    ${alias}.id,${alias}.name
+</sql>
+
+<select id="selectAllStudentWithSqlArea" resultType="Student">
+    select
+    <include refid="userColumns"><property name="alias" value="table1"/></include>
+    from student table1
+</select>
+
+
+sql标签下能填写的标签,另外SQL片段就和正常的SQL一样 也可以在内部使用动态SQL之类的特性
+id				指代当前SQL片段的ID方便接下来别引用
+databaseId			数据库环境(详情见14.7)
+lang				插入脚本语言(详情见14.8)
+
+还可以指定无限套娃
+<sql id="sometable">
+  ${prefix}Table
+</sql>
+
+<sql id="someinclude">
+  from
+    <include refid="${include_target}"/>			//这里代表准备导入哪个SQL片段
+</sql>
+
+<select id="select" resultType="map">
+  select *
+  <include refid="someinclude">					//引入someinclude这个SQL片段
+    <property name="prefix" value="Some"/>			//指定sometableSQL片段中的占位符具体化值
+    <property name="include_target" value="sometable"/>		//指定someincludeSQL片段要导入哪个SQL片段(指定要导入sometable)
+  </include>
+</select>
+
+另外如果我们要引用的sql片段不在当前文件里,需要写该sql片段的全路径,比如别的文件的select语句要引用objectArray则需要:
+<include refid="xyz.dao.PersonMapper.objectArray"></include>				//写全路径
+
+2.selectKey查询主键(适用于insert、update) 关于selectKey详情见4.4
+
+3.<if>标签
+
+if标签下的标签
+test					用作对某个字段的判断
+
+<select id="" resultMap="">
+    select * from student where teacher_id = 3
+    <if test="id != null">
+	and id = #{id}
+    </if>
+</select>
+
+比如这段,当不传入Student的ID时,该语句会返回所有TeacherID=3的学生,但如果StudentID不为null时就会对StudentID这列进行查询(相当于拼接上后面的and id = #{id}这条语句)
+
+
+4.<choose>标签
+choose标签有点类似Java的switch关键字,现在考虑一个问题,对于Student而言如果有StudentID就根据StudentID进行查询,如果入参没有StudentID但有StudentName就根据StudentName查,如果都没有就给一个兜底的查询(这就很类似于Java中的switch,一旦某个条件满足就可以break,如果所有条件都不满足还有个default)
+
+choose标签的子标签:
+when					这就相当于一个case
+otherwise				这就相当于最后的的default
+
+<select id="" resultMap="">
+    select * from student where teacher_id = 3
+    <choose>
+	<when test="id != null">		//多个when条件,相当于case一旦碰到一个判断成功则后续的所有when都不会执行
+	    and id = #{id}
+	</when>
+	<when test="name != null">
+	    and name = #{name}
+	</when>
+	<when test="xxx != null">
+	    and xxx = #{xxx}
+	</when>
+	<otherwise>				//相当于default,如果所有的when都没有判断成功,则最终执行该otherwise的语句
+	    and xxx = xxx
+	</otherwise>
+    </choose>
+</select>
+
+
+5.<where>、<trim>、<set>标签
+
+<select id="" resultMap="">
+    select * from student where
+    <if test="id != null">
+        id = #{id}
+    </if>
+    <if test="name != null">
+        and name = #{name}
+    </if>
+</select>
+假设我们这里把14.3中的select语句中的id也改为动态的条件.那么此时就会出现很多问题 如果<if>标签没有匹配的条件 则这条语句会变为select * from student where 这本身就是一条错误的语句 如果只匹配了第二个条件则查询语句变为select * from student where and name = #{name} 也是条错误的语句
+为了解决这个问题,下面使用<where>标签
+
+<select id="" resultMap="">
+    select * from student
+    <where>
+        <if test="id != null">
+            id = #{id}
+        </if>
+        <if test="name != null">
+            and name = #{name}
+        </if>
+    </where>
+</select>
+
+<where>标签就对应SQL语句的where判断条件,在<where>标签下如果有一个<if>标签触发成功了,那么才会在原本的SQL语句上拼接where,否则不会拼接(如果这里<where>下没有一个匹配则查询语句为select * from student)
+另外在<where>标签中如果第一个判断成功的<if>标签中以and/or开头则<where>标签会自动将它去除
+
+同样对于update语句也有这样的困扰,但使用<set>标签就能做到类似<where>标签的功能,效果如下:
+
+<select id="" resultMap="">
+    update student 
+    <set>
+        <if test="name !=null">name = #{name}</if>
+        <if test="teacher_id !=null">teacher_id = #{teacher_id}</if>
+    </set>
+</select>
+
+<set>标签对应SQL语句的set判断条件,在<set>标签下如果有一个<if>标签触发成功了,那么才会在原本的SQL语句上拼接set 并且对于set标签Mybatis还会删除额外的逗号,(保证是正确的SQL语句)
+
+<trim>标签比where、set标签更加灵活,上述的<where>标签的等价<trim>标签的写法如下:
+<select id="" resultMap="">
+    select * from student
+    <trim prefix="where" prefixOverrides="AND |OR ">
+        <if test="id != null">
+            id = #{id}
+        </if>
+        <if test="name != null">
+            and name = #{name}
+        </if>
+    </trim>
+</select>
+
+上述的<set>标签的等价<trim>标签的写法如下:
+<select id="" resultMap="">
+    update student
+    <trim prefix="SET" suffixOverrides=",">
+        <if test="name !=null">name = #{name}</if>
+        <if test="teacher_id !=null">teacher_id = #{teacher_id}</if>
+    </trim>
+</select>
+
+trim标签下的标签
+prefix					一旦当前<trim>标签下有一个<if>标签触发成功了,则在原本的语句SQL语句上拼接该值(这里prefix指定为where)
+prefixOverrides				在<trim>标签下如果第一个判断成功的<if>标签中有以该标签指定的值开头的话 则<trim>标签会自动去除它 每个值之间用空格+管道符 |分割(注意空格是必须的)
+suffix					
+prefixOverrides				在<trim>标签下如果[最后一个]判断成功的<if>标签中有以该标签指定的值[结尾]的话(注意和上面的区别)
+
+6.<foreach>标签(用于遍历集合)
+比如:select * from person where age in (18,20);
+括号里面的内容可是是:数组、对象数组、容器、对象的属性(该属性就是一个容器,只不过在一个对象里)
+
+·对于数组而言:
+执行:select * from person where age in (#{age});
+//1.配置Mapper文件(映射文件):
+
+    <select id="queryPersonWithArray" parameterType="int[]" resultType="Person">
+        select * from person
+        <where>
+            <if test="array!=null and array.length>0">
+                <foreach collection="array" open="age in(" close=")" item="age" separator=",">
+                    #{age}
+                </foreach>
+            </if>
+        </where>
+    </select>
+
+
+parameterType="int[]"	传入数组类型,一定要加[]
+
+主语句不变:
+select * from person
+
+在其中套一个if标签:
+注意:我们mybatis定义了一个规范,对于数组而言,array就是传入的数组名称,对array的条件限制就是对我们传入数组的条件限制
+
+重点:在其中又套了一个foreache标签,这个标签的意思就是循环当前的容器(数组)
+
+collection=""		循环的数组的名称,统一规范为array,将循环出来的结果放到临时变量里
+现在语句已经执行到select * from person了
+open=""			循环出的数据之前的内容
+item=""			循环出的临时变量名称,将临时变量放到open标签和close标签的中间,遍历的结果的名称,只是名称
+close=""		循环出的数据之后的内容
+separator=""		每个数据的分割符
+
+对于item的重点说明:相当于增强for循环
+for(item:collection){
+	将collection值的容器的每个值赋值给item后面的名称,item只相当于一个名称,但是它的值是每个collection的元素
+}
+
+
+比如这里的18和20两个数组,我们要放到in(数据存放地)	放到两个括号中间
+
+步骤:
+1.将collection遍历出的数据放到age临时变量里面
+2.open="where age in("		语句变为:select * from person where age in(#{age}
+3.item="age"			将#{age}替换为真实的内容	语句变为:select * from person where age in (1820
+3.加上close的内容		语句变为:select * from person where age in(1820)
+4.给数据添加分隔符:		语句变为:select * from person where age in(18,20)	此时id语句才正确
+
+
+特点铭记:
+    <select id="queryPersonWithArray" parameterType="int[]" resultType="Person">
+        select * from person
+        <where>
+            <if test="array!=null and array.length>0">
+                <foreach collection="array" open="age in(" close=")" item="age" separator=",">
+                    #{age}
+                </foreach>
+            </if>
+        </where>
+    </select>
+
+item后面的值要和#{}括号里面的值相同
+
+//2.接口添加方法
+
+//3.测代码:
+PersonMapper personMapper = sqlSession.getMapper(PersonMapper.class);
+int[] ints = {18,20};
+List<Person> persons = personMapper.queryPersonWithArray(ints);
+System.out.println(persons.toString());
+
+
+
+·对于集合而言:
+//1.配置Mapper文件(映射文件):
+    <select id="queryPersonWithList" parameterType="ArrayList" resultType="Person">
+    select * from person
+        <where>
+            <if test="list!=null and list.size>0">
+                <foreach collection="list" open="age in(" close=")" item="age" separator=",">
+                    #{age}
+                </foreach>
+            </if>
+        </where>
+    </select>
+
+注意对于容器的规范:对于容器而言,list就是传入的容器名称,对list的条件限制就是对我们传入容器的条件限制
+
+parameterType=""		注意和前面HashMap一样要传入实现类
+
+
+
+//2.接口中添加方法
+
+//3.测试代码:
+PersonMapper personMapper = sqlSession.getMapper(PersonMapper.class);
+List<Integer> list = new ArrayList<Integer>();
+list.add(18);
+List<Person> persons = personMapper.queryPersonWithList(list);
+System.out.println(persons.toString());
+
+·对于对象数组而言:
+比如我要还是要查询年龄为18和20的Person
+Person[] persons={new Per..}		通过多个Person的age属性,来形成一个类似于age的数组
+
+//1.配置Mapper文件:
+    <select id="queryPersonWithObjectArray" parameterType="Object[]" resultType="Person">
+        select * from person
+        <where>
+            <if test="array!=null and array.length>0">
+                <foreach collection="array" open="age in(" close=")" item="person" separator=",">
+                    #{person.age}
+                </foreach>
+            </if>
+        </where>
+    </select>
+
+parameterType=""
+对于对象数组的规范:统一写Object[],array就是传入的数组的名称,对array的条件限制就是对我们传入容器的条件限制
+
+另外根据上面的知识,此时从每个collection遍历出来的值是一个对象(Person),所以此时collection的元素是一个对象,对应item.
+我们要获取age就通过这个对象:person.age
+
+//2.接口添加方法
+
+//3.测试代码:
+PersonMapper personMapper = sqlSession.getMapper(PersonMapper.class);
+Person[] personArray={new Person(null,null,18,null)};
+List<Person> persons = personMapper.queryPersonWithObjectArray(personArray);
+System.out.println(persons.toString());
+
+
+
+·对于对象的属性而言:
+//1.创建对象,添加属性:
+创建一个Grade对象,里面添加一个属性:
+private List<Integer> list;
+为这个属性添加有参无参构造器和get/set方法
+
+//2.配置Mapper文件(映射文件):
+    <select id="queryPersonWithGrade" parameterType="Grade" resultType="Person">
+        select * from person
+        <where>
+            <if test="list!=null and list.size>0">
+                <foreach collection="list" open="age in(" close=")" item="age" separator=",">
+                    #{age}
+                </foreach>
+            </if>
+        </where>
+    </select>
+
+parameterType=""	形参类型
+
+这里if标签里面的判断还是对对象属性的判断(注意数组是特殊的在上面)
+foreach标签下:
+collection=""		遍历的容器,这里遍历的直接就是Grade类里面的list属性,因为这个属性是一个List容器
+open=""			不变
+item=""			不变注意和#{}	括号内的内容对应	遍历结果的名称
+separator="'		分隔符
+
+//3.在接口中添加方法
+
+//4.测试代码:
+PersonMapper personMapper = sqlSession.getMapper(PersonMapper.class);
+Grade grade = new Grade();
+List<Integer> list = new ArrayList<Integer>();
+list.add(18);
+list.add(20);
+grade.setList(list);
+List<Person> persons = personMapper.queryPersonWithGrade(grade);
+System.out.println(persons.toString());
+
+
+7.数据库环境切换
+介绍:之前说到可以在config文件中通过environments default标签来切换数据库环境,但问题是数据库之间包含差异,有些在mysql中定义的sql语句到Oracle中就不能使用,所以我么可以在config文件中定义一个标签,这个标签可以使得Mapper文件知道我们当前使用的哪个数据库,然后再在Mapper文件中根据当前的数据库去执行当前数据库对应的sql语句.
+这里比较复杂和神奇,Mybatis帮我们干了很多事情,首先我们引用了0.1中的配置 指定了MySQL的别名为mysql Oracle的别名为oracle.并且假设我们在environment中指定了两个连接环境一个是MySQL一个是Oracle 并且在environments default指定当前环境是MySQL 此时Mybatis会推断出当前数据库连接的环境就是MySQL,此时我们又在Mapper.xml文件中指定如下两个语句.
+
+<select id="selectAllStudent" resultType="Student" databaseId="mysql">
+    select * from student
+</select>
+<select id="selectAllStudent" resultType="Student" databaseId="oracle">
+    select * from student
+</select>
+
+databaseID="..."			//指定当前SQL语句的ID
+也许会觉得很神奇,为什么这两个语句的id重名了?但是由于当前连接的环境Mybatis已经推断出来是MySQL环境了,那么此时我们通过Mapper接口调用selectAllStudent方法时调用的就是上面的MySQL语句
+那现在再通过environments default将环境切换到Oracle(oracle) Mybatis会自动推断出环境为oracle此时再执行就会运行下面的语句 我们仅仅通过整体的环境切换就能切换数据库环境(这是Mybatis帮我们推导的)
+
+还可以配合内置变量(_databaseId)来实现动态SQL,例如:
+
+<select id="selectAllStudent" resultType="Student">
+    select * from student
+    <if test="_databaseId == 'mysql'">
+        where id = #{id}
+    </if>
+    <if test="_databaseId == 'oracle'">
+        where teacher_id = #{id}
+    </if>
+</select>
+
+在不同的环境下<if>标签得到的结果也是不同的
+
+8.插入脚本语言
+
+详情见官方文档动态SQL
+
+9.<bind>标签
+
+详情见官方文档动态SQL
+
+16.mybatis关联查询:这几句话的内容稍微理解理解13.5中的关联查询就能理解了(association和collection)
+·四种联表查询:一对一、一对多、多对一、多对多
+·在mybatis看来只有两种:一对多(多对一、多对多:两个一对多的组合)、一对一
+
+·铭记:
+一对一是association
+一对多是collection
+
+17.日志:
+通过依赖库的Log4j来输出日志(导入打包到Mybatis的其余的jar包Log4j)
+
+·开启日志:在mybatis配置文件中配置(config.xml)
+    <settings>
+        <setting name="logImpl" value="LOG4J"/>
+    </settings>
+
+如果不开启,Mybatis就会根据以下顺序寻找日志:SLF4J->Apache Commons Logging->LOG4j 2->LOG 4j->JDK logging 如果都没有找到则会禁用日志功能
+SLF4J->LOG4J->LOG4J2->JDK_LOGGING->COMMONS_LOGGING->STDOUT_LOGGING->NO_LOGGING
+这里的每一个值都对应一个实现类,它们都实现自Log接口(当前jar包里的),而且之所以这里能简写名称也得以与Configuration注册了一些默认的类型别名.
+
+同样可以通过LogFactory的静态方法来设置日志实现,例如:以下的方法应该在调用其它Mybatis方法之前调用(以确保生效) 不管是使用config.xml形式的还是编程式的方式来切换日志实现,如果没有引入对应的jar包则Mybatis还是会根据上述的顺序去寻找日志实现.
+org.apache.ibatis.logging.LogFactory.useSlf4jLogging();
+org.apache.ibatis.logging.LogFactory.useLog4JLogging();
+org.apache.ibatis.logging.LogFactory.useJdkLogging();
+org.apache.ibatis.logging.LogFactory.useCommonsLogging();
+org.apache.ibatis.logging.LogFactory.useStdOutLogging();
+
+
+
+·创建日志配置文件(设置日志的文件):一定要放到src/目录下,不能是别的目录
+创建名为log4j.properties文件.
+
+log4j.properties:
+log4j.rootLogger = debug,stdout
+log4j.logger.com.github.StudentMapper=TRACE
+log4j.appender.stdout = org.apache.log4j.ConsoleAppender
+log4j.appender.stdout.layout = org.apache.log4j.PatternLayout
+log4j.appender.stdout.layout.ConversionPattern = [%-5p] [%t] -%m%n
+
+
+rootLogger=	debug:日志级别		stdout:输出方式
+日志级别由高到低分别是:ERROR(错误)、WARN(警告)、INFO(提示)、DEBUG(调试)
+四种模式的区别:ERROR只显示错误信息,WARN显示警告和错误信息,INFO显示提示、警告、错误信息...以此类推DEBUG显示的内容最全面
+建议:开发时设置debug,在运行时设置info或以上的级别.
+
+输出方式:可以是输出到控制台(一般情况),也可以输出到文件
+
+log4j.appender.stdout=				日志显示方式,这里是控制台普通显示方式.不用管
+
+log4j.logger.[包名].[类名].[方法名]=TRACE/DEBUG	如果只填包名代表对哪个包下的类使用当前Log4J的配置 如果加上类名表明对哪个类使用当前的Log4J配置 如果加上方法名表明对哪个类的那个方法使用当前的Log4J配置 如果设置为TRANCE则日志会打印当前SQL语句所有的返回结果,对于有些时候如果只想看SQL语句可以设置为DEBUG
+log4j.logger.[命名空间].[方法名]=TRACE/DEBUG 	通过这种方式可以对Mapper.xml文件中的语句进行日志的打印
+
+log4j.appender.stdout.layout=			显示为平铺方式,还是列格式.不需要管
+
+log4j.appender.stdout.layout.ConversionPattern=	日志的开头格式
+
+
+·可以通过日志信息,详细阅读mybatis执行情况(观察mysal实际执行sql语句 以及sql中的参数 和返回结果)
+
+Mybatis中所有的设置,这些设置会改变Mybatis运行时的行为,下面这个设置是一个举例,其余设置都是类似的模板设置.
+<settings>
+  <setting name="cacheEnabled" value="true"/>					
+</settings>
+
+cacheEnabled				全局性地开启或关闭所有映射器配置文件中已配置的任何缓存						true(默认)/false
+lazyLoadingEnabled			是否开启延迟加载(详情见18节延迟加载)								true/false(默认)
+aggressiveLazyLoading															true/false(在3.4.1前默认为true)
+multipleResultSetsEnabled		是否允许单个语句返回多结果集(需要数据库驱动支持)							true(默认)/false
+useColumnLabel				使用列标签代替列名.实际表现依赖于数据库驱动,具体可参考数据库驱动的相关文档,或通过对比测试来观察	true(默认)/false
+useGeneratedKeys			是否允许JDBC自动生成主键(需要数据库驱动支持)							true/false(默认)
+autoMappingBehavior			指定Mybatis如何将数据库表字段映射到JavaBean的属性							None(关闭Mybatis自动映射)/PARTIAL(自动映射没有嵌套的属性)/FULL(会自动映射任意复杂的结果集,无论是否有嵌套属性)
+autoMappingUnknownColumnBehavior	当JavaBean/表字段之间映射发现未知字段(有些字段对应不上时)时Mybatis的行为				NONE(不做任何处理)/WARNING(输出警告日志,日志的等级必须为WARN)/FAILING(映射失败抛出SqlSessionException异常)
+defaultExecutorType			配置默认的执行器											SIMPLE(普通执行器)/REUSE(重用预处理语句)/BATCH(重用预处理语句+执行批量更新)
+defaultStatementTimeout			设置超时时间 											正整数(单位秒) 默认为null									
+defaultFetchSize															正整数 默认为null
+defaultResultSetType			指定语句的默认回滚策略(3.5.2新增)								FORWARD_ONLY(只回滚)/SCROLL_SENSITIVE/SCROLL_INSENSITIVE/DEFAULT(默认,效果等同于未设置)										
+safeRowBoundsEnabled			是否允许在嵌套语句中使用分页									true(不允许)/false(允许,默认)
+mapUnderscoreToCamelCase		是否开启驼峰命名自动映射 即数据库中A_COLUMN=Java中aColumn						true/false
+localCacheScope				Mybatis本地缓存策略										SESSION(会缓存一次回话中所有的查询)/STATEMENT(对相同的SqlSession的不同查询将不会进行缓存) 当设置为SESSION时不要对Mybatis返回的对象作出任何修改.
+jdbcTypeForNull				当Mapper中的查询语句没有指定数据库类型时默认的JDBC类型是						填入JdbcType枚举类里的类型 默认为Other
+lazyLoadTriggerMethods			指定对象的那些方法触发一次延迟加载 每个方法用逗号,分隔例如:equals,clone,hashCode,toString
+defaultScriptingLanguage		指定动态SQL生成使用的默认脚本语言									填入类别名或类全限定名 org.apache.ibatis.scripting.xmltags.XMLLanguageDriver(默认,这里指定的类应该是LanguageDriver接口的实现类)
+defaultEnumTypeHandler			指定Enum使用的默认TypeHandler(类型转换器) 							填入类别名或类全限定名 org.apache.ibatis.type.EnumTypeHandler(默认)
+callSettersOnNulls			当查询的结果为null时,是否调用映射对象(即JavaBean)的set方法					true/false(默认)
+returnInstanceForEmptyRow		当查询的结果为null时,mybatis是返回null还是返回空实例(此选项包含对级联属性的设置)从mybatis3.4.2开始	true(返回空实例)/false(返回null)
+logPrefix				指定mybatis的日志前缀 设置的值为任何字符串							默认没有设置日志前缀
+logImpl					指定具体日志实现(详情第17节)
+proxyFactory				指定mybatis创建可延迟加载对象所用到的工具								CGLIB/JAVASSIST(Mybatis3.3以上为默认)
+vfsImpl					指定VFS实现 指定自定义VFS的实现类的全限定名用逗号,分隔						默认没有设置
+useActualParamName			
+configurationFactory			指定一个提供Configuration实例的类 这个被返回的 Configuration 实例用来加载被反序列化对象的延迟加载属性值,这个类必须包含一个签名为static Configuration getConfiguration()的方法 设置一个类全限定名或类别名 默认没有设置
+shrinkWhitespacesInSql
+
+
+18.延迟加载(懒加载):
+分为一对一和一对多:
+
+·一对一:
+当前的Studen表和Card表:一个cardId对应多个cardInfo
+Student:
++----+--------+--------+
+| id | name   | cardId |
++----+--------+--------+
+|  1 | 张三   |      1 |
+|  2 | 李四   |      2 |
++----+--------+--------+
+Card表:
++--------+----------+
+| cardId | cardInfo |
++--------+----------+
+|      1 | 优秀     |
+|      2 | 良好     |
+|      3 | 差       |
++--------+----------+
+
+
+·配置mybatis配置文件(config.xml):开启延迟加载和关闭立即加载
+
+    <settings>
+        <!--开启延迟加载-->
+        <setting name="lazyLoadingEnabled" value="true"/>
+
+        <!--关闭立即加载-->
+        <setting name="aggressiveLazyLoading" value="false"/>
+    </settings>
+
+
+//1.配置Mapper文件(映射文件):
+
+    <select id="queryStudentWithLazy" parameterType="int" resultMap="student_card_lazyLoad_map">
+        select * from student
+    </select>
+
+    <resultMap id="student_card_lazyLoad_map" type="StudentAndCardJavaBean">
+        <association property="student" javaType="Student">
+            <id property="id" column="id"/>
+            <result property="name" column="name"/>
+            <result property="cardId" column="cardId"/>
+        </association>
+
+        <!--
+        此次采用延迟加载,不立即加载学生证信息
+        -->
+        <association property="card" javaType="Card" select="queryCardById" column="cardId">
+            <id property="cardId" column="cardId"/>
+            <result property="cardInfo" column="cardInfo"/>
+        </association>
+    </resultMap>
+
+    <select id="queryCardById" parameterType="int" resultType="Card">
+        select * from card where cardId=#{cardId}
+    </select>
+
+
+分析:
+第一个:select标签,直接查询所有的学生,返回值类型引用resultMap
+第二个:resultMap标签,返回值StudentAndCardJavaBean
+
+select=""		当需要查询card表时才调用的语句,也就是延迟运行的sql语句.当需要用到的时候再引用别的语句.
+column=""		Student表和Card表的外键字段,用这个外键字段将Student表和Card表连接起来
+
+第三个:select延迟加载的语句,被第二个resultMap引用
+
+//2.接口添加方法
+
+//3.测试代码:
+PersonMapper personMapper = sqlSession.getMapper(PersonMapper.class);
+List<StudentAndCardJavaBean> studentAndCards = personMapper.queryStudentWithLazy(1);
+System.out.println(studentAndCards.toString());
+
+·通过Debug可以发现,如果程序只需要学生,则只向数据库发送了查询学生的sql
+当我们后续需要用到学生证的时候,在第二次发送查询学生证的sql
+
+
+bug:这里根本没用一一对应起来,而且视频中连id的值都没指定
+
+·一对多:一个cardId对应多个cardInfo
+当前的Studen表和Card表:
+Student:
++----+--------+--------+
+| id | name   | cardId |
++----+--------+--------+
+|  1 | 张三   |      1 |
+|  2 | 李四   |      1 |
++----+--------+--------+
+Card表:
++--------+----------+
+| cardId | cardInfo |
++--------+----------+
+|      1 | 优秀     |
+|      2 | 良好     |
+|      3 | 差       |
++--------+----------+
+
+
+作用分析:
+如果不采用延迟加载(使用立即加载的话),查询时会将一和多 都查询,学生、学生证中所有的信息
+如果想要暂时只查询一的一方,而多的一方先不查询 而是在需要的时候再去查询->延迟加载
+
+
+大体上和一对一差不了多少:
+//1.配置Mapper文件:
+    <select id="queryStudentWithManyLazy" parameterType="int" resultMap="student_card_lazyLoadMany_map">
+        select * from card
+    </select>
+
+    <resultMap id="student_card_lazyLoadMany_map" type="Card">
+        <id property="cardId" column="cardId"/>
+        <result property="cardInfo" column="cardInfo"/>
+        <!--
+        此次采用延迟加载,不立即加载学生证信息
+        -->
+        <collection property="students" ofType="Student" select="queryCardByIdMany" column="cardId">		主要是这里发生改变
+        </collection>
+    </resultMap>
+
+    <select id="queryCardByIdMany" parameterType="int" resultType="Student">
+        select * from student where cardId=#{cardId}
+    </select>
+
+
+//2.接口增加方法:
+List<Card> queryStudentWithManyLazy(int id);		和上面一样都是返回一个List容器
+
+
+//3.测试代码:
+PersonMapper personMapper = sqlSession.getMapper(PersonMapper.class);
+List<Card> cards = personMapper.queryStudentWithManyLazy(1);
+for (Card card : cards) {
+	System.out.println(card.getCardId()+"--"+card.getCardInfo());
+	System.out.println("--------------");
+	for (Student student : card.getStudents()) {
+		System.out.println(student.getId()+"--"+student.getName()+"--"+student.getCardId());
+	}
+}
+
+
+
+19.查询缓存:
+1.一级缓存+开启的细节
+2.二级缓存的共享
+3.第三方提供的二级缓存
+4.二级缓存的缓存引用
+
+1.一级缓存:
+当我们第一次查询(比如查询张三)需要访问数据库,查询的结果会放入缓存(保存在sqlSession对象里),如果之后你还用同一个sqlSession对象来找张三就不需要访问数据库,直接从缓存中获得.
+直到运行了commit(提交事务)会清除所有缓存对象,将张三这条信息从sqlSession中移除.
+
+如果是同一个sqlSession对象进行多次相同的查询,则直接进入一级缓存.否则如果有二级缓存则进入二级缓存,所以二级缓存是针对sqlSession是不同的对象而言的.
+
+因为一级缓存是针对单个sqlSession对象而言的,如果要清除一级缓存就调用对应的sqlSession对象的clearCache方法
+
+2.二级缓存的共享:mybatis默认没有开启二级缓存,需要手动开启
+mybatis自带二级缓存:(同一个namespace)生成的mapper对象共享缓存
+
+如果是同一个sqlSession对象进行多次相同的查询,则直接进入一级缓存.
+
+为什么说namespace生成对象,namespace是Mapper文件的一个标签,该标签拥有Mapper(操作mybatis的接口)接口的引用,标签的值就是接口的包路径.
+一个namespace对应一个接口.
+PersonMapper personMapper = sqlSession.getMapper(PersonMapper.class);
+Person person1 = personMapper.queryPersonByIdWithConverter(1);
+我们在代码里面是根据Mapper接口来生成对象的,意思也就是说通过同一个接口对象生成出来的对象(personMapper)是共享二级缓存的.
+
+结论:只要产生的对象来自同一个namespace,则这些对象共享二级缓存(所以缓存的开始是针对mapper.xml文件的,也同时针对一个对于的Mapper接口,因为它们的命名空间相同)
+
+如果:
+PersonMapper personMapper1 = sqlSession.getMapper(PersonMapper.class);
+PersonMapper personMapper2 = sqlSession.getMapper(PersonMapper.class);
+
+此时personMapper1和personMapper2依然是共享二级缓存的.而且就算不是同一个sqlSession,他们只要来自同一个namespace就还是共享二级缓存的,所以能不能共享二级缓存,你只需要看他们是不是同一个namespace.
+
+·手动开启二级缓存:
+
+//1.在mybatis文件中设置二级缓存开启:
+<settings>
+    <setting name="logImpl" value="LOG4J"/>
+    <!--开启延迟加载-->(详情见18节延迟加载)
+    <setting name="lazyLoadingEnabled" value="true"/>
+
+    <!--关闭立即加载-->(详情见18节延迟加载)
+    <setting name="aggressiveLazyLoading" value="false"/>
+    <!--开启缓存-->
+    <setting name="cacheEnabled" value="true"/>
+</settings>
+
+//2.在你需要开启二级缓存的namespace文件(Mapper.xml)中确认该namespace开启二级缓存:
+<cache/>		添加这么一个标签,但是添加该标签之后是一个Mapper文件的全局标签(所以缓存的开始是针对mapper.xml文件的,也同时针对一个Mapper接口)
+该标签做了以下几件事
+映射语句文件中的所有select语句的结果将会被缓存。
+映射语句文件中的所有insert、update和delete语句会刷新缓存
+缓存会使用最近最少使用算法(LRU)算法来清除不需要的缓存
+缓存不会定时进行刷新(也就是说，没有刷新间隔)
+缓存会保存列表或对象(无论查询方法返回哪种)的1024个引用
+缓存会被视为读/写缓存,这意味着获取到的对象并不是共享的,可以安全地被调用者修改,而不干扰其他调用者或线程所做的潜在修改.
+
+
+cache标签下的标签:
+type					
+eviction				可用的清除缓存策略 LRU(默认,最长时间不被使用的对象)、FIFO(先进先出 最先被缓存的对象最先被清除,有点类似队列)、SOFT(软引用,基于垃圾回收器的规则和引用移除规则移除对象)、WEAK(弱引用,更积极地基于垃圾回收器状态和弱引用规则移除对象)
+flushInterval				刷新缓存的间隔时间单位毫秒,该值可以设置为任意的正整数,默认情况下不设置,缓存仅仅在调用语句时刷新
+size					缓存的对象个数,可以设置为任意正整数,要注意预缓存对象和运行环境中可用的内存资源,默认值是1024
+readOnly				设置值为true/false,是否只读(默认为false),如果是只读true则每次返回给调用者的都是相同的实例,因此这些对象不能被修改,性能会提高.如果是读写false则会通过序列化返回缓存的拷贝对象,速度上会慢一些但更安全.(详情就在下面//3.二次缓存说到最后....) 虽然是这样但Mybatis在后续又说不要对Mybatis返回的对象作出更改,以防后患.
+blocking
+
+如果你的某些方法不需要二级缓存可以这么做↓:之前5也有讲过
+
+<select id="queryPersonByIdWithConverter" parameterType="int" resultMap="personResult" useCache="false">
+    select * from person where id= #{id}
+</select>
+
+将useCache设为false. 默认为true
+
+//3.二级缓存说到最后还是对于对象而言,所以对于需要二级缓存的对象,这些类需要实现序列化和反序列化的接口(实现接口是针对cache标签的readOnly属性而言的)
+public class Person implements Serializable {
+.
+.
+.
+}
+
+另外如果这个类继承自某个类,那么父类也需要实现接口.如果这个类拥有第三方类的引用,比如private Student student;那么Student类也需要实现接口.
+
+
+//4.测试代码:
+sqlSession1 = sessionFactory.openSession();
+PersonMapper personMapper1 = sqlSession1.getMapper(PersonMapper.class);
+Person person1 = personMapper1.queryPersonByIdWithConverter(1);
+    if(sqlSession1!=null){
+	sqlSession1.close();					这里必须要关闭流,但是顺序和IO流的知识不同步
+    }
+
+sqlSession2 = sessionFactory.openSession();
+PersonMapper personMapper2 = sqlSession2.getMapper(PersonMapper.class);
+Person person2 = personMapper2.queryPersonByIdWithConverter(1);
+    if(sqlSession2!=null){
+	sqlSession2.close();					这里必须要关闭流,但是顺序和IO流的知识不同步
+    }
+System.out.println(person1.hashCode()+"---"+person2.hashCode());
+
+
+根据日志可得,这里只查询了一次,但是打印的结果却显示这两个对象不是同一个对象.(因为默认readOnly为false)
+
+·解释为什么需要close?
+根据序列化的知识可知,实际上二级缓存是存放在硬盘文件里的,是通过IO放到硬盘里的,但是由于IO也很费性能,当我们读取到数据之后不一定就放到硬盘里面,只有当你close的时候才放到硬盘里面.实际上close就是将一级缓存里面的查询到的内容复制一份放到二级缓存里,只有当close才放是因为一次性放入节省IO性能.
+
+·关于日志文件的0.0和0.5的意思:
+这里查询了两次:
+第一次:从数据库中查询(比如查到张三),查询后通过close放到二级缓存里面此时由于二级缓存里面没有张三,所以二级缓存命中率为0%
+第二次:从二级缓存中查询(必须是查询张三),由于二级缓存已经有了数据,所以命中了数据一共查询两次,一次命中就是1/2	命中率50%(0.5)
+
+·清除二级缓存:
+有两种方式:
+a.通过commit
+b.通过标签
+
+a.通过commit:
+和一级缓存一样都是通过commit清除缓存的.
+commit清除缓存的原因:防止脏数据
+
+代码分析:
+sqlSessionSelect1 = sessionFactory.openSession();
+PersonMapper personMapper1 = sqlSessionSelect1.getMapper(PersonMapper.class);
+Person person1 = personMapper1.queryPersonByIdWithConverter(1);
+
+if(sqlSessionSelect1!=null){
+    sqlSessionSelect1.close();		//通过close开启二级缓存
+}
+
+sqlSessionInsert = sessionFactory.openSession();
+PersonMapper personMapper = sqlSessionInsert.getMapper(PersonMapper.class);
+Person person = new Person(5,"王宝强",35,true);
+personMapper.addPersonWithConverter(person);
+sqlSessionInsert.commit();
+if(sqlSessionInsert!=null){
+    sqlSessionInsert.close();
+}
+
+sqlSessionSelect2 = sessionFactory.openSession();
+PersonMapper personMapper2 = sqlSessionSelect2.getMapper(PersonMapper.class);
+Person person2 = personMapper2.queryPersonByIdWithConverter(1);
+if(sqlSessionSelect2!=null){
+    sqlSessionSelect2.close();
+}
+
+分析可知:commit必须要作用到数据库上才会清除二级缓存,如果你是select语句,select本身不需要commit,所以如果你通过selectcommit是不会清楚二级缓存的.这里的代码:先查询的一次,然后通过一个新的insert语句插入一条数据之后通过commit来清除二级缓存(实际上也就是上面说的通过delete、update、insert来清除缓存)
+
+
+b.通过标签:
+在你需要取消二级缓存的查询语句里添加flushCache标签:
+
+<select id="queryPersonByIdWithConverter" parameterType="int" resultMap="personResult" flushCache="true" useCache="true">
+    select * from person where id= #{id}
+</select>
+
+之后你在执行该sql语句的时候会自动清除二级缓存.
+
+
+
+
+3.第三方提供的二级缓存:
+第三方提供的二级缓存:ehcache、memcache
+要想整合三方提供的二级缓存(或者自定义二级缓存),必须实现Cache接口该接口的默认实现类PerpetualCache
+注意这个接口应该是Mybatis提供的,第三方提供的二级缓存已经实现过了(和JDBC道理类似)
+
+
+//1.导入ehcache二级缓存:
+·导入:前两个mybatis是不自带的,需要下载,不过我已经整合到mybatis里面了
+Ehcache-core.jar
+mybatis-Ehcache.jar
+日志:slf4j-api.jar
+
+//2.编写配置文件(Ehcache.xml):也是下载src目录下
+编写ehcache配置文件	Ehcache.xml
+<ehcache
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://ehcache.org/ehcache.xsd"
+        updateCheck="false">
+
+    <diskStore path="D:\Java工程IDEA\Ehcache"/>
+    <!--当二级缓存对象超过限制(maxElementsInMemory的值)存放到硬盘文件的目录-->
+    <defaultCache
+            maxElementsInMemory="5000"
+            maxElementsOnDisk="10000000"
+            eternal="false"
+            overflowToDisk="true"
+            timeToIdleSeconds="120"
+            timeToLiveSeconds="120"
+            diskExpiryThreadIntervalSeconds="120"
+            diskPersistent="false"
+            memoryStoreEvictionPolicy="LRU"
+    />
+
+<!--
+maxElementsInMemory:内存的最大存放对象的数量
+maxElementsOnDisk:硬盘的最大存放对象的数量
+eternal:设置缓存是否永远不过期     false:不是    true:是
+overflowToDisk:当内存存放的对象满员时是否将新对象存放至硬盘中      true:存放到硬盘中     false:将内存原对象挤出
+timeToIdleSeconds:当两次访问超过该值的时候(单位为s)将缓存对象失效
+timeToLiveSeconds:一个缓存对象最多存在多产时间
+diskExpiryThreadIntervalSeconds:多长时间触发一个线程,该线程会清理硬盘缓存(每隔多长时间会清理硬盘缓存)
+memoryStoreEvictionPolicy:当超过缓存的最大值时处理的策略 处理的策略:LRU:将最近最少使用的对象替换为新对象 FIFO:先进先出(根据缓存的顺序被替换)    LFU:最不常使用的对象
+-->
+</ehcache>
+
+
+//3.修改Mapper配置文件(映射文件)指定使用自定义缓存:
+<cache type="org.ehcache.core.Ehcache">
+    <property name="maxElementsInMemory" value="4500"/>
+</cache>
+
+刚才编写的Ehcache.xml是一个全局的缓存配置(cache标签通过type指定第三方缓存后配置会自动继承)如果你需要自定义当前的Mapper文件就使用property标签.用法如代码所示,记得把自动清除二级缓存的标签关闭
+另外对于第三方缓存而言,上面将的那些cache标签将不起作用,例如缓存的清除策略、缓存的读写方式、缓存的缓存个数等
+
+
+4.二级缓存的缓存引用
+
+我们在19.2节得出的缓存共享的结论是:只要产生的对象来自同一个namespace,则这些对象共享二级缓存(所以缓存的开始是针对mapper.xml文件的,也同时针对一个对于的Mapper接口,因为它们的命名空间相同)
+所以说如果两个Mapper(mapper.xml)它们的命名空间不同,那么它们就不会共享缓存,如果我希望两个不同的namespace之间也共享缓存,可以使用cache-ref(缓存引用标签)
+<cache-ref namespace="..."/>
+namespace:指定要引用的缓存的命名空间(namespace),此时被引用的Mapper的缓存当前Mapper也能使用了!
+
+
+20.逆向工程:
+·介绍:我们需要查询一个数据离不开四样东西:表、映射对象(javabean对象)、Mapper文件、Mapper接口.
+如果我们需要新增一个表,那么别的三个文件就需要全部写一遍,太麻烦了.mybatis逆向工程就是用这三个文件中的一个文件生成其他的三个文件.
+
+·实现步骤:实现步骤别人也已经写好了,我们只需要导入jar包
+
+//1.导入mybatis-generator-core,也需要额外下载,我已经打包到lib下了
+
+
+//2.编写generator.xml配置文件:存放在src目录下
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE generatorConfiguration
+        PUBLIC "-//mybatis.org//DTD MyBatis Generator Configuration 1.0//EN"
+        "http://mybatis.org/dtd/mybatis-generator-config_1_0.dtd">
+
+<generatorConfiguration>
+    <!--数据库驱动-->
+    <classPathEntry
+            location="D:\.m2\repository\com\oracle\ojdbc6\11.1.0.6\ojdbc6-11.1.0.6.jar"/>
+    <context id="my" targetRuntime="MyBatis3">
+        <!--context:
+        id:一个标识
+        targetRuntime:mybatis版本
+        -->
+        <commentGenerator>
+            <property name="suppressDate" value="false"/>
+            <property name="commentGenerator" value="true"/>
+        </commentGenerator>
+
+        <!--commentGenerator:
+            commentGenerator:自动生成实体类、SQL映射文件时是否附有注释
+        -->
+
+
+        <!--数据库链接地址账号密码和驱动-->
+        <jdbcConnection driverClass="com.mysql.cj.jdbc.Driver"
+                        connectionURL="jdbc:mysql://localhost:3306/mybatis?serverTimezone=UTC"
+                        userId="root"
+                        password="13218526138"/>
+
+
+
+        <!--生成Model类存放位置-->
+        <javaModelGenerator targetPackage="xyz.entity"
+                            targetProject=".\src">
+            <property name="enableSubPackages" value="true"/>
+            <property name="trimStrings" value="true"/>
+        </javaModelGenerator>
+        <!--
+        targetProject:项目的根目录
+        targetPackage:存放于哪个包路径下,可以随便起,mybatis会自动创建这个包
+        trimStrings:是否保留字段的空格   如果有一个字段是"  name   "是否要删去空格
+        -->
+
+
+        <!--生成映射文件(Mapper)存放位置-->
+        <sqlMapGenerator targetPackage="xyz.dao"
+                         targetProject=".\src">
+            <property name="enableSubPackages" value="true"/>
+        </sqlMapGenerator>
+
+
+        <!--生成Dao类(接口类)存放位置-->
+        <javaClientGenerator targetPackage="xyz.dao"
+                             targetProject=".\src" type="XMLMAPPER">
+            <property name="enableSubPackages" value="true"/>
+        </javaClientGenerator>
+        <!--
+        type:类型,就填XMLMAPPER就可以了
+        -->
+
+        <!--
+        指定数据库的表,将你需要生成各种文件的表通过table写出来
+        -->
+        <table tableName="Person"></table>
+        <table tableName="Card"></table>
+        <table tableName="Student"></table>
+
+    </context>
+</generatorConfiguration>
+
+
+//3.开始生成:
+List<String> warings = new ArrayList<String>();			//用于存放警告信息的容器
+ConfigurationParser cp = new ConfigurationParser(warings);	
+
+File file = new File("src/generator.xml");      //generator配置文件
+Configuration configuration = cp.parseConfiguration(file);
+
+DefaultShellCallback callback = new DefaultShellCallback(true);
+
+MyBatisGenerator generator = new MyBatisGenerator(configuration,callback,warings);
+
+
+缺什么参数你就填什么参数,主要是File的文件要稍微配置一下,其余的代码差不多.
+
+
+
+·分析生成的结果:
+
+(1)javabean对象(映射文件):
+会生成两个:
+a.和表名相同的类名
+b.表名+Example:这个类是一个示例文件,教你怎么用的文件,一般可以删除.(但是删除之后接口会出现问题,接口有返回值类型是该类)
+
+(2)接口:
+有一些教你怎么使用的抽象方法
+
+(3)Mapper文件(映射文件):
+
+
+
+·逆向工程的问题:
+逆向工程只做了解,一般用的不是很多,而且生成出来的Mapper文件里面的方法写的很规范,但是由于太规范了显得就很臃肿,并不一定适合我们的口味,而且它生成出来的类的属性的参数类型也有一定的问题.
+
+·另外逆向工程有如何使用,但是我跳过了,如果用到可以来看下.
+
+
+
+21.SQL语句构建器:
+在Java中拼接SQL语句是一件很头疼的事情,但是可以通过Mybatis的SQL语句构建器来生成SQL语句,而不必担心多余的AND、何时要用where何时用AND,Mybatis帮助我们完成看所有的工作.
+
+String sql = new SQL() {{
+    SELECT("*");
+    FROM("student");
+    WHERE("id = ?");
+}}.toString();
+System.out.println(sql);				//输出结果:SELECT * FROM student WHERE (id = ?)
+
+这是一种很神奇的写法(双括号写法),实际上这种写法就等价于:
+SQL sql = new SQL();
+sql.SELECT("*");
+sql.FROM("*");
+sql.WHERE("*");
+在Mybatis3.4.2之后也可以这么写:
+new SQL().SELECT("*").FROM("student").WHERE("id = ?").toString();
+
+另外这种写法里也可以用if/for等语句,例如:
+String sql = new SQL() {{
+    if(xxx){
+        SELECT("*");
+    }
+    FROM("student");
+    WHERE("id = ?");
+}}.toString();
+
+
+						mybatis第二阶段
+目录:
+2.注解方式
+3.增删改的返回值问题
+6.参数问题(针对多参数输入)
+7.增加null
+8.Map储存多行数据进阶
+9.SpringBoot整合Mybatis
+11.mybatis架构
+12.自定义插件
+13.Executor执行器策略之BATCH
+14.分页插件
+
+2.注解方式
+·推荐:推荐使用xml,就是之前一直以来的做法(通过Mapper文件)但是调用的时候还是根据Mapper接口调用(但是SQL语句还是写在Mapper.xml文件中)
+·如果想要使用注解的使用方法:
+此时跟Mapper文件就没有什么关系了,直接在Mapper接口上添加注解:
+@Select("select * from student where id=#{id}")
+Student queryStudentWithAnnotation(int id);
+
+另外在config文件中你需要引用该接口:
+    <mappers>
+<!--        <mapper resource="me/mapper/personMapper.xml"/>-->		之前是指定XML文件
+        <mapper class="me.mapper.IMapper"/>				现在需要指定接口路径
+    </mappers>
+
+此时就可以直接通过接口方法来执行sql语句了.
+
+和Mapper(映射对象)的别名一样,如果你拥有很多的接口或者很多的xml那么你就需要写很多个mapper,你可以通过批量注册的方式,也就是直接写一个包路径
+
+    <mappers>
+<!--        <mapper resource="me/mapper"/>-->		之前是指定XML文件
+        <mapper class="me.mapper"/>				现在需要指定接口路径
+    </mappers>
+
+3.增删改的返回值问题:
+对于增删改这些SQL语句对应的接口方法的返回值(resultType)可以有:void、Integer、Boolean、Long
+void:无返回值
+Integer:影响的行数
+Boolean:是否执行成功
+Long:
+
+
+6.参数问题:针对输入多个参数
+·之前:基本是将多个参数封装到一个javabean对象,然后使用该对象传递
+比如我们需要查询一个记录,只需要传入一个对象,然后根据对象的属性来找到这条数据
+
+·例子:比如我通过传入的id和age来查询到一个记录,就需要输入多个参数:
+
+分为两种情况:
+1.使用arg或者param
+2.还是使用字段名称
+3.参数既有对象又有基本类型
+
+1.使用arg或者param:
+//1.配置Mapper文件:
+    <select id="queryStudentWithMany" resultType="Student">
+        select * from student where id=#{param1} and age=#{param2}
+    </select>
+注意:传入多个参数的时候不需要填入parameterType
+注意:使用这种方式大括号里面必须要填param1,parma2,不能填入字段名称
+
+//2.配置接口
+Student queryStudentWithMany(Integer id,Integer age);
+
+//3.测试代码:
+IMapper iMapper = sqlSession.getMapper(IMapper.class);
+Student student = iMapper.queryStudentWithMany(1, 18);
+System.out.println(student.toString());
+
+
+2.还是使用字段名称:
+
+//1.配置Mapper文件:
+    <select id="queryStudentWithMany" resultType="Student">
+        select * from student where id=#{id} and age=#{age}
+    </select>
+
+//2.接口添加注解:
+Student queryStudentWithMany(@Param("id") Integer id, @Param("age") Integer age);
+
+通过@Param(String values)传入的值要和大括号里面的内容对应,但实际上在Java8之后也可以不用注解,只要方法的参数名和mapper.xml配置文件中的方法对应上也可以用(前提是打开虚拟机调试模式).
+
+//3.代码测试:
+IMapper iMapper = sqlSession.getMapper(IMapper.class);
+Student student = iMapper.queryStudentWithMany(1, 18);
+System.out.println(student.toString());
+
+
+
+3.参数既有对象又有基本类型:
+通过我们传入的name,和传入的Student的  
+
+//1.配置Mapper文件:
+    <select id="queryStudentWithMany" resultType="Student">
+        select * from student where name=#{name} and age=#{stu.age}
+    </select>
+
+//2.接口添加注解:
+Student queryStudentWithMany(@Param("name") String name,@Param("stu") Student student);
+
+根据上面的知识这里还是和上面一样,括号里面的内容和注解里面的对应,只不过这里传一个name和一个对象,通过 别名.属性名 来获取你想要的属性值
+
+//3.测试代码:
+IMapper iMapper = sqlSession.getMapper(IMapper.class);
+Student student = new Student();
+student.setAge(20);
+Student studentReturn = iMapper.queryStudentWithMany("张三",student);
+System.out.println(studentReturn.toString());
+
+
+7.增加null:
+·解释:如果你在数据库中插入一行记录其中某一个字段的值为null
+
+oracle:如果插入的字段是null,提示错误:Other 而不是null
+
+mysql:如果插入的字段是null,可以正常执行,其值就为null
+
+原因:
+各个数据库 在mybatis中对各种数据类型的默认值不一样
+mybatis中,jdbcTypeForNull(如果是null),则默认值是Other.对于Other来说,mysql能够处理Null,但是Oracle不行
+
+解决:
+对于oracle:声明Other类型就是null
+a.修改具体的Mapper标签:
+假如这是一个Oracle的语句:
+    <insert id="addStudent" parameterType="Student">
+        insert into student(name,age,graname) values(#{name},#{age},#{graName,jdbcType=Null})
+    </insert>
+直接在字段后面填入jdbcType=null
+
+b.配置mybatis全局配置文件config.xml
+    <settings>
+        <setting name="jdbcTypeForNull" value="NULL"/>
+    </settings>
+解释:如果你的值是Null或者无法处理的时候,值就变为Null
+
+
+
+
+
+8.Map储存多行数据进阶:
+
+//1.配置Mapper文件:
+    <select id="queryStudentWithHashMap" resultType="HashMap">
+        select * from student
+    </select>
+
+//2.接口添加注解:
+@MapKey("id")
+HashMap<Integer,Object> queryStudentWithHashMap();
+
+之前我们存储多个对象是通过List里面套Map实现的:List<HashMap<String,Object>>.然后再遍历这个List
+
+现在直接通过HashMap就能存储所有的结果,通过MapKey注解指定HashMap的键和表中的某个字段对应,也以这个字段来区分各行数据,一般设置为表的主键(因为不重复,通过主键区分各行数据的差异),现在查询完之后,会把所有的数据按照主键id存放在HashMap里面,这个value值实际上就是查询语句的返回值(javabean对象,也就是这里的Student)
+
+//3.测试代码:
+IMapper iMapper = sqlSession.getMapper(IMapper.class);
+HashMap<Integer, Object> students = iMapper.queryStudentWithHashMap();
+for (Integer integer : students.keySet()) {
+	System.out.println(integer+students.get(integer).toString());
+}
+
+
+9.SpringBoot整合Mybatis
+详情见SpringBoot入门中6.1:数据访问
+
+
+11.mybatis架构:
+·分层:
+mybatis大概分为4层分别是:接口层、数据处理层、框架支撑层、引导层
+
+
+接口层(广义接口):在Mapper接口中定义的方法和测试代码(Demo)中的各种build、openSession方法.对外暴露的
+
+数据处理层:参数处理	SQL解析		SQL执行		处理结果
+					(Executor)
+在这个过程中每一步都对应一个对象
+
+框架支撑层:事务管理、缓存机制、连接池管理(各种辅助功能)	很多都是配置在config文件中的
+
+引导层:SQL语句方式:XML配置	接口注解		(前面说过执行sql语句有两种方式的)
+
+·分析源码:
+主要研究的代码:
+Reader reader = Resources.getResourceAsReader("me/config.xml");				1
+
+SqlSessionFactory sessionFactory = new SqlSessionFactoryBuilder().build(reader);	2
+
+SqlSession sqlSession = sessionFactory.openSession();					3
+
+IMapper iMapper = sqlSession.getMapper(IMapper.class);					4
+
+iMapper.xxx();										5
+第一步是服务于第二步的,重点研究第二步.
+
+第二步详解:
+首先mybatis底层是将config.xml文件(和mapper.xml文件)的所有信息保存到Configuration文件中的.
+调用build方法,将字符流传入,通过这个字符流mybatis有一个XMLConfigBuilder是专门解析xml文件的,用解析出来的对象(XMLConfigBuilder)调用parse方法,parse方法可以将解析出来的内容保存到一个Properties对象(文件)中.
+在解析过程中会解析config文件的所有标签,也包括mapper文件(映射文件)的解析,由于mapper.xml文件的路径是需要在config文件中定义的,所以解析config的时候就可以直接解析mapper文件.mapper文件的解析最具代表性的也就是增删改查
+找到了mapper文件的路径之后再用parse方法对mapper进行解析,解析完了之后调用MapperBuilderAssistant类的addMappedStatement方法将刚才解析到的所有内容传入,返回一个MappedStatement对象.也就是mybatis会将Mapper.xml中的增删改查的标签解析成MappedStatement对象(所以MappedStatement拥有Mapper.xml文件中SQL语句的所有定义信息)
+由于是在config中解析mapper标签,然后再调用mapper专门的解析方法,之前说过config.xml文件的所有信息保存到Configuration,而MappedStatement对象又是保存mapper文件的,所以MappedStatement存在于Configuration对象中.
+
+前面说过调用parse方法可以解析config和mapper文件,将解析的结果存放在Configuration对象中,将这个对象返回作为形参放入build方法里,这个方法返回
+SqlSessionFactory接口的实现类DefaultSqlSessionFactory,此时经过上面一大堆的步骤之后,终于将DefaultSqlSessionFactory类返回出去,创建了SqlSessionFactory类.SqlSessionFactory-->实现类DefaultSqlSessionFactory-->包含了Configuration类,所以SqlSessionFactory拥有一切内容.
+
+第三步详解:
+openSession方法的本质是调用DefaultSqlSessionFactory实现类的实现方法,这些方法最终都指向了一个私有的openSessionFromDataSource()方法,在该私有方法中
+通过configuration.newExecutor(tx, execType);创建执行器	-->默认执行器是SimpleExecutor(ExecutorType.SIMPLE)
+
+根据不同的类型ExecutorType(执行器策略,关于执行策略详情见SqlSessionFactory),产生不同的Executor,并且会对执行器产生拦截操作.
+Executor executor = this.configuration.newExecutor(tx, execType);
+通过装饰模式,将刚才产生的executor包装成一个更强大的executor.这个拦截器是一个链的结构,每一个链都会增强一次执行器.
+这个执行器就可以执行增删改查了,通过DefaultSqlSession(configuration, executor, autoCommit(事务))构造方法,创建一个DefaultSqlSession,并返回出去,DefaultSqlSession就是SqlSession的实现类.openSession方法最后返回一个DefaultSqlSession.
+
+第四步详解:
+获取接口的class文件(可以使用反射)
+包含SqlSession(SqlSession包含Configuration、executor、事务)、代理接口的对象(MapperInterface)、methodCache(存放查询缓存,底层是CurrentHashMap(解决高并发问题,线程问题))
+
+第五步详解:
+执行Mapper接口的方法时被MapperProxy类的invoke方法拦截了,MapperProxy实现自InvocationHandler(动态代理接口),用到了代理对象,所以实际上步骤4获取到的代理对象就是MapperProxy对象.代理对象帮我们代理执行增删改查的方法(代理模式)
+
+通过mapperMethod.execute(this.sqlSession, args)实际调用增删改查的方法.依靠了SqlSession中的Configuration和Executor...
+
+通过convertArgsToSqlCommandParam()方法处理增删改查的参数,如果参数是0个,则返回null.如果参数是1个,则返回第一个.如果是多个参数,则放入map中.
+
+查询方法:selectOne又调用selectList,查询多个但只要第一个.通过Configuration.getMappedStatement()即用于获取到用于增删改查的对象.
+
+通过boundSql将我们写的SQL和参数值进行了拼接后的对象,这个boundSql就是正真的sql语句.可以被mysql执行的语句.
+
+mybatis使用的是jdbc的PreparedStatement,底层执行增删改查通过PreparedStatement的execute方法.
+
+mybatis底层在执行CRUD可能会涉及到的四个处理器:
+StatmentHandler:对象PreparedStatement处理器
+ParamenterHandler:参数处理器--->TypeHandler类型处理器
+ResultSetHandler:结果集处理器
+
+
+整体梳理:
+config.xml和mapper.xml文件被加载存放到-->
+Configuration对象中,这个对象被包含于SqlSessionFactory对象中,SqlSessionFactory实际上是DefaultSqlSessionFactory实现类-->
+通过SqlSessionFactory获得SqlSession,实际上SqlSession是DefaultSqlSession,而DefaultSqlSession又包含Configuration、Executor-->
+通过SqlSession就可以执行sql语句了,实际上是通过Executor执行器执行-->
+Executor执行增删改查的标签,增删改查的底层实际上就是执行MappedStatement-->
+通过MappedStatement对象执行时还需要输入参数 	输入参数:javabean/int/HashMap	
+输入完参数之后,再到数据库里面执行			返回值:javabean/int/HashMap/List
+
+
+你有没有想过为什么Mapper接口能和Mapper.xml文件对应,并且为什么Mapper接口的全限定名要和Mapper.xml中的命名空间对应?
+因为在Mybatis中不管是通过调用SqlSession的selectOne或者是调用SqlSession的getMapper返回的Mapper接口去进行查询,最终真正能执行SQL语句的还得是MappedStatement对象.
+所以我们通过selectOne指定的mapper.xml的命名空间和通过Mapper接口查询的目的就是想通过一个Key来找到其唯一的一个MappedStatement对象.
+也就是说在Mybatis初始化的时候,维护一个Map Map的Key就是命名空间/类全限定名(能理解为什么需要对应了?因为Key得对应上)然后我们调用getMapper方法时,Mybatis就会根据传入类的类全限定名来找到唯一的MappedStatement对象(当然最后返回的还是MapperProxy代理对象)
+
+
+
+
+12.自定义插件:
+四个处理:StatmentHandler、ParamenterHandler、ResultSetHandler、TypeHandler(类型转换器,详情见Mybatis基础第4节)
+四大核心对象:StatmentHandler、ParamenterHandler、ResultSetHandler、Executor(执行器,详情见Mybatis基础1.4)
+
+四大核心对象的共同特点:1.都涉及到了 拦截器 用于增强 2.都包含了该增强操作
+
+·自定义插件的编写逻辑:根据mybatis规则编写一个拦截器,在拦截器内部加入自定义增强功能
+
+//1.编写拦截器:需要实现Interceptor类
+
+public class MyInterceptor implements Interceptor {
+    /**
+     * 当我们在测试代码中调用接口方法时,接口方法会去寻找Mapper文件的过程中被拦截
+     * @param invocation
+     * @return
+     * @throws Throwable
+     */
+    @Override
+    public Object intercept(Invocation invocation) throws Throwable {
+        /*
+        invocation.proceed():可以理解为拦截结束
+         */
+	System.out.println("拦截方法");
+        Object proceed = invocation.proceed();		//拦截结束
+        return proceed;
+    }
+
+    /**
+     * 插件方法 该方法由Mybatis回调,会在Configuration的newExecutor、newParameterHandler、newResultSetHandler、newStatementHandler中回调InterceptorChain的pluginAll方法
+     * 而pluginAll方法会回调所有拦截器的plugin,Mybatis约定必须在plugin方法中调用Plugin.wrap(o, this)的形式(plugin的默认方法也是调用Plugin.wrap)然后将wrap方法的返回值返回给plugin方法(实际上wrap方法最终返回的对象是JDK的代理对象,通过Proxy.newProxyInstance方法创建.代理角色就是Plugin,Plugin实现了InvocationHandler接口)
+     * 所以在Mybatis中是插件嵌套插件的形式(或者说是嵌套代理)所以说plugin方法最终返回的是代理对象,pluginAll方法会将warp方法返回的代理对象作为入参再次传入plugin(wrap)方法中)
+     * 所以当我们想执行任何SQL语句的时候,说过不止一次,在Mybatis中都是通过Executor去执行的,而现在我们又对Executor执行器进行了代理,当我们执行Executor这个真实角色的方法时,首先会调用第一层代理方法,在调用代理方法之前由于该代理方法又被代理了,所以会先调用第二层代理方法(我代理了你的代理)无限套娃
+     * 那么wrap方法干了什么呢?
+     * 首先获取到拦截器上是否有@Intercepts注解以及@Signature注解内的值做进一步操作,最终把当前拦截器的所有信息以及上一个Plugin实例封装到一个Plugin实例中.Plugin就是代理角色
+     * 那么Plugin这个代理角色实例中的代理方法干了什么?
+     * 很简单就是把当前Plugin实例封装的三个元素封装到Invocation中,即当前Plugin代理的目标对象、当前真实角色调用的方法Method对象、真实角色调用方法传入的参数(后面两个参数就是Plugin实例实现的invoke方法的后两个参数)
+     * 
+     * 作用:将拦截器中定义的增强功能和原来的核心对象(Executor)合并起来成为最终的核心对象(当我们调用DefaultSqlSessionFactory的openSession时会增强Executor这个核心对象)
+     * 
+     * @param o 这里回调传入的Object实际上就是运行期间创建根据ExecutorType枚举值创建的Executor执行器对象
+     * @return
+     */
+    @Override
+    public Object plugin(Object o) {
+        /*
+        wrap():
+        参数一:你需要增强的四大核心对象
+        参数二:当前的拦截器,就是this
+        返回值:增强之后的产物
+         */
+        Object wrap = Plugin.wrap(o, this);
+	System.out.println("plugin"+wrap);
+        return wrap;
+    }
+
+    @Override
+    public void setProperties(Properties properties) {				//该方法也可以用来配置ObjectFactory工厂,回调方法 Mybatis会把我们的properties对象传入
+	System.out.println("设置属性"+properties);
+    }
+}
+
+//2.添加注解:
+@Intercepts({
+        @Signature(type = StatementHandler.class,method = "query", args = {Statement.class, ResultHandler.class})
+})
+public class MyInterceptor implements Interceptor {
+.
+.
+.
+}
+
+解释:
+@Intercepts({	//告知当前类是一个拦截器
+        @Signature(type = StatementHandler.class,method = "query", args = {Statement.class, ResultHandler.class})
+})
+
+@Signature:
+type:具体拦截哪个对象(四大核心对象之一)的class文件
+method:具体拦截type对应对象的哪个方法,这里拦截的是query(查询)方法
+args:拦截的方法的参数,有点时候万一有重载方法既可以通过这种方式来指定具体方法,参数类型是class.注解类型是class
+
+Invocation:
+getTarget() return Object;				//得到当前被代理的目标对象
+getMethod() return Method;				//得到当前真实角色执行的方法
+getArgs() return Object[];				//得到真实角色调用目标方法传入的参数
+proceed() return Object;				//执行目标方法(关于这个目标方法具体指代哪个方法,对于第一个代理(Plugin)而言目标方法就是当前Executor执行器想要执行的方法,对于第二个代理而言的目标方法是第一个代表对象的代理方法) 该方法内部实际上就是调用getMethod().invoke(getTarget(),getArgs());
+
+//3.配置config.xml
+<plugins>
+    <plugin interceptor="me.interceptors.MyInterceptor">
+        <property name="name" value="张三"/>
+        <property name="age" value="18"/>
+    </plugin>
+</plugins>
+
+interceptor=""		拦截器类的全路径地址
+property=""		配置属于你个人的标签,这是一个键值段name类似于key	value就是value	这些值存放在Properties配置文件中
+
+
+
+//4.查看一下执行日志:调用之前的queryStudentById方法查看执行顺序
+打印结果:
+设置属性{name=张三, age=18}
+plug inorg.apache.ibatis.executor.CachingExecutor@79079097
+plug inorg.apache.ibatis.scripting.defaults.DefaultParameterHandler@43c1b556
+plug inorg.apache.ibatis.executor.resultset.DefaultResultSetHandler@305b7c14
+plug inorg.apache.ibatis.executor.statement.RoutingStatementHandler@71e9ddb4
+拦截方法
+Student{id=1, name='张三', age=18, graName='Lucy'}
+
+可知拦截器的方法执行的顺序是:setProperties-->plugin-->intercept-->实际的方法执行结果
+
+分析一遍intercept方法,这个方法会执行四次,原因是虽然我们通过注解指定了要增强的是StatementHandler,但是intercept方法还是会尝试包装所有的核心类,理解分析一下这句话什么意思.
+对于每一个Plugin而言其内部都封装了一个独立的Map<Class<?>, Set<Method>> signatureMap;Map的Key是当前Plugin拦截的目标类的.class文件 Map的Value是当前拦截器拦截的目标类的Method方法对象.
+之前说过在Mybatis中会在newExecutor、newParameterHandler、newResultSetHandler、newStatementHandler方法中调用pluginAll方法
+而pluginAll方法并不会检验当前拦截器具体拦截的是哪些核心对象,而是直接根据上述所说返回一个代理对象(但如果某个拦截器没有标注@Intercepts注解的话是会报错的),所以当Mybatis调用newExecutor、newParameterHandler......这四个方法的时候,看源码可知它们都会遍历当前所有的拦截器然后调用它们的plugin方法,用于增强当前的四大核心对象.
+所以每一个核心对象都会被Plugin代理,每一个Plugin都会间接代理四大核心对象,只不过在真正执行的代理方法中(Plugin的invoke方法)会通过signatureMap来判断当前拦截器到底有没有想要对当前核心对象做增强的欲望.
+流程:调用任意一个核心对象的真实方法->经过每个拦截器->调用拦截器的代理方法,在代理方法中进行判断是否对当前真实对象进行拦截->如果要增强则调用拦截器的intercept方法,否则直接调用真实对象的方法.
+
+//5.增加一个新的拦截器,代码和上述拦截器基本一致(只是名称不一样):
+打印使用两个拦截器的日志:
+设置属性{name=张三, age=18}
+设置属性2{name=张三, age=18}
+plugin--->org.apache.ibatis.executor.CachingExecutor@4d1c00d0
+plugin2--->org.apache.ibatis.executor.CachingExecutor@4d1c00d0
+plugin--->org.apache.ibatis.scripting.defaults.DefaultParameterHandler@587e5365
+plugin2--->org.apache.ibatis.scripting.defaults.DefaultParameterHandler@587e5365
+plugin--->org.apache.ibatis.executor.resultset.DefaultResultSetHandler@6913c1fb
+plugin2--->org.apache.ibatis.executor.resultset.DefaultResultSetHandler@6913c1fb
+plugin--->org.apache.ibatis.executor.statement.RoutingStatementHandler@394df057
+plugin2--->org.apache.ibatis.executor.statement.RoutingStatementHandler@394df057
+拦截方法2
+拦截方法
+Student{id=1, name='张三', age=18, graName='Lucy'}
+
+此时拦截器的执行顺序是:12->12->12->12->12-> 21 ->实际执行结果,知道为什么是这个顺序吗?
+因为setProperties和plugin确实是按照插件的声明顺序调用的,不过调用intercept方法的本质是通过代理对象来调用,而代理对象确实也是按照声明的拦截器顺序创建的.关键就是嵌套代理,因为第一个Plugin代理对象的代理方法被第二个Plugin代理对象代理,所以越往后声明的拦截器的intercept方法会越先调用.
+
+理解:只需要将setProperties、plugin和intercept分为两组来看.
+总结:放行的时候满足先进后出的原理
+另外:谁是1谁是2是根据config文件中的顺序来的
+
+//6.增加具体的功能:这里做的是修改传入的语句
+
+主要看intercept方法:
+常用方法:
+metaObject.getValue("parameterHandler.parameterObject")		mapper文件中的sql语句中的参数值
+metaObject.getValue("parameterHandler.boundSql")		mapper文件中的sql语句
+metaObject.setValue("parameterHandler.parameterObject",2)	设置sql语句传入的参数
+
+public Object intercept(Invocation invocation) throws Throwable {
+	/*
+        invocation.proceed():可以理解为拦截结束
+         */
+        System.out.println("拦截方法");
+
+        Object target = invocation.getTarget();
+
+        MetaObject metaObject = SystemMetaObject.forObject(target);
+
+        metaObject.getValue("");		//主要是该步骤
+//	metaObject.setValue("parameterHandler.parameterObject",2);		//此时是无法设置参数值的,因为这里是真的query的拦截
+        Object proceed = invocation.proceed();		//拦截结束,真正执行sql
+        return proceed;
+}
+
+invocation.getTarget():获取到target(target就是RoutingStatementHandler)可以从RoutingStatementHandler中获取boundSql/parameterhandler
+parameterhandler实际上就是DefaultParameterHandler
+
+SystemMetaObject.forObject(target):将target包装一下,返回值是MetaObject.通过MetaObject我们就可以获取到Mapper文件中的一些内容.
+
+metaObject.getValue(""):从target中(RoutingStatementHandler)获取内容,因为是包装的target.通过parameterhandler就可以获得语句和输入参数.
+
+metaObject.getValue("parameterHandler.parameterObject")		mapper文件中的sql语句中的参数值
+metaObject.getValue("parameterHandler.boundSql")		mapper文件中的sql语句
+
+
+//7.由于此时这里的方法是针对query拦截的,所以无法修改参数值,所以我们要修改拦截的方法
+@Intercepts({
+        @Signature(type = StatementHandler.class,method = "parameterize", args = {Statement.class})
+})
+
+method改为parameterize
+args对应参数
+
+
+13.Executor执行器策略之BATCH
+
+//1.测试代码:
+reader = Resources.getResourceAsReader("me/config.xml");
+sessionFactory = new SqlSessionFactoryBuilder().build(reader);
+sqlSession = sessionFactory.openSession(ExecutorType.BATCH);
+IMapper iMapper = sqlSession.getMapper(IMapper.class);
+for (int i = 0; i < 100; i++) {
+	Student student = new Student(null, "孙七"+i, 18, "graName"+i);
+	iMapper.addStudent(student);
+}
+
+·原因:视频里是通过log4j来查看的
+
+BATCH:预编译SQL一次,其余DML只需要设置参数即可		编译一次		非常推荐
+insert into student(id,name,age,graname) vlues(#{id},#{name},#{age},#{graname});
+
+没有BATCH:
+	预编译N次,每次DML都需要执行完整的SQL		每次都编译
+
+·还有一种不推荐的方式:
+用到之前的拼接sql的知识,由于不推荐这里就不做介绍了.
+不推荐的原因:1.没有用到mybatis对批量插入的支持	2.不适合数据库迁移	3.如果大量数据会产生很长的sql语句,部分数据库对语句长度有限制
+
+
+
+14.分页插件:PageHelper		项目地址:https://github.com/pagehelper/Mybatis-PageHelper/blob/master/README_zh.md	一直报错
+//1.导入jar包		pagehelper-5.1.9.jar		jsqlparser-0.9.5.jar
+
+//2.配置拦截器(分页插件的本质就是一个拦截器)	config.xml文件中
+    <plugins>
+        <plugin interceptor="com.github.pagehelper.PageInterceptor">
+            <property name="param1" value="value1"/>
+        </plugin>
+    </plugins>
+
+//3.使用方法:介绍两种推荐使用的方法,一共有6种用法,直接在测试代码里添加这一段代码即可
+
+//第二种，Mapper接口方式的调用，推荐这种使用方式。
+PageHelper.startPage(1, 10);
+参数一:查看第几页
+参数二:每一页分多少个数据
+//测试代码:
+IMapper iMapper = sqlSession.getMapper(IMapper.class);
+PageHelper.startPage(3, 20);
+List<Student> students = iMapper.queryAllStudent();
+students.forEach((s)->{
+	System.out.println(s.toString());
+});
+
+
+
+
+//第三种，Mapper接口方式的调用，推荐这种使用方式。
+PageHelper.offsetPage(1, 10);
+
+
+
+
+					MybatisPlus+SpringBoot
+引言:先把SpringBoot+Mybatis的方式启动起来,再来搞这个.这里的内容都是基于SpringBoot的
+
+目录:
+1.引入依赖
+2.Application.yml修改
+3.CRUD接口
+4.条件构造器
+5.主键生成规则
+6.扩展插件之逻辑删除
+7.通用枚举
+8.字段类型处理器之JSON字段
+9.内置插件
+10.自动填充功能
+11.自定义BaseMapper(扩展BaseMapper功能)+SQL注入器
+
+1.引入依赖
+Springboot:
+<dependency>
+    <groupId>com.baomidou</groupId>
+    <artifactId>mybatis-plus-boot-starter</artifactId>
+</dependency>
+
+Other:
+<dependency>
+    <groupId>com.baomidou</groupId>
+    <artifactId>mybatis-plus</artifactId>
+</dependency>
+
+注意:
+引入Mybatis-Plus后不需要再引入mybatis-spring、mybatis防止版本差异导致的问题.
+
+2.Application.yml修改
+虽然表面上Mybatis-Plus说是无侵入的,但还是要添加一些配置.设置完SpringBoot6.1.1的配置后,添加如下配置(使用该配置后Mybatis在Application.yml中的配置就不需要设置了)
+mybatis-plus:
+  config-location: classpath:mybatis-config.xml					//设置当前Mybatis-config.xml文件的路径
+  mapper-locations:								//Mybatis-Plus默认加载classpath:/mapper/**/*.xml位置下的Mapper.xml文件 我们这里把该值设为空,因为Mapper.xml文件已经在Mybatis-config文件中指定过了,如果这里不设为空则会报错
+
+3.CRUD接口
+目录:
+3.1ServiceCRUD接口
+3.2MapperCRUD接口
+
+
+
+
+3.2MapperCRUD接口(有疑问!)
+·BaseMapper<T>:继承自Mapper接口,我们自已编写的Mapper接口可以继承自该接口并指定泛型就可以拥有一些CRUD的功能(不需要写Mapper.xml文件)该接口封装了一些dao常用的增删改查
+insert(T) return int;										//插入一条记录 args0:插入的对象(泛型类型) 返回值为影响的行数
+
+delete(@Param(Constants.WRAPPER) Wrapper<T>) return int;					//根据Wrapper<T>对象的条件删除记录
+deleteBatchIds(@Param(Constants.COLLECTION) Collection<? extends Serializable>) return int;	//根据ID批量删除记录 args0:根据表中的ID删除记录(为什么是Serializable 因为表中的ID可以是Integer也可以是String它们都实现了Serializable接口)
+deleteById(Serializable) return int;								//根据ID删除记录 args0:参数意义同上方法
+deleteByMap(@Param(Constants.COLUMN_MAP) Map<String, Object>) return int;			//根据Map的条件删除记录
+
+update(@Param(Constants.ENTITY) T,@Param(Constants.WRAPPER) Wrapper<T>) return int;		//根据Wrapper<T>条件,更新记录
+updateById(@Param(Constants.ENTITY) T) return int;						//根据参数的ID修改记录 args0:修改后的对象(根据该对象的ID匹配数据库里已有的数据然后更新)
+
+selectById(Serializable) return T;								//根据主键ID查询数据
+selectOne(@Param(Constants.WRAPPER) Wrapper<T>) return T;					//根据Wrapper<T>条件查询一条记录
+selectBatchIds(@Param(Constants.COLLECTION) Collection<? extends Serializable>) return List<T>;	//根据主键ID批量查询数据
+selectList(@Param(Constants.WRAPPER) Wrapper<T>) return List<T>;				//根据entity条件查询出所有数据
+selectByMap(@Param(Constants.COLUMN_MAP) Map<String, Object>) return List<T>;			//根据Map条件查询所有数据
+selectMaps(@Param(Constants.WRAPPER) Wrapper<T>) return List<Map<String, Object>>;		//根据Wrapper条件查询所有数据
+selectObjs(@Param(Constants.WRAPPER) Wrapper<T>) return List<Object>;				//根据Wrapper条件查询全部记录,只返回第一个字段的值
+selectPage(IPage<T>,@Param(Constants.WRAPPER) Wrapper<T>) return IPage<T>;			//根据entity条件查询所有记录并分页 该方法的返回值对象就是args0这个入参对象
+selectMapsPage(IPage<T> page,@Param(Constants.WRAPPER) Wrapper<T>) return IPage<Map<String, Object>>;	//根据Wrapper条件,查询全部记录并翻页
+selectCount(@Param(Constants.WRAPPER) Wrapper<T>) return Integer;				//根据Wrapper查询总记录数
+
+
+4.条件构造器
+目录:
+4.1AbstractWrapper
+
+
+4.1AbstractWrapper
+
+引言:
+以下如果入参中有泛型R 在普通Wrapper中是String 在LambdaWrapper中是函数(例如Entity::getId) 另外泛型R表示数据库表字段,在普通Wrapper中R是String表字段的值就是字符串 但在LambdaWrapper中 R表示的函数方法是Entity实体类中表字段对应的get方法(也就是在Wrapper中直接通过id来对应的,在LambdaWrapper中要通过Entity::getID来得到)
+
+
+·ISqlSegment:顶级接口 继承自Serializable
+getSqlSegment() retrun String;									//SQL片段
+
+Wrapper<T>:继承自ISqlSegment
+
+·Compare<Children, R>:顶级接口
+allEq(Map<R, V>) return Children;					//内部通过调用allEq(Map<R, V>,true)来完成
+allEq(Map<R, V>,boolean) return Children;				//内部通过调用allEq(true,Map<R, V>,boolean)来完成
+allEq(boolean,Map<R, V>,boolean) return Children;			//allEq是区别于eq方法的,allEq中Map的每个字段之间用and连接 返回值是泛型类型 args0:执行条件(该条件是否假如到最后生成的SQL中) args1:Map的Key为数据库字段名 Value为字段值 args2:是否在Map的某个Value为null时调用isNull方法 true则调用 false则忽略该字段
+-allEq({id:1,name:"老王",age:null})它构建的条件语句就类似id = 1 and name = '老王' and age is null 如果传入第二个参数为false,则会自动忽略age字段
+
+eq(R,Object) return Children;						//内部通过调用eq(true,R,Object)来完成
+eq(boolean,R,Object) return Children;					//相当于[where R = Object] args0:执行条件 args1:数据库表字段 args2:字段值
+
+ne(R,Object) return Children;						//内部通过调用ne(true,R,Object)来完成
+ne(boolean,R,Object) return Children;					//相当于[where R <> Object] 不等于
+
+gt(R,Object) return Children;						//...
+gt(boolean,R,Object) return Children;					//相当于[where R > Object]
+
+ge(R,Object) return Children;						//...
+ge(boolean,R,Object) return Children;					//相当于[where R >= Object]
+
+lt(R,Object) return Children;						//...
+lt(boolean,R,Object) return Children;					//相当于[where R < Object]
+
+le(R,Object) return Children;						//...
+le(boolean,R,Object) return Children;					//相当于[where R <= Object]
+
+between(R,Object,Object) return Children;				//...
+between(boolean,R,Object,Object) return Children;			//相当于[where R between Object0 and Object1] args2:相当于Object0 args3:相当于Object1
+
+notBetween(R,Object,Object) return Children;				//...
+notBetween(boolean,R,Object,Object) return Children;			//相当于[where R not between Object0 and Object1]
+
+like(R,Object) return Children;						//...
+like(boolean,R,Object) return Children;					//相当于[where R like '%Object%']
+
+notLike(R,Object) return Children;					//...
+notLike(boolean,R,Object) return Children;				//相当于[where R not like '%Object%']
+
+likeLeft(R,Object) return Children;					//...
+likeLeft(boolean,R,Object) return Children;				//相当于[where R like '%Object']
+
+likeRight(R,Object) return Children;					//...
+likeRight(boolean,R,Object) return Children;				//相当于[where R like 'Object%']
+
+
+·Func<Children, R>:继承自Serializable
+isNull(R) return Children;						//...
+isNull(boolean,R) return Children;					//相当于[where R is null]
+
+isNotNull(R) return Children;						//...
+isNotNull(boolean,R) return Children;					//相当于[where R is not null]
+
+in(R,Collection<?>) return Children;					//...
+in(boolean,R,Collection<?>) return Children;				//相当于[where R in (Collection[0],Collection[1],Collection[2])]
+in(R,Object...) return Children;					//...
+in(boolean,R,Object...) return Children;				//相当于[where R in (Object0,Object1,Object2)]
+
+notIn(R,Collection<?>) return Children;					//...
+notIn(boolean,R,Collection<?>) return Children; 			//相当于[where R not in (Collection[0],Collection[1],Collection[2])]
+notIn(R,Object...) return Children;					//...
+notIn(boolean,R,Object...) return Children;				//相当于[where R not in (Object0,Object1,Object2)]
+
+inSql(R,String) return Children;					//...
+inSql(boolean,R,String) return Children;				//相当于[where R in(String)] in后面跟的是args2 而args2是一条SQL语句
+
+notInSql(R,String) return Children;					//...
+notInSql(boolean,R,String) return Children;				//相当于[where R not in(String)] not in后面跟的是args2 而args2是一条SQL语句
+
+groupBy(R...) return Children;						//...
+groupBy(boolean,R...) return Children;					//相当于[group by R0,R1,R2] 分组这里就不是where了
+
+orderByAsc(R...) return Children;					//...
+orderByAsc(boolean,R...) return Children;				//相当于[order by R0 ASC,R1 ASC,R2 ASC] 正序排序
+
+orderByDesc(R...) return Children;					//...
+orderByDesc(boolean,R...) return Children;				//相当于[order by R0 DESC,R1 DESC,R2 DESC] 倒序排序
+
+orderBy(boolean,boolean,R...) return Children;				//args0:执行条件 args1:是否正序排序 args2:排序字段 相当于[order by R0 DESC/ASC,R1 DESC/ASC,R2 DESC/ASC]
+
+having(String,Object...) return Children;				//...
+having(boolean,String,Object...) return Children;			//如果第二个参数不传相当于[having String] 如果传args2代表args1指定的having SQL语句中含有占位符 相当于[having (String+{0},{1}) ]其中{0}、{1}是占位符用args2的可变参数来替换
+
+func(Consumer<Children>) return Children;				//...
+func(boolean,Consumer<Children>) return Children;			//调用该方法 该方法会回调传入调用者对象 Consumer消费者接口
+
+·Join<Children>:继承自Serializable
+or() return Children;							//...
+or(boolean) return Children;						//args0:执行条件 主动调用该方法表示紧接着下一个方法用or连接(不调用or默认使用and连接) 例如:eq("id",1).or().eq("name","老王")->where id = 1 or name = '老王'
+
+apply(String,Object...) return Children;				//...
+apply(boolean,String,Object...) return Children;			//拼接SQL(无SQL注入的风险) 在原SQL的基础上拼接args1的SQL语句 args2:args1中的占位符的具体内容类似having
+
+last(String) return Children;						//...
+last(boolean,String) return Children;					//无视优化规则直接拼接到当前SQL语句的最后 该方法只能调用一次,多次调用以最后一次为准,有SQL注入的风险,慎用
+
+exists(String) return Children;						//...
+exists(boolean,String) return Children;					//拼接exists语句 相当于[where ... exists (args1)]
+
+notExists(String) return Children;					//...
+notExists(boolean,String) return Children;				//拼接notExists语句 相当于[where ... not exists (args1)]
+
+
+·Nested<Param, Children>:继承自Serializable
+
+or(Consumer<Param>) return Children;					//...
+or(boolean,Consumer<Param>) return Children;				//嵌套or 例如:or(i -> i.eq("name", "李白").ne("status", "活着"))->相当于[where ... or(name = '李白' and status <> '活着')] args0:执行条件 args1:消费函数
+
+and(Consumer<Param>) return Children;					//...
+and(boolean,Consumer<Param>) return Children;				//嵌套and 例如:and(i -> i.eq("name", "李白").ne("status", "活着"))->相当于[where ... and (name = '李白' and status <> '活着')]
+
+nested(Consumer<Param>) return Children;				//...
+nested(boolean,Consumer<Param>) return Children;			//正常嵌套不带AND或者OR 例如:nested(i -> i.eq("name", "李白").ne("status", "活着"))->相当于[where ... (name = '李白' and status <> '活着')]
+
+
+
+AbstractWrapper<T, R, Children extends AbstractWrapper<T, R, Children>>:抽象类 继承自Wrapper<T> 实现了Compare<Children, R>、Nested<Children, Children>、Join<Children>、Func<Children, R>接口
+作用:用于生成sql的where条件,entity属性也用于生成sql的where条件 作用仅仅是生成Where条件可用于 增删改查
+
+
+QueryWrapper<T>:继承自AbstractWrapper<T, String, QueryWrapper<T>> 实现了Query<QueryWrapper<T>, T, String>接口 可以直接通过new来创建
+select(String...) return Children;					//指定当前QueryWrapper<T>只查询指定字段 args0:数据库表字段名
+select(Predicate<TableFieldInfo>) return Children;			//
+select(Class<T>,Predicate<TableFieldInfo>) return Children;		//
+
+
+UpdateWrapper<T>:继承自AbstractWrapper<T, String, UpdateWrapper<T>> 实现了Update<UpdateWrapper<T>, String>接口 可以直接通过new来创建
+set(String,Object) return Children;					//...
+set(boolean,String,Object) return Children;				//设置当前Wrapper的字段值 args1:数据库表字段 args2:设置后的值 例如:(true,"name","老王") 然后调用BaseMapper的update方法,传入被修改对象和修改条件来update记录 相当于[update ... set args1 = 'args2' where T(这个T是update方法传入的待修改的对象)]
+
+setSql(String) return Children;						//直接设置update语句 相当于[where ... set args0 where T(这个T是update方法传入的待修改的对象)]
+
+
+
+AbstractLambdaWrapper<T, Children extends AbstractLambdaWrapper<T, Children>>:抽象类 继承自AbstractWrapper<T, SFunction<T, ?>, Children>
+作用:
+
+LambdaQueryWrapper<T>:继承自AbstractLambdaWrapper<T, LambdaQueryWrapper<T>> 实现了Query<LambdaQueryWrapper<T>, T, SFunction<T, ?>>接口 通过new QueryWrapper<T>().lambda()来获得
+
+
+LambdaUpdateWrapper<T>:继承自AbstractLambdaWrapper<T, LambdaUpdateWrapper<T>> 实现了Update<LambdaUpdateWrapper<T>, SFunction<T, ?>>接口 通过new UpdateWrapper<T>().lambda()来获得
+
+
+5.主键生成规则
+目录:
+5.1自动ID
+5.2自定义ID生成器
+
+引言:
+当我们插入某条记录时,如果主键为null 可以通过Mybatis-Plus制定的规则来帮助我们生成这个ID
+
+
+5.1自动ID
+
+假设这里有一张Teahcer表:在Entity实体类的主键ID上,用@TableID注解进行标注
+public class Teacher {
+    @TableId(type = IdType.ASSIGN_ID)
+    private Long id;
+    private String name;
+}
+
+@TableId:
+String value() default "";				//指定当前被标注的属性对应的数据库中的字段名称
+IdType type() default IdType.NONE;			//主键生成类型
+
+
+IdType:枚举类 规定了主键ID的生成类型
+AUTO						//数据库自增ID
+NONE						//该值表示当前主键ID未指定生成类型 其效果约等于INPUT类型
+INPUT						//用户输入ID 也就是插入记录的时候实体类的主键ID得程序员自已指定(相当于Mybatis-Plus不做任何操作)
+ASSIGN_ID					//使用自定义ID生成器生成ID
+ASSIGN_UUID					//使用自定义ID生成器生成UUID
+
+5.2自定义ID生成器
+
+首先根据5.1的内容可知,如果是通过自定义生成器生成ID则@TableId注解中要指定为IdType.ASSIGN_ID 如果要生产UUID则指定为IdType.ASSIGN_UUID
+
+将我们的自定义的ID生成器添加到SpringBoot容器中(将IdentifierGenerator接口的实现添加到容器中)
+@Bean
+public IdentifierGenerator idGenerator() {
+    return new IdentifierGenerator(){...}
+}
+
+IdentifierGenerator:顶级接口 用于生成自定义主键ID
+nextId(Object) return Number;					//当主键生成类型指定为IdType.ASSIGN_ID时会调用该方法 args0:回调传入当前需要生成主键的Entity对象 返回值为该Entity对象的主键(返回值为Number)
+nextUUID(Object) return String;					//当主键生成类型指定为IdType.ASSIGN_UUID时会调用该方法 该方法是个默认方法(可以不重写)默认方法的算法就是雪花算法 args0:回调传入当前需要生成主键的Entity对象 返回值为该Entity对象的主键,因为已经特指为UUID了所以主键应该就是UUID
+
+
+6.扩展插件之逻辑删除
+
+引言:何为逻辑删除?有些时候为了方便数据恢复和保护数据价值等情况下并不需要数据真正得被删除,而是给一个标记 意思是从逻辑上删除了(虽然数据并没有被真正删除)此时该记录就不会参与到任何事件中就好像透明一样
+
+假设这里有一张表Teacher:在标记属性上标注@TableLogic注解(那么通过该字段我们就可以判断当前记录有没有被逻辑删除)
+public class Teacher {
+    private Long id;
+    private String name;
+    @TableLogic
+    private Integer deleted;
+}
+
+根据Mybatis-Plus的约定,当标记字段类型指定为Integer的时候 0代表未删除 1代表该记录已经被逻辑删除 另外最好指定deleted的默认值为0
+
+我们可以调用BaseMapper的deleteById方法根据实体类的ID来删除一条记录,删除后查询数据库会发现对应的记录并没有被删除,只不过被删除的记录的deleted字段被设置成了1
+然后再调用BaseMapper的selectList方法并传入Wrapper,最终会发现deleted值为1的记录不会被查询到.
+
+强调:不管是删除还是查询 一定得是调用BaseMapper的方法才能体现逻辑删除的效果,如果直接调用原生的Mybatis Mapper接口是不会生效的.
+
+除了通过@TableLogic注解来标注标记字段外,还可以通过application.yml定义全局的逻辑删除规则:
+mybatis-plus:
+  global-config:
+    db-config:
+      logic-delete-field: flag				//将所有Entity类的flag作为标记字段(此时就不需要@TableLogic来标记字段)
+      logic-delete-value: 1 				//逻辑已删除值(当逻辑删除时标记字段的值,默认为1)
+      logic-not-delete-value: 0 			//逻辑未删除值(当逻辑未删除时标记字段的值,默认为0)
+
+
+
+7.通用枚举
+
+引言:通用枚举有什么用?假设这里有一张表Teacher,其中有个属性值是Evaluation(该字段表示对教师的评价) 在设计数据库的时候该字段可能是int类型的 例如0代表优秀 1代表一般 2表示差劲 如果该实体类的字段是Integer类型的,那么就不能保证传入的值一定是0 1 2 这三个数当中的值.
+现在这里把Evaluation定义为一个枚举,通过枚举中的code来和数据库表中的那个int类型的字段对应上,效果如下:
+
+public class Teacher {
+    private Long id;
+    private String name;
+    @TableLogic
+    private Integer deleted;
+    private Evaluation evaluation;			//evaluation和表字段对应		
+}
+
+public enum Evaluation {
+    GOOD(0, "优秀"),
+    General(1, "一般"),
+    BAD(2, "差");
+    Evaluation(int code, String message) {
+        this.code = code;
+        this.message = message;
+    }
+
+    @EnumValue						//通过@EnumValue来标记和数据库表中对应的字段(但这里要注意,这里的属性名无任何含义只要类型对应上即可,数据库字段名和Entity类属性名的对应是在Entity类中的,也就是上面的Teacher类,所以和之前一样evaluation要和表字段对应)
+    private final int code;					
+    private final String message;
+}
+
+最后在application.yml中配置扫描枚举值:
+mybatis-plus:
+  type-enums-package: com.github.enums			//配置当前枚举类的包路径(只有配置了被扫描到后才能生效)
+ 
+现在这就相当于,数据库中int类型的evaluation表字段->和Java中的Evaluation枚举对应->对应是通过@EnumValue注解修饰的属性的值对应的
+
+
+
+
+8.字段类型处理器之JSON字段
+
+现在有一张Teacher表,其中包含一个Address属性,只不过这个Address不是单独出来的一张表,并没有连接查询而是直接以JSON字符串的形式存储在Teacher表中VARCHAR类型,存储和读取的时候直接序列化和反序列化该字段.
+
+@TableName(autoResultMap = true)					//Entity实体类必须标注该注解
+public class Teacher {
+    private Long id;
+    private String name;
+    @TableField(typeHandler = JacksonTypeHandler.class)			//在要JSON序列化和反序列化的字段上标注@TableField并指定typeHandler(类型处理器) 如果是JSON的话可以指定JacksonTypeHandler或者FastjsonTypeHandler
+    private Address address;
+
+}
+
+public class Address {
+    private String country;
+    private String detailedAddress;
+}
+
+此时插入新的记录就会发现Address是以JSON的形式存放在数据库中的.另外在Jackson中是通过ObjectMapper来进行序列化和反序列化的,如果想自定义ObjectMapper还可以这么做:
+@Component
+public class MpJsonConfig implements CommandLineRunner {
+    @Override
+    public void run(String... args) throws Exception {
+        JacksonTypeHandler.setObjectMapper(new ObjectMapper());
+        GsonTypeHandler.setGson(new Gson());
+    }
+}
+
+CommandLineRunner接口是Spring的接口,它会在系统启动的时候回调该接口,那么我们就可以在run方法内调用JacksonTypeHandler的setObjectMapper方法来自定义ObjectMapper.
+
+
+@TableField:
+Class<? extends TypeHandler> typeHandler() default UnknownTypeHandler.class;			//设置字段的类型处理器
+FieldFill fill() default FieldFill.DEFAULT;							//设置字段的填充模式
+
+
+9.内置插件
+目录:
+9.1分页插件
+9.2多租户插件
+9.3乐观锁插件
+9.4防止全表更新和删除的插件
+
+
+
+9.1分页插件
+首先思考一个问题,在Mybatis中如果想要在特定的情况下更改Plugin的行为该怎么做?
+在Mybatis中Mybatis会自动帮助我们创建Interceptor拦截器对象,然后调用Interceptor对象的setProperties方法传进Properties对象,这个Properties对象就包含了Mybatis-config.xml配置文件中指定的配置.
+然后再回调plugin方法,根据回调的Properties来定制插件的功能.
+
+如果是在SpringBoot中还可以通过ConfigurationCustomizer接口回调传入的Configuration(Mybatis原生类)来动态添加插件Plugin
+
+//1.
+所以在Mybatis-Plus中也有一套动态添加插件的方式,代码在如下Configuration类中:
+@Configuration
+public class Configuration {
+
+    @Bean
+    public MybatisPlusInterceptor mybatisPlusInterceptor() {
+        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();						//MybatisPlus拦截器 直接new
+        PaginationInnerInterceptor paginationInnerInterceptor = new PaginationInnerInterceptor(DbType.MYSQL);
+        interceptor.addInnerInterceptor(paginationInnerInterceptor);
+        return interceptor;
+    }
+
+    @Bean
+    public ConfigurationCustomizer configurationCustomizer() {
+        return new ConfigurationCustomizer() {
+            @Override
+            public void customize(MybatisConfiguration configuration) {
+                configuration.setUseDeprecatedExecutor(false);				//调用该方法遵循Mybatis的一级缓存和二次缓存 避免出现缓存问题 注意这里回调的是Mybatis-Plus自已的Configuration类
+            }
+        };
+    }
+
+}
+
+MybatisPlusInterceptor:实现了Interceptor拦截器接口 是Mybatis-Plus的拦截器管家
+addInnerInterceptor(InnerInterceptor) return void;					//通过调用该方法添加Mybatis的内部拦截器
+getInterceptors() return List<InnerInterceptor>;					//得当当前实例封装的所有的内部拦截器
+其余别的方法都是实现的Interceptor接口的方法,都是给Mybatis回调的
+
+·InnerInterceptor:顶级接口,内置插件接口
+
+PaginationInnerInterceptor:分页插件 实现InnerInterceptor接口
+setDbType(DbType) return void;								//设置当前数据库类型 DbType是数据库枚举类型
+setOverflow(boolean) return void;							//溢出总页数后是否进行处理 默认为false不处理 如果设置为true默认会返回第一页的数据
+setMaxLimit(Long) return void;								//单页分页条数限制(默认不限制) 设置这个值比较奇特 首先它会先判断你要查询的Page有没有溢出总页数,如果溢出了则什么都不会查到 如果你的Page没有溢出总页数,但是指定的Page的每页大小超出了这里设置的值 则Mybatis-Plus会手动将我们设置的Page的每页大小设置为这里的最大值 所以如果Page指定的每页数据量大于这里的值则会导致部分值查询不到
+setDialect(IDialect) return void;							//设置方言实现类
+
+//2.接着看测试代码
+通过调用BaseMapper的selectPage来进行分页查询 selectPage需要两个参数,第一个是IPage对象(分页规则) 第二个是Wrapper(条件构建器) selectPage方法返回一个IPage对象(这个对象就是第一个参数,所以查询前和查询后的IPage对象是同一个对象)
+
+Page:简单的分页模型,直接通过new创建 实现IPage接口
+setCurrent(long) return Page<T>;							//设置当前Page是第几页
+setSize(long) return Page<T>;								//设置当前页(Page)的数据量 即每页显示多少记录
+setTotal(long) return Page<T>; 								//设置当前页的总数(作用未知)
+addOrder(OrderItem...) return Page<T>;							//添加当前Page查询完毕的记录排序规则(一定是查询完成后的排序)
+addOrder(List<OrderItem>) return Page<T>;						//添加当前Page查询完毕的记录排序规则(一定是查询完成后的排序)
+setOrders(List<OrderItem>) return void;							//该分页插件的排序规则实现是通过内部封装一个List<OrderItem>来实现的 该方法和上面的方法的区别是,上面的方式是添加排序规则 而这里就相当于是一个setter方法直接将入参覆盖掉当前Page实例的List集合
+
+以下方法是查询完成后调用的方法(即selectPage完成后调用的方法),而且注意IPage对象在查询前后是同一个对象:
+getRecords() return List<T>;								//得到查询到的所有对象(最终得到的集合一定会先经过OrderItem进行字段排序)
+getPages() return long;									//得到当前表的总页数(查询完成之后,Mybatis-Plus就会获得当前表中的数据总量 拿总量除去每页的大小就能得到总页数)
+hasNext() return boolean;								//是否还有下一页
+hasPrevious() return boolean;								//是否还有上一页
+
+//3.如何使用自已的mapper.xml来使用分页插件?也就是现在不用BaseMapper的方法,还是用老一套的方法来完成分页查询.使用方式非常简单
+<select id="selectTeacherPage" resultType="Teacher">
+    select * from teacher where evaluation = #{evaluation}			//这里的where条件是根据教师的评价来查询的(关于教师评价详情见第7小节通用枚举)
+</select>
+
+对应的Mapper接口:
+IPage<Teacher> selectTeacherPage(IPage<Teacher> iPage, Evaluation evaluation);		//args0:IPage有点像透明的对于mapper.xml文件没有任何要求 这里的返回值也可以直接是List<Teacher> 不过IPage会灵活一点
+
+最终直接调用selectTeacherPage方法,传入自定义的分页规则Page即可查询到结果.
+
+
+
+9.2多租户插件
+TenantLineInnerInterceptor
+过于复杂
+
+
+
+9.3乐观锁插件
+
+OptimisticLockerInnerInterceptor:乐观锁插件 实现InnerInterceptor接口
+
+在Entiyt实体类的version字段上标注@Version注解,例如:
+public class Teacher {
+
+    private Long id;
+    private String name;
+    @Version					//被@Version注解标注的属性只能是int、Integer、long、Long、Date、Timestamp、LocalDateTime类型
+    private Integer version;
+}
+
+记录每次更新后version的值会+1,要想乐观锁生效只能通过调用BaseMapper的updateById、update方法 另外update方法的第二个参数需要Wrapper条件构建器,这个Wrapper一旦使用后就不能复用!
+
+
+9.4防止全表更新和删除的插件
+
+BlockAttackInnerInterceptor:防止全表更新与删除插件 针对update和delete语句 实现InnerInterceptor接口
+
+@InterceptorIgnore:拦截忽略注解
+String tenantLine() default "";
+String dynamicTableName() default "";
+String blockAttack() default "";
+String illegalSql() default "";
+
+官网没介绍,示例也没有,淦
+
+
+10.自动填充功能(要和主键生成区分下来)
+
+如果我们在插入/更新某个记录时,对于该Entity对象的某个字段值我们并没有指定具体的值而是希望能有一个全局的方法来帮助我们自动填充某些字段的默认值.只有调用BaseMapper的方法才会生效,记住在Mybatis-Plus中但凡是涉及到Mybatis-Plus注解的相关内容十有八九都必须调用BaseMapper接口的方法才会生效.
+
+public class Teacher {
+    private Long id;
+    private String name;
+    @TableField(fill = FieldFill.INSERT_UPDATE)				//通过@TableField的fill属性来表明当前字段需要自动填充
+    private LocalDateTime dateTime;					//例如当前这个字段 我们在insert或者update的时候并不指定该值
+}
+
+@Component
+public class xxx implements MetaObjectHandler {				//编写一个MetaObjectHandler接口的实现类,并将其添加到容器中 或者通过@Bean添加
+    @Override
+    public void insertFill(MetaObject metaObject) {			//当被@TableField注解标记的字段未指定值时并且是插入语句时会调用该方法
+        this.strictInsertFill(metaObject, "dateTime", LocalDateTime.class, LocalDateTime.now());		//固定写法 args1:待填充的目标字段的属性名 args2:目标字段的类型 args3:具体填充的默认值
+    }
+
+    @Override
+    public void updateFill(MetaObject metaObject) {			////当被@TableField注解标记的字段未指定值时并且是更新语句时会调用该方法
+        this.strictInsertFill(metaObject, "dateTime", LocalDateTime.class, LocalDateTime.now());		//固定写法 args1:待填充的目标字段的属性名 args2:目标字段的类型 args3:具体填充的默认值
+    }
+}
+
+
+FieldFill:填充模式的枚举类
+DEFAULT				//不填充
+INSERT				//插入记录时填充
+UPDATE				//更新记录时填充
+INSERT_UPDATE			//插入和更新记录时填充
+
+
+
+11.自定义BaseMapper(扩展BaseMapper功能)+SQL注入器
+
+
+引言:由于在Java中是单继承,假设现在BaseMapper不能满足需求了,该如何去扩展BaseMapper?
+
+//1.编写BaseMapper的子接口
+public interface MyBaseMapper<T> extends BaseMapper<T> {
+    Integer deleteAll();					//我们希望调用该方法后删除当前Mapper对应的表的所有数据
+}
+
+//2.我们原先的Mapper接口是直接继承自BaseMapper的,现在改为继承MyBaseMapper
+
+//3.编写AbstractMethod抽象类的子类 该抽象类只有一个抽象方法injectMappedStatement(Class<?>,Class<?>,TableInfo) return MappedStatement; 该方法的入参都是回调,最终Mybatis-Plus希望你返回一个MappedStatement 还记得在Mybatis中每一个SQL语句最终的执行都是通过Executor执行器+MappedStatement来执行的 所以我们每自定义一个SQL都需要返回一个MappedStatement 都需要创建一个AbstractMethod的子类
+public class DeleteAll extends AbstractMethod {
+    @Override
+    public MappedStatement injectMappedStatement(Class<?> mapperClass, Class<?> modelClass, TableInfo tableInfo) {
+        // 执行SQL动态SQL参考类SqlMethod
+        String sql = "delete from " + tableInfo.getTableName();
+        // mapper接口方法名一致
+        String method = "deleteAll";
+        SqlSource sqlSource = languageDriver.createSqlSource(configuration, sql, modelClass);		//构建SQL元数据
+        return this.addDeleteMappedStatement(mapperClass, method, sqlSource);				//args1:该值必须和我们自定义的方法名一致
+    }
+}
+
+AbstractMethod:这个抽象类里还有很多方法,详情看源码
+addDeleteMappedStatement(Class<?>,String,SqlSource) return MappedStatement;				//如果自定义SQL是删除语句则调用AbstractMethod的当前方法返回MappedStatement
+addUpdateMappedStatement(Class<?>,Class<?>,String,SqlSource) return MappedStatement;			//更新语句
+addInsertMappedStatement(Class<?>,Class<?>,String,SqlSource,KeyGenerator,String,String) return MappedStatement;		//插入语句
+addSelectMappedStatementForOther(Class<?>,String,SqlSource,Class<?>) return MappedStatement;		//查询语句
+addSelectMappedStatementForTable(Class<?>,String,SqlSource,TableInfo) return MappedStatement; 		//查询语句
+
+
+//4.添加SQL注入器
+
+·ISqlInjector:顶级接口 自动注入接口
+inspectInject(MapperBuilderAssistant,Class<?>) return void;				//检查SQL是否已经注入
+
+AbstractSqlInjector:实现了ISqlInjector接口
+getMethodList(Class<?>) return List<AbstractMethod>;							//Mybatis会回调传入当前正在查询的Mapper的Class对象 Mybatis-Plus希望你返回一个List<AbstractMethod>集合 这个AbstractMethod正巧就是上面第三条我们继承的抽象类 可以预想到Mybatis-Plus拿到这个集合后会回调injectMappedStatement方法来得到MappedStatement实例 从而最终配合执行器来执行我们自定义的SQL语句
+
+DefaultSqlInjector:继承自AbstractSqlInjector
+getMethodList(Class<?>) return List<AbstractMethod>;							//当前这个类默认实现了该方法 在这个默认实现中,Mybatis-Plus往List中注册了很多默认的AbstractMethod实现 而这些AbstractMethod实现就正好一一对应BaseMapper中的所有的抽象方法!!!!!! 所以可想而知,BaseMapper的每个抽象方法的实现就是通过这一个一个的AbstractMethod实现的
+													
+public class MyLogicSqlInjector extends DefaultSqlInjector {
+    @Override
+    public List<AbstractMethod> getMethodList(Class<?> mapperClass) {
+        List<AbstractMethod> methodList = super.getMethodList(mapperClass);				//我们在这里调用了父类的getMethodList方法,那么我们就能得到所有BaseMapper的所有方法的实现了 如果这里不调用,而是直接创建一个新的List 则BaseMapper接口的所有方法都将失效
+        methodList.add(new DeleteAll());								//在BaseMapper(DefaultSqlInjector)注册的AbstractMethod的基础上添加我们第三条编写的自定义的SQL语句
+        return methodList;
+    }
+}
+
+//5.把我们编写的自动注入接口添加到容器中(beanName=sqlInjector)
+@Configuration
+public class Configuration {
+    @Bean
+    public ISqlInjector myLogicSqlInjector() {
+        return new MyLogicSqlInjector();
+    }
+}

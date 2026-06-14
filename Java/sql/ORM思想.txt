@@ -1,0 +1,232 @@
+							ORM思想
+·ORM的基本思想:
+(1):表结构跟类对应,表中字段和类的属性对应,表中记录(一行数据)和对象对应
+(2):让javabean的属性名和类型尽量和数据库保持一致
+(3):一条记录对应一个对象.讲这些查询到的对象放到容器中(List,Set,Map).
+
+·注意:这部分内容是操作数据库的和jdbc是相关联的.
+·前提操作:在sorm数据库中创建了两个表
+员工表:
+ 员工id		id		int	主键	不为null	自增
+ 员工名称	empname		varchar
+ 工资		salary		double(这个应该用de..)
+ 生日		birthday	date
+ 年龄		age		int
+ 所在部门id	deptid		int	外键-->部门表的id
+
+部门表:
+ 部门id		id		int 	主键	不为null	自增	被员工表的deptid所参考
+ 部门名称	dname		varchar
+ 地址		address		varchar
+
+
+目录:
+1.使用Objetc数组存储一条记录
+2.使用List来封装多条的记录
+3.使用map来封装一条记录
+4.使用map来封装多条记录
+5.将表中一条记录封装到javabena当中
+6.将多条记录封装到javaben中
+
+
+1.使用Objetc数组存储一条记录:
+
+用到的ResultSet类的方法:
+原来我们拿值的时候是和表中字段类型对应取值的,但是我们可以直接通过Object类来存储值,因为不管什么类型的都是集成自Object的
+getObject(int columnIndex)		columnIndex:更改的列对应的索引
+
+
+//1.确认执行语句并获取结果集:
+String sql = "select empname,salary,age from emp where id=?";
+preparedStatement = connection.prepareStatement(sql);
+preparedStatement.setObject(1,1);
+ResultSet resultSet = preparedStatement.executeQuery();
+
+//2.创建Object数组并遍历结果集内容并将遍历的结果存放到Object数组里:
+objects = new Object[3];
+while (resultSet.next()){
+	objects[0] = resultSet.getObject(1);		 直接获取为Object类型的值
+	objects[1] = resultSet.getObject(2);
+	objects[2] = resultSet.getObject(3);
+}
+
+
+2.使用List来封装更多的记录:
+
+//1.声明List局部变量:
+List<Object[]> list = new ArrayList<Object[]>();		List里面存放Object数组
+
+//2.确认执行语句并获取结果集:
+String sql = "select empname,salary,age from emp where id>?";
+preparedStatement = connection.prepareStatement(sql);
+preparedStatement.setObject(1, 0);
+ResultSet resultSet = preparedStatement.executeQuery();
+
+//3.遍历结果集的内容保存到Object数组里,然后在被保存到List容器
+while (resultSet.next()) {
+	Object[] objects = new Object[3];
+	objects[0] = resultSet.getObject(1);
+	objects[1] = resultSet.getObject(2);
+	objects[2] = resultSet.getObject(3);
+	list.add(objects);
+}
+
+//4.调用forEach打印List里Object[]数组的内容:
+list.forEach((object)->{
+	System.out.println(Arrays.toString(object));
+});
+
+
+3.使用map来封装一条记录:
+
+//1.创建Map局部变量:
+Map<String,Object> map = new HashMap<String, Object>();
+
+//2.确认执行语句并获取结果集:
+String sql = "select empname,salary,age from emp where id=?";
+preparedStatement = connection.prepareStatement(sql);
+preparedStatement.setObject(1, 1);
+ResultSet resultSet = preparedStatement.executeQuery();
+
+//3.遍历结果集并存放到Map里:
+while (resultSet.next()) {
+	map.put("empname",resultSet.getObject(1));
+	map.put("salary",resultSet.getObject(2));
+	map.put("age",resultSet.getObject(3));
+}
+
+//4.调用forEach打印Map里的一条数据的内容:
+map.forEach((String key ,Object value) ->{
+	System.out.print(key+"--"+value.toString());
+});
+
+4.使用map来封装多条记录:相当于把上面的map外面再套一层List
+
+//1.创建List局部变量:
+List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+
+//2.确认执行语句并获取结果集:
+String sql = "select empname,salary,age from emp where id>?";
+preparedStatement = connection.prepareStatement(sql);
+preparedStatement.setObject(1, 0);
+ResultSet resultSet = preparedStatement.executeQuery();
+
+//3.遍历结果集的内容保存到Map容器里,然后在被保存到List容器:
+while (resultSet.next()) {
+	Map<String, Object> map = new HashMap<String, Object>();
+	map.put("empname", resultSet.getObject(1));
+	map.put("salary", resultSet.getObject(2));
+	map.put("age", resultSet.getObject(3));
+	list.add(map);
+}
+
+//4.调用双层forEach打印Map里的每一条记录:
+list.forEach((map) -> {
+	map.forEach((String key, Object value) -> {
+		System.out.print(key + "--" + value.toString());
+	});
+	System.out.println();	//换行
+});
+
+·另外也可以使用Map套Map的方式:
+Map<String name,Map<String, Object>> map = new HashMap<String name,Map<String, Object>>();
+
+需要注意的是:外面一层的Map的键必须唯一,这里粗糙的使用了name为key(因为这里没有重名)最好是使用id作为key.然后再通过id去遍历里面的map的内容.
+
+
+5.将表中一条记录封装到javabena当中:
+
+//1.创建javabean类:
+private Integer id;
+private String empName;
+private Double salary;
+private Date birthday;
+private Integer age;
+private Integer deptId;
+
+提供get/set方法和带参构造无参构造+toString()方法
+
+
+//2.声明javabean对象:
+Emp emp = null;
+
+//3.确认执行语句并获取结果集:
+String sql = "select empname,salary,age from emp where id=?";
+preparedStatement = connection.prepareStatement(sql);
+preparedStatement.setObject(1, 1);
+ResultSet resultSet = preparedStatement.executeQuery();
+
+//4.遍历结果集的内容保存到javabean对象里;
+while (resultSet.next()) {
+	emp = new Emp();
+	emp.setEmpName(resultSet.getString(1));
+	emp.setSalary(resultSet.getDouble(2));
+	emp.setAge(resultSet.getInt(3));
+}
+
+//5.调用toString方法打印javabean对象的内容:
+System.out.println(emp.toString());
+
+
+6.将多条记录封装到javabean中
+·实现原理:
+还是用List里面加泛型包javabean对象
+List<Emp> list = new ArraysList<Emp>();
+
+
+
+						自定义SORM框架
+·了解了解有助于去学习Hibernate和MyBatis
+
+·核心架构:
+(1)Query接口:负责查询(对外提供服务的核心类)
+(2)QueryFactory类:负责根据配置信息创建query对象
+(3)TypeConvertor接口:负责类型转换
+(4)TableContext类:负责获取管理数据库所有表结构和类结构的关系,并可以根据表结构生成类结构
+(5)DBManger类:根据配置信息,维持连接对象的管理(增加连接池功能)
+
+·工具类:
+JDBCUtils封装常用JDBC操作		StringUtils封装常用字符串操作
+JavaFileUtils封装java文件操作		ReflectUtils封装常用反射操作
+
+·核心bean,封装相关数据:
+ColumnInfo		封装表中一个字段的信息(字段类型、字段名、键类型)
+Configuration		封装配置文件信息
+TableInfo		封装一张表信息
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

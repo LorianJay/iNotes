@@ -1,0 +1,3444 @@
+							SQL
+目录:mysql基础
+1.如何使用终端操作数据库
+2.mysql常用数据类型有哪些
+3.mysql建表约束
+4.数据库的三大设计范式
+5.mysql查询练习
+6.mysql连接查询
+7.mysql事务
+8.存储过程和存储函数
+9.函数
+10.主从复制读写分离
+
+·如何使用终端操作数据库:
+1.如何登陆退出服务器
+2.如何查询数据库中所有的数据库
+3.如何选中某一个数据库进行操作
+4.sql语句中的查询(查询一个表)
+5.如何在一个连接(数据库服务器)中创建以及删除我们的数据库
+6.如何查询某个数据库中所有的数据表
+7.如何创建和删除一个数据表
+8.描述某个数据表的结构
+9.往表中插入数据记录
+10.删除某个表中的数据
+11.如何修改数据
+12.关于字段的增删改
+
+13.为一个表的字段添加一个主键约束
+14.为一个表删除主键约束
+15.为一个表修改主键约束
+
+16.为一个表添加唯一约束
+17.为一个表删除唯一约束
+18.为一个表修改唯一约束
+
+19.为一个表增删改非空约束
+
+20.为一个表增删改默认约束
+
+21.mysql正则表达式
+22.mysql处理重复数据
+23.mysql及sql注入
+24.mysql导出数据
+25.mysql函数
+26.视图
+27.mysql权限大全
+28.应用优化
+29.mysql常见问题和应用技巧
+
+1.如何登陆退出服务器:
+数据库8.0有一个单独的控制台,不需要调用cmd,登陆直接输入密码即可.
+退出:
+exit;			//在mysql8.0,会直接关闭控制台
+
+2.如何查询数据库中所有的数据库:
+show databases;
+
+3.如何选中某一个数据库进行操作(这个是做任何操作的前提)
+use test;			use 后面跟你数据库的名称
+
+4.sql语句中的查询(查询一个表),这个表是我提前用可视化工具写好的:
+
+查找所有数据:
+select * from student;				from跟你需要查看的表的名称	select后面跟需要查询的字段,如果是*就代表所有
+
+打印:
++------------+--------------+
+| Student_ID | Student_Name |
++------------+--------------+
+|          1 | 高琪         |
+|          2 | 马士兵       |
++------------+--------------+
+
+查找指定字段的数据:
+select Student_ID from student;			如果有多个字段,需要用逗号隔开	select Student_ID,Student_Name from student;	
+
+打印:
++------------+
+| Student_ID |
++------------+
+|          1 |
+|          2 |
++------------+
+
+查找指定的某个对象:
+select * from student where Student_ID=1;	where后面指代表中具体的某个数据
+
+打印:
++------------+--------------+
+| Student_ID | Student_Name |
++------------+--------------+
+|          1 | 高琪         |
++------------+--------------+
+
+
+查找去重:如果这里高琪和马士兵的Stuent_ID都是1的话,我们用select Student_ID from student;会打印
++------------+
+| Student_ID |
++------------+
+|          1 |
+|          1 |
++------------+
+而我们不希望它重复,怎么办?
+select distinct Student_ID from teacher;		加上distinct关键字代表去重s
+
+
+
+5.如何在一个连接(数据库服务器)中创建以及删除我们的数据库
+
+create database cmdcreate;			database后面跟数据库的名称
+
+drop database cmdcreate;			database后面跟数据库名称
+
+6.如何查看某个数据控中所有的数据表(前提是选中一个表)
+
+show tables;					直接显示当前选中的数据库的所有的表
+
+7.如何创建和删除一个数据表(前提是选中一个库):
+create table pet(name varchar(20),owner varchar(20),species varchar(20),sex char(1),birth date);
+
+table后面跟你的表的名称,括号里面首先是字段的名称,然后是字段的类型,字段类型里面的括号代表长度
+
+这里可以添加主键约束
+
+删除:
+drop table pet;			table后面跟表名
+
+8.描述某个数据表的结构:
+describe pet;					describe后面跟你需要查看的表的名称
+也可以用desc pet;
+
+打印:
++---------+-------------+------+-----+---------+-------+
+| Field   | Type        | Null | Key | Default | Extra |
++---------+-------------+------+-----+---------+-------+
+| name    | varchar(20) | YES  |     | NULL    |       |
+| owner   | varchar(20) | YES  |     | NULL    |       |
+| species | varchar(20) | YES  |     | NULL    |       |
+| sex     | char(1)     | YES  |     | NULL    |       |
+| birth   | date        | YES  |     | NULL    |       |		date类型的数据,需要传入一个字符串
++---------+-------------+------+-----+---------+-------+
+
+9.往表中插入数据记录:
+insert into pet values('puffball','diane','hamster','f','2018-9-12');
+
+into后面跟表名 values后面跟具体的数据
+
+对某一个字段进行传值:
+insert into user3 (name) values ('张三');			此时只会对当前的这个表的name进行传值.
+
+10.删除某个表中的数据:
+
+delete from testtype;				直接删除这个表中的所有数据,from后面跟需要删除的表
+
+delete from testtype where name='ruben';	where后面指代一个或多个对象
+
+11.如何修改数据:
+
+update testtype set number=3 where number=1;	
+	指代表	   具体修改		where指代被修改的对象
+
+where后面是查找,先找到再修改.
+
+12.关于字段的增删改
+增:alter table user9 add id int;
+删:alter table user9 drop id;
+改:alter table user9 change id id2 int;		change后面跟 原字段+现字段+现字段类型
+
+
+13.为一个表添加一个主键约束:
+alter table user4 add primary key(id);		
+
+table后面跟表名,key后面的括号内容,代表需要添加主键约束的字段,有点类似于与复合主键
+
+14.删除一个表的字段的主键约束:
+alter table user4 drop primary key;		
+
+table后面跟表名 drop后面跟 索引类型+索引名称 
+
+15.修改一个字段的主键:通过修改一个字段的方式来添加主键.
+alter table user4 modify id int primary key;
+
+table后面跟表名,modify后面跟 字段 + 类型(长度)		如果有长度一定要写长度 
+
+16.为一个表添加唯一约束:
+alter table user5 add unique(name);		table后面更表名,变化的是add后面的内容
+
+17.为一个表删除唯一约束:
+alter table user7 drop index id;		table后面跟表名,index后面跟需要删除唯一约束的字段.
+
+18.为一个表修改唯一约束:
+alter table user7 modify name varchar(20) unique;
+
+table后面跟表名,modify后面跟 字段+类型(长度)		如果有长度就要写长度
+
+19.为一个表增删改非空约束:
+增:alter table user9 modify id int not null;		not null代表不为空
+删:alter table user9 modify id int null;		null代表可为空
+
+20.为一个表增删改默认约束:
+增:alter table user10 modify id int default 10;		modify后面跟 字段+类型 default后面跟默认的值
+删:alter table user10 modify id int default null;	default后面跟null
+
+
+21.mysql正则表达式:regexp关键字
+正则表达式一般配合where去寻找一个或多个指定的数据
+
+例如:select * from student where sname regexp '^王';		where后面跟字段名,字段名后面跟regexp
+
+mysql的正则表达式规则:
+
+模式			描述
+^		匹配输入字符串的开始位置。如果设置了 RegExp 对象的 Multiline 属性，^ 也匹配 '\n' 或 '\r' 之后的位置。
+$		匹配输入字符串的结束位置。如果设置了RegExp 对象的 Multiline 属性，$ 也匹配 '\n' 或 '\r' 之前的位置。
+.		匹配除 "\n" 之外的任何单个字符。要匹配包括 '\n' 在内的任何字符，请使用象 '[.\n]' 的模式。
+[...]		字符集合。匹配所包含的任意一个字符。例如， '[abc]' 可以匹配 "plain" 中的 'a'。
+[^...]		负值字符集合。匹配未包含的任意字符。例如， '[^abc]' 可以匹配 "plain" 中的'p'。
+p1|p2|p3	匹配 p1 或 p2 或 p3。例如，'z|food' 能匹配 "z" 或 "food"。'(z|f)ood' 则匹配 "zood" 或 "food"。
+*		匹配前面的子表达式零次或多次。例如，zo* 能匹配 "z" 以及 "zoo"。* 等价于{0,}。
++		匹配前面的子表达式一次或多次。例如，'zo+' 能匹配 "zo" 以及 "zoo"，但不能匹配 "z"。+ 等价于 {1,}。
+{n}		n 是一个非负整数。匹配确定的 n 次。例如，'o{2}' 不能匹配 "Bob" 中的 'o'，但是能匹配 "food" 中的两个 o。
+{n,m}		m 和 n 均为非负整数，其中n <= m。最少匹配 n 次且最多匹配 m 次
+
+
+
+22.mysql处理重复数据:
+1.放置表中出现重复的数据:
+在表中指定主键约束或者唯一约束
+
+2.三种插入方式对于重复数据的处理方式:
+insert into student values();
+	如果你插入了重复的数据,会报错
+
+insert ignore into student values();
+	使用这条插入语句,如果你插入了重复的数据,会产生警告,但不会报错
+
+replace into student values();
+	这条语句会替换原来的数据
+
+3.如果这个表本身没有定义约束,现在要你去重你该怎么办?
+1.对表进行分组从而达到去重的目的:
+select id,name from student group by id,name;
+2.创建一个新表,这个表的内容就是去重后的表:
+create table temp select id,name from student group by id,name;
+3.删除原来的表:
+drop table student;
+4.将表命名会原来的表:
+alter table tmp rename to student;
+
+
+23.mysql及sql注入:
+1.永远不要信任用户的输入。对用户的输入进行校验，可以通过正则表达式，或限制长度；对单引号和 双"-"进行转换等。
+2.永远不要使用动态拼装sql，可以使用参数化的sql或者直接使用存储过程进行数据查询存取。
+3.永远不要使用管理员权限的数据库连接，为每个应用使用单独的权限有限的数据库连接。
+4.不要把机密信息直接存放，加密或者hash掉密码和敏感的信息。
+5.应用的异常信息应该给出尽可能少的提示，最好使用自定义的错误信息对原始错误信息进行包装
+6.sql注入的检测方法一般采取辅助软件或网站平台来检测，软件一般采用sql注入检测工具jsky，网站平台就有亿思网站安全平台检测工具。MDCSOFT SCAN等。采用MDCSOFT-IPS可以有效的防御SQL注入，XSS攻击等
+
+
+24.mysql导出数据:控制台只会导出txt
+show variables like '%secure%';		查看当前的父路径
+
+select * from student into outfile 'D:/mysql/testout/my.txt';		导出的目录必须由你设置好父目录
+
+数据导出的形式:
+select * from student into outfile 'D:/mysql/testout/my.txt'
+fields terminated by ',' enclosed by '"'				每个数据用,隔开,每个数据加上"
+lines terminated by '\r\n';						每列数据之间/r/n
+
+
+自定义导出的格式:好处是,你可以导出一个xml文件或者json文件被别的程序方便读取
+
+注意事项:
+LOAD DATA INFILE是SELECT ... INTO OUTFILE的逆操作，SELECT句法。为了将一个数据库的数据写入一个文件，使用SELECT ... INTO OUTFILE，为了将文件读回数据库，使用LOAD DATA INFILE。
+
+SELECT...INTO OUTFILE 'file_name'形式的SELECT可以把被选择的行写入一个文件中。该文件被创建到服务器主机上，因此您必须拥有FILE权限，才能使用此语法。
+
+输出不能是一个已存在的文件。防止文件数据被篡改。
+
+你需要有一个登陆服务器的账号来检索文件。否则 SELECT ... INTO OUTFILE 不会起任何作用。
+
+在UNIX中，该文件被创建后是可读的，权限由MySQL服务器所拥有。这意味着，虽然你就可以读取该文件，但可能无法将其删除。
+
+
+关于cmd导出sql文件会报错.
+
+
+25.mysql函数:
+
+mysql函数分为:
+
+1.字符串函数:
+ASCII(s):返回字符串s的第一个字符的 ASCII 码:
+	select ASCII(sname) from student;
+
+CHAR_LENGTH(s):返回字符串 s 的字符长度
+	select char_length(sname) from student;
+
+character_length(s):返回字符串 s 的字符数
+	select character_length(sname) from student;	和上面的函数没差
+
+concat(s1,s2...sn):字符串 s1,s2 等多个字符串合并为一个字符串(合并多个字符串)
+	select concat(sname) from student;
+
+concat_ws(x, s1,s2...sn):同concat,但是每个字符串之间会加上x这个分隔符.x代表分隔符
+	select concat_ws("-", "sql", "tutorial", "is", "fun!");
+	
+field(s,s1,s2...):返回第一个字符串 s 在字符串列表(s1,s2...)中的位置
+	select field("c", "a", "b", "c", "d", "e");		返回c在这个字符串数组里的位置
+
+find_in_set(s1,s2):返回在字符串s2中与s1匹配的字符串的位置
+	select find_in_set("c", "a,b,c,d,e");
+
+format(x,n):函数可以将数字 x 进行格式化 "#,###.##", 将 x 保留到小数点后 n 位，最后一位四舍五入。
+	select format(250500.5634, 2);
+	将小数点之前的数按照#,##,###来格式化,取决于小数点之前的数的位数,将小数点后面的数按n来保留
+
+insert(s1,x,len,s2):字符串 s2 替换 s1 的 x 位置开始长度为 len 的字符串
+	select insert("google.com", 1, 6, "runnob");		输出：runoob.com
+	
+locate(s1,s):从字符串 s 中获取 s1 的开始位置
+	select locate('st','myteststring');  输出 5
+
+lcase(s):将字符串 s 的所有字母变成小写字母
+	select lcase('RUNOOB');	输出 runoob
+
+left(s,n):返回字符串 s 的前 n 个字符
+	select left('runoob',2) -- ru
+
+lower(s):将字符串 s 的所有字母变成小写字母
+	select lower('RUNOOB') -- runoob
+
+lpad(s1,len,s2):在字符串 s1 的开始处填充字符串 s2，使字符串长度达到 len
+	select lpad('abc',5,'xx') -- xxabc
+
+ltrim(s):去掉字符串 s 开始处的空格
+	select ltrim("    runoob");-- runoob
+
+mid(s,n,len):从字符串 s 的 start 位置截取长度为 length 的子字符串，同 SUBSTRING(s,n,len)
+	select mid("runoob", 2, 3); -- uno
+
+position(s1 IN s):从字符串 s 中获取 s1 的开始位置
+	select position('b' in 'abc') -- 2
+
+26.视图:
+alter view view_students_info as select id,name,age FROM tb_students_info;
+		
+
+·mysql常用数据类型有哪些?
+·常用的分为三类:数值、日期/时间、字符串(字符)
+1.数值
+2.日期/时间
+3.字符串(字符)
+·数据类型如何选择:日期按照格式选择,数值和字符串按照大小选择 
+
+
+1.数值:1字节=8比特(8个二进制)
+
+类型		大小		范围（有符号）			范围（无符号）			用途
+
+
+tinyint		1 字节		(-128，127)			(0，255)				小整数值
+
+smallint		2 字节		(-32 768，32 767)			(0，65 535)			大整数值
+	
+mediumint	3 字节		(-8 388 608，8 388 607)		(0，16 777 215)			大整数值
+	
+int或integer	4 字节		(-2^31,2^31)			(0，4 294 967 295)			大整数值
+
+bigint		8 字节		略				略				极大整数值
+
+float		4 字节		略				略				单精度(浮点数值)
+
+double		8 字节		略				略				双精度(浮点数值)
+	
+decimal		对DECIMAL(M,D)	依赖于M和D的值			依赖于M和D的值			小数值
+
+
+2.日期/时间:
+·注意:每个时间类型有一个有效值范围和一个"零"值，当指定不合法的MySQL不能表示的值时使用"零"值。
+
+类型		大小(字节)	范围				格式		用途
+
+
+date		3		1000-01-01/9999-12-31		YYYY-MM-DD	日期值
+
+time		3		'-838:59:59'/'838:59:59'	HH:MM:SS	时间值或持续时间
+
+year		1		1901/2155			YYYY		年份值
+
+datetime	8		1000-01-01 00:00:00/		YYYY-MM-DD	混合日期和时间值
+				9999-12-31 23:59:59		HH:MM:SS	
+	
+timestamp	4		略				YYYYMMDD HHMMSS	混合日期和时间值，时间戳
+	
+3.字符串类型:
+类型		大小			用途
+
+
+char		0-255字节		定长字符串
+
+varchar		0-65535 字节		变长字符串
+
+tinyblob		0-255字节		不超过 255 个字符的二进制字符串
+
+tinytext		0-255字节		短文本字符串
+
+blob		0-65 535字节		二进制形式的长文本数据
+
+text		0-65 535字节		长文本数据
+
+mediumblob	0-16 777 215字节		二进制形式的中等长度文本数据
+
+mediumtext	0-16 777 215字节		中等长度文本数据
+
+longblob		0-4 294 967 295字节	二进制形式的极大文本数据
+
+longtext		0-4 294 967 295字节	极大文本数据
+
+	
+
+
+
+
+
+·mysql建表约束
+1.主键约束(复合主键+自增主键)
+2.自增约束
+3.唯一约束
+4.非空约束
+5.默认约束
+6.外键约束
+
+1.主键约束:字段不重复不为null,但只能定义一个主键.不管联合主键还是自增主键都属于主键约束.只能添加一个
+它能够唯一确定一张表中的一条记录,也就是我们通过给某个字段添加约束,就可以使得该字段不重复,且不为空.(类似于set)
+
+create table user(id int primary key,name varchar(20));		int后面跟约束,而且只能定义一个主键
+
+添加复合主键:
+
+create table user2(id int ,name varchar(20),password varchar(20) ,primary key(id,name));	在最后丢入需要添加约束的名称
+
+复合主键:只要丢入的所有字段的值不重复就可以了,这里也就是id和name加起来不重复就就可以了.但同样任何一个字段都不能为null
+
+添加主键约束的第三种方式:通过alter命令
+
+
+
+2.自增约束:和主键约束搭配使用,也属于主键,只能添加一个
+
+添加自增约束:
+create table user3(
+	id int primary key auto_increment,			key后面加auto_increment代表这个值不给定就自增
+	name varchar(20)
+);
+
+插入语句:
+insert into user3 (name) values ('张三');			表名后面跟小括号,里面的字段,代表当前命令只该字段传值
+								这里由于是自增约束,id会默认自增.
+
+
+
+3.唯一约束:约束修饰的字段的值不可以重复,可以添加多个唯一约束
+
+在创建表的时候添加:
+create table user6(id int,name varchar(20),unique(name));	unique后面添加字段
+
+另外一种方式:
+create table user7(id int,name varchar(20) unique);		直接在字段后面添加unique
+
+如果:你创建这样一个表的话,就不是复合的了,这两个字段要单独计算.
+create table user7(id int unique,name varchar(20) unique);
+
+第三种添加方式:在上面,通过alter命令.
+
+添加复合唯一约束:
+create table user6(id int,name varchar(20),unique(id,name));	和复合主键一样,只要id+name不重复就可以了
+
+
+
+4.非空约束:修饰的字段不能为null,就算这个字段有默认值,你也不能传入一个null
+
+在创建表的时候添加:
+create table user9(id int,name varchar(20) not null);
+
+第二种添加方式:在上面,通过alter命令
+
+
+5.默认约束:当我们插入字段值的时候,如果没有传入值,就会使用默认值.
+
+创建表的时候添加:
+create table user10(id int,name varchar(20),age int default 10);		你任然可以在10后面添加别的约束
+
+第二种方式:在上面,通过alter命令
+
+6.外键约束:较为复杂
+--涉及到父表和子表(主表/副标)
+
+班级:
+create table classes(id int primary key,name varchar(20));
+
+学生表:
+create table students(id int primary key,name varchar(20),class_id int,foreign key(class_id) references classes(id));
+
+后面的key后面跟(子表字段) references后面跟父表+括号里面的父表字段.前面的内容来自后面的内容
+
+往班级里插入数据:
+insert into classes values(1,'一班');
+insert into classes values(2,'二班');
+insert into classes values(3,'三班');
+insert into classes values(4,'四班');
+
+往学生表里插入数据:
+insert into students values(1001,'张三',1);
+insert into students values(1002,'李四',2);
+insert into students values(1003,'王五',3);
+insert into students values(1004,'赵六',4);
+
+×:insert into students values(1005,'孙七',5);	此时会报错
+
+解释一下外键的作用,此时students表里面的class_id字段的值必须来自classes表中的id.也就是说class_id的值只能取id的值.
+而且,如果父表的值被子表引用,那你也是不可以删除父表的那个被引用的值的.
+
+此时删除 delete from classes where id=1;就会报错.
+
+
+
+使用alter改变表的字段约束:
+not null:
+alter table tablename modify column1 columntype not null;
+alter table tablename modify column1 columntype null;
+unique:
+alter table tablename add unique (column1);
+alter table tablename add constraint indexname unique (column1,column2);
+alter table tablename drop index indexname;		//根据索引名称删除索引
+primary key:
+alter table tablename add primary key(column1);
+alter table tablename add constraint constraintname primary key (column1,column2)
+alter table tablename drop primary key;
+foreign key:
+alter table tablename add foreign key (childColumn) references fathertablename(fatherColumn) on delete ... on update ...;
+alter table tablename add constraint indexname foreign key (childColumn) references fathertablename(fatherColumn) on delete ... on update ...;
+alter table tablename drop foreign key indexname;
+check:
+alter table tablename add check (column_name1>number and/or ...)
+alter table tablename add constraint constraintname check (column_name1>number and/or ...);
+alter table tablename drop check constraintname;
+default:
+alter table tablename alter column1 set default value;
+alter table tablename alter column1 drop default;
+auto_increment:
+alter table tablename modify column1 columntype auto_increment;
+alter table tablename modify column1 columntype;	
+对于自增删除的解释:直接作用于列的只有 not null、default、auto_increment.如果是这种暴力更改会不会使得表紊乱?
+1.由于自增必须作用在主键上,而主键保证了not null,所以这种暴力更改不会影响列是not null这点.
+2.自增和默认值不可以同时作用在一列上.
+
+
+
+
+
+·数据库的三大设计范式	第二范式的前提要满足第一范式,第三范式的前提要满足第二范式
+1.第一范式(1NF):数据表中所有的字段都是不可分割的原子值.
+
+首先来看一个不满足的例子:
+
+建表:
+create table student2(id int primary key,name varchar(20),address varchar(30));
+
+插入值:
+insert into student2 values(1,'张三','中国四川省成都市武侯区武侯大道100号');
+insert into student2 values(2,'李四','中国四川省成都市武侯区京城大道200号');
+insert into student2 values(3,'王五','中国四川省成都市高兴天府大道90号');
+
+打印:
++----+------+---------------------------------------+
+| id | name | address                               |
++----+------+---------------------------------------+
+|  1 | 张三 | 中国四川省成都市武侯区武侯大道100号   |
+|  2 | 李四 | 中国四川省成都市武侯区京城大道200号   |
+|  3 | 王五 | 中国四川省成都市高新区天府大道90号    |
++----+------+---------------------------------------+
+
+只要字段值开可以继续拆分,就不满足第一范式.
+
+
+
+正确的例子:
+
+建表:
+create table student3(
+	id int primary key,
+	name varchar(20),
+	country varchar(30),
+	provience varchar(30),
+	city varchar(30),
+	details varchar(30)
+);
+
+插入值:
+insert into student3 values(1,'张三','中国','四川省','成都市','武侯区武侯大道100号');
+insert into student3 values(2,'李四','中国','四川省','成都市','武侯区京城大道200号');
+insert into student3 values(3,'王五','中国','四川省','成都市','高兴天府大道90号');
+
+总结:列不可拆分
+
+--范式设计的越详细,对于某些实际操作可能更好,但是不一定都是好处.具体根据项目来
+
+
+
+2.第二范式:必须是满足第一范式的前提下,大前提!!!!!!!!!!!
+第二范式要求,除主键外的每一列都必须完全依赖于主键.
+如果要出现不完全依赖,只可能发生在联合主键的情况下.
+
+订单表:
+create table myorder(
+	product_id int,
+	customer_id int,
+	product_name varchar(20),
+	customer_name varchar(20),
+	primary key(product_id,customer_id)
+);
+
+-问题:
+这里的product_name依赖于product_id,customer_name依赖于customer_id
+除主键以外的其他列,值依赖于主键的部分字段.此时不满足第二范式
+此时需要进行拆表设计
+
+create table myorder(
+	order_id int primary key,
+	product_id int,
+	customer_id int
+);
+
+create table product(
+	id int primary key,
+	name varchar(20)
+);
+
+create table customer(
+	id int primary key;
+	name varchar(20)
+);
+
+分成了三个表之后,就满足了第二范式的设计.
+
+
+
+3.第三范式:必须先满足第三范式!!!大前提
+除了主键列的其他列之间不能有传递依赖关系
+
+错误例子:
+create table myorder(
+	order_id int primary key,
+	product_id int,
+	customer_id int,
+	customer_phone varchar(15)
+);
+
+-问题:我们可以通过customer_phone来找到customer_id,也就是说这两个列之间存在某种依赖关系(联系),customer_id是依赖于主键没错,但是除了主键之外其他列之间还有依赖关系的话就不满足第三范式.
+
+正确例子:应该直接在用户这个表里面添加phone
+
+create table customer(
+	id int primary key;
+	name varchar(20),
+	phone varchar(15)
+);
+
+
+
+
+·mysql查询联系:分为4个表:Student、Teacher、Course、Score
+
+学生表
+Student
+-信息:
+ 学号 
+ 姓名
+ 性别
+ 出生年月日
+ 所在班级
+
+建表:
+create table student(
+	sno varchar(20) primary key,
+	sname varchar(20) not null,
+	ssex varchar(10) not null, 
+	sbirthday datetime,
+	class varchar(20)
+);
+
+
+教师表
+Teacher
+-信息:
+ 教师编号
+ 教师名字
+ 教师性别
+ 出生年月日
+ 职称
+ 所在部门
+
+建表:
+create table teacher(
+	tno varchar(20) primary key,
+	tname varchar(20) not null,
+	tsex varchar(10) not null,
+	tbrithday datetime,
+	prof varchar(20) not null,
+	depart varchar(20) not null
+); 
+
+
+课程表
+Course
+-信息:
+ 课程号
+ 课程名称
+ 教师编号
+
+建表:
+create table course(
+	cno varchar(20) primary key,
+	cname varchar(20) not null,
+	tno varchar(20) not null,
+	foreign key(tno) references teacher(tno)
+);
+
+
+成绩表
+Score
+-信息:
+ 学号
+ 课程号
+ 成绩
+
+create table score(
+	sno varchar(20) not null,
+	cno varchar(20) not null,
+	degree decimal,
+	foreign key(sno) references student(sno),
+	foreign key(cno) references course(cno),
+	primary key(sno,cno)
+);
+
+
+插入数据:
+学生数据:
+insert into student values ('101','张三','男','1997-09-01','95033');
+insert into student values ('102','李四','男','1975-10-02','95031');
+insert into student values ('103','王五','女','1976-01-23','95033');
+insert into student values ('104','赵六','男','1976-02-20','95033');
+insert into student values ('105','孙七','女','1975-02-10','95031');
+insert into student values ('106','周八','男','1994-06-03','95031');
+insert into student values ('107','王尼玛','变态','1976-02-20','95033');
+insert into student values ('108','张全蛋','男','1975-02-10','95031');
+insert into student values ('109','赵铁柱','男','1974-06-03','95031');
+
+教师数据:
+insert into teacher values('804','蔡徐坤','男','1977-07-07','副教授','体育系');
+insert into teacher values('856','邓超','男','1969-03-02','讲师','表演系');
+insert into teacher values('825','王菲','女','1972-05-05','助教','音乐系');
+insert into teacher values('831','刘诗诗','女','1977-08-14','助教','表演系');
+
+课程表数据:
+insert into course values('3-105','计算机导论','825');
+insert into course values('3-245','操作系统','804');
+insert into course values('6-166','数字电路','856');
+insert into course values('9-998','高等数学','831');
+
+成绩表;
+insert into score values('101','3-245','86');
+insert into score values('102','3-245','75');
+insert into score values('103','3-245','68');
+insert into score values('104','3-105','92');
+insert into score values('105','3-105','88');
+insert into score values('106','3-105','76');
+insert into score values('107','6-166','85');
+insert into score values('108','6-166','79');
+insert into score values('109','6-166','81');
+
+
+
+·查询练习:
+
+按照select * ...
+如果在*位置时一个具体的列,那么可以在*这个位置添加一个函数,比如main(*)		但是这里的*要指代一个具体的字段
+max():最大值
+min():最小值
+count():求和
+avg():平均数
+year():如果这个字段是一个时间类型的,那么就获取这个时间的年份
+
+MySQL的where条件里是不能使用这些函数的,只能通过hiving来使用这些函数.
+
+1.查询student表中所有的记录
+			select * from student;
+
+2.查询student表中的所有记录的sname、ssex和class列
+			 	select sname,ssex,class from student;
+
+3.查询教师所有的单位即不重复的depart列
+				select distinct depart from teacher;
+
+4.查询score表中成绩在60到80之间的所有记录(查询某个区间的值)(与运算/&&/and)	还有就是sql语句支持<=     >=
+				select * from score where degree between 60 and 80;
+		固定语句
+				使用运算符(推荐):select * from score where degree > 60 and degree < 80;
+				注意:使用算术运算符应该满足:
+					select * from score where degree > 60 and degree < 80 and another...;
+					每一个限制之间,都必须加上and,并且and之后是字段的名称
+
+5.查询score表中成绩为85,86或88的记录(或运算/||/or)
+				select * from score where degree=85 or degree=86 or degree=88;
+				同上
+
+				使用in关键字:select * from score where degree in(85,86,88);
+
+6.查询student表中为"95031"班或性别为女的同学记录
+				select * from student where ssex='女' or class=95031;使用or关键字就很简单
+
+
+7.以class降序查询student表的所有记录
+		select * from student order by class desc;	by后面跟需要降序的字段,desc代表降序,如果是asc就代表升序	
+		select * from student order by class;		不写,默认就是升序
+		select * from student order by class desc limit 0,1;		查找排序完后,特点位置的数值,前面的数值代表从哪										里开始查,后面代表查多少条
+
+8.以con升序、degree降序查询score表的所有记录
+		select * from score order by cno, degree desc;	多个降序升序用,隔开
+打印:
++-----+-------+--------+
+| sno | cno   | degree |		首先会按照cno升序,然后再在相同的cno里面降序.
++-----+-------+--------+
+| 103 | 3-105 |     92 |
+| 105 | 3-105 |     88 |
+| 109 | 3-105 |     76 |
+| 103 | 3-245 |     86 |
+| 105 | 3-245 |     75 |
+| 109 | 3-245 |     68 |
+| 103 | 6-166 |     85 |
+| 105 | 6-166 |     79 |
+| 109 | 6-166 |     78 |
++-----+-------+--------+
+
+
+9.查询"95301"班的学生人数
+				select count(*) from student where class='95031';
+				统计拥有同一个值的个数.count求和关键字,这里的*=显示出来的名称
+
+
+10.查询score表中的最高分的学生(子查询或者排序),下面有详细讲解.(推荐)
+				select * from score where degree=(select max(degree) from score);
+
+关于子查询:
+--1.找到最高分
+select max(degree) from score;			这个语句,会返回查询的结果内容max里面括住字段
+
+--2.通过确定的最高分,来获取到那个对象
+slect * from score where degree=(select max(degree) from score);
+
+
+不推荐的排序方法:这样做,万一有多个最高分,就没办法了,所以推荐上面那种方式
+select * from score order by degree desc limit 0,1;
+
+
+11.查询每门课的平均成绩
+
+select * from course;			//查询课程对应编号
+
+--通过avg()方法查询平均成绩:
+	
+select avg(degree) from score where cno='3-105';	avg括号里面跟被计算的字段,where指定多个对象(指定课程)
+select avg(degree) from score where cno='3-245';
+select avg(degree) from score where cno='6-166';
+select avg(degree) from score where cno='9-998';
+
+--在一个sql语句里面写:
+--group by分组
+select avg(degree) from score group by cno;
+
+打印成绩表对应的学科:
+select cno,avg(degree) from score group by cno;
+
+打印:
++-------+-------------+
+| cno   | avg(degree) |
++-------+-------------+
+| 3-105 |     85.3333 |
+| 3-245 |     76.3333 |
+| 6-166 |     80.6667 |
++-------+-------------+
+
+
+12.查询score表中至少有2名同学选修的并以3开头的分数的平均分数.
+1.分组
+		select cno from score group by cno ;		类似于去重
+2.添加总和条件
+		select cno from score group by cno having count(cno)>=2;		
+								count是求和关键字,会计算括号里面字段数据的个数总和
+对having的理解:这里是按照cno进行分组的,如果你在分组的后面加上having count(text)>2
+表名你要对当前分组的这个字段进行求和,就是被分出来的每个组公有多少个.括号里面是显示出来的表的名字.
+
+		
+3.以3开头:
+
+		select cno from score group by cno having count(cno)>=2 and cno like '3%';	
+								like:模糊查询,百分号代表通配符,3后面可以是任意的
+4.求平均(需要调用函数的都放在最后)
+
+		select cno,avg(degree) from score group by cno having count(cno)>=2 and cno like '3%';	
+
+5.甚至加上显示几个人
+		select cno,avg(degree),count(*) from score group by cno having count(cno)>=2 and cno like '3%';	
+
+
+
+13.查询分数大于70小于90的sno列:
+			select distinct sno from score where degree>70 and degree<90;
+
+14.查询所有学生的sname、cno和degree列:(多表查询)
+			
+			select sname,cno,degree from student,score where student.sno=score.sno;		
+			只不过这里加上了一个判断,就是要保证student表里面的学号要和score表里面的学号对应.
+
+15.查询所有学生的sno、cname和degree列
+			select sno,degree,cname from score,course where score.cno = course.cno;
+
+
+16.查询所有学生的sname、cname和degree列:
+		select sname,degree,cname from student,score,course where student.sno=score.sno and score.cno=course.cno;
+
+		加上sno和cno:(指定具体的属性)
+select sname,degree,cname,sno,cno from student,score,course where student.sno=score.sno and score.cno=course.cno;
+		这里直接加的话,会说你指定列表不明确
+
+正确:
+select sname,degree,cname,student.sno,course.cno from student,score,course where student.sno=score.sno and score.cno=course.cno;	
+
+打印:
++--------+--------+------------+-----+-------+
+| sname  | degree | cname      | sno | cno   |
++--------+--------+------------+-----+-------+
+| 赵六   |     92 | 计算机导论 | 104 | 3-105 |
+| 孙七   |     88 | 计算机导论 | 105 | 3-105 |
+| 周八   |     76 | 计算机导论 | 106 | 3-105 |
+| 张三   |     86 | 操作系统   | 101 | 3-245 |
+| 李四   |     75 | 操作系统   | 102 | 3-245 |
+| 王五   |     68 | 操作系统   | 103 | 3-245 |
+| 王尼玛 |     85 | 数字电路   | 107 | 6-166 |
+| 张全蛋 |     79 | 数字电路   | 108 | 6-166 |
+| 赵铁柱 |     81 | 数字电路   | 109 | 6-166 |
++--------+--------+------------+-----+-------+
+
+
+但这里显示的话你还是不能区分这个sno和cno是哪个表里面的,所以我们可以通过as关键字,对查找的表进行重命名:
+select sname,degree,cname,student.sno as stu_sno,course.cno as cou_cno from student,score,course where student.sno=score.sno and score.cno=course.cno;	
+
+打印:
++--------+--------+------------+---------+-----------+
+| sname  | degree | cname      | stu_sno | ascou_cno |
++--------+--------+------------+---------+-----------+
+| 赵六   |     92 | 计算机导论 | 104     | 3-105     |
+| 孙七   |     88 | 计算机导论 | 105     | 3-105     |
+| 周八   |     76 | 计算机导论 | 106     | 3-105     |
+| 张三   |     86 | 操作系统   | 101     | 3-245     |
+| 李四   |     75 | 操作系统   | 102     | 3-245     |
+| 王五   |     68 | 操作系统   | 103     | 3-245     |
+| 王尼玛 |     85 | 数字电路   | 107     | 6-166     |
+| 张全蛋 |     79 | 数字电路   | 108     | 6-166     |
+| 赵铁柱 |     81 | 数字电路   | 109     | 6-166     |
++--------+--------+------------+---------+-----------+
+
+
+17.查询"95031"班学生每门课的名称:
+1.找到student里class为95301的学生
+	select * from student where class='95031'
+2.根据找到的学生的sno来对应score表:
+	select * from score where sno in(select sno from student where class='95031');
+3.分组+调用求平均函数:14:00 2022/10/23 
+select cno,avg(degree) from score where sno in(select sno from student where class='95031') group by cno;
+	
+
+
+18.查询选修"3-105"课程的成绩高于"109"号同学"3-105"课程成绩的所有同学记录
+
+select * from score where cno='3-105' and degree>(select degree from score where score.sno='109');
+
+
+19.查询成绩高于学号为"109"、课程号为"3-105"的成绩的所有记录:
+select * from score where degree>(select degree from score where score.sno='109');
+
+20.查询和学号为108、101的同学同年出生的所有学生的sno、sname和sbrithday列.
+	
+1.第一步找到108和101学号的学生的生日
+		select year(sbirthday) from student where sno in(101,108);
+2.通过in查找:
+		select sno,sname,sbirthday from student where year(student.sbirthday) in(select year(sbirthday) from student 		where sno in(101,108));
+
+
+21.查询"邓超"讲师任课的学生成绩:
+大致思路:通过邓超老师的tno从course里面找到对应的cno,在通过course里面的cno找到score里面对应的成绩
+
+1.找到邓超老师的tno:
+		select tno from teacher where tname='邓超';
+
+2.通过tno找到course里面的cno:
+		select cno from course where tno in(select tno from teacher where tname='邓超');
+
+3.通过course里面的cno与score里面的成绩对应:
+select * from score where cno in(select cno from course where tno in(select tno from teacher where tname='邓超'));
+
+
+22. 查询选修某课程的同学数大于5人的教师名
+
+这里又往表中插入了两条数据:
+
+1.分组:
+ 		select cno from score group by cno;
+
+
+2.添加条件:
+		select cno from score group by cno having count(cno)>=4;
+
+3.通过中间表course获得cno
+		select tno from course where cno=(select cno from score group by cno having count(*)>=4);
+
+
+4.有了tno即可找到教师
+select tname from teacher where tno = (select tno from course where cno=(select cno from score group by cno having count(*)>=4));
+
+
+23.查询95031班全体学生记录
+
+			select * from student where class='95033';
+
+
+24.查询存在有学生分数高于85分的课程cno
+
+两种方式:
+	1.去重:select distinct  cno from score where degree>85;
+	2.分组: select * from score where degree>85 group by cno;
+
+
+25.查询出"体育系"教师所教课程的成绩表
+	
+		1.找到体育系老师对应的tno:
+				select tno from teacher where depart='体育系';
+
+		2.通过tno在course里面找到对应的cno
+				select cno from course where tno in(select tno from teacher where depart='体育系');
+		
+		3.通过cno找到score里对应的成绩 
+select * from score where cno in(select cno from course where tno in(select tno from teacher where depart='体育系'));
+
+
+26.查询"体育系"和"表演系"不同职称的教师的tname和prof:使用not in 和union关键字
+
+		1.找到所有表演系老师的职称:
+					select prof from teacher where depart='表演系';
+
+		2.找到体育系老师职称没有和表演系职称相同的老师:
+				select * from teacher where prof not in(select prof from teacher where depart='表演系');
+
+		3.找到体育系老师的职称:
+					 select prof from teacher where depart = '体育系';
+
+		4.找到表演系老师职称里没有和体育系老师职称相同的老师:
+				select * from teacher where prof not in(select prof from teacher where depart = '体育系');
+
+		5.使用union关键字合并语句:
+select * from teacher where prof not in(select prof from teacher where depart='表演系')
+union
+select * from teacher where prof not in(select prof from teacher where depart = '体育系');
+
+27.查询选修编号为"3-105"课程且成绩至少高于选修编号为"3-245"的同学的Cno、Sno和Degree,并按Degree从低到高排序.用any关键字
+
+		由于这里选修编号为"3-245"的同学有多个,理解至少的含义:就是3-105中任意拿出来一个值都要比3-245中最小的成绩还要打
+		
+		1.找到选修编号为"3-245"的所有成绩
+				select degree from score where cno='3-245';
+		2.找到选修编号为"3-105"的所有成绩
+			select degree from score where cno='3-105';
+		3.通过any关键字,来筛选
+		select degree from score where cno='3-105' and degree>any(select degree from score where cno='3-245');				
+		4.添加一个升序:
+		select degree from score where cno='3-105' and degree>any(select degree from score where cno='3-245') order by degree;				
+
+
+28.查询选修编号为"3-105"且成绩高于选修编号为"3-245"课程的同学的Cno、Sno、Degree.利用all关键字
+		和27差不多,但是这里意思是3-105中任意一个成绩拿出来都要比3-245的最大值还要大.而且这里不要排序
+
+		1.修改一下生面的代码:
+		 select degree from score where cno='3-105' and degree>all(select degree from score where cno='3-245');
+
+29.查询所有教师和同学的name、sex和brithday.运用union关键字求交集:
+
+		1.求出所有学生的三个值:
+		select sname,ssex,sbirt	hday from student;
+
+		2.求出所有老师的三个值:
+		select tname,tsex,tbrithday from teacher;
+	
+		3.利用unino求交集:
+		select sname,ssex,sbirthday from student union select tname,tsex,tbrithday from teacher;
+
+		4.注意这里还需要重新设置名称,利用as设置名称:
+select sname as name,ssex as sex,sbirthday as birthday from student union select tname,tsex,tbrithday from teacher;
+		第二排可以不写别名
+
+30查询所有"女"教师和"女"同学的name、sex和birthday
+
+		步骤类似:使用unino关键字
+select sname as name,ssex as sex,sbirthday as birthday from student where ssex='女' union select tname,tsex,tbrithday from teacher where tsex='女';
+
+
+31.查询成绩比该课程平均成绩低的同学的成绩表:临时表		这种临时表用于需要数据对应比较之类的时候使用.
+		
+		1.计算出每门成绩的平均分:
+		select cno,avg(degree) from score group by cno;
+		
+该表命名为a表:				该表为b表:
++-----+-------+--------+		+-----+-------+--------+
+| sno | cno   | degree |		| sno | cno   | degree |
++-----+-------+--------+		+-----+-------+--------+
+| 101 | 3-245 |     86 |		| 101 | 3-245 |     86 |
+| 102 | 3-245 |     75 |		| 102 | 3-245 |     75 |
+| 103 | 3-245 |     68 |		| 103 | 3-245 |     68 |	
+| 104 | 3-105 |     92 |		| 104 | 3-105 |     92 |	
+| 105 | 3-105 |     88 |		| 105 | 3-105 |     88 |	 
+| 106 | 3-105 |     76 |		| 106 | 3-105 |     76 |
+| 107 | 6-166 |     85 |		| 107 | 6-166 |     85 |
+| 108 | 6-166 |     79 |		| 108 | 6-166 |     79 |
+| 109 | 6-166 |     81 |		| 109 | 6-166 |     81 |
+| 110 | 3-245 |     66 |		| 110 | 3-245 |     66 |
++-----+-------+--------+		+-----+-------+--------+
+
+		2.将a表的cno和b表的cno匹配
+select * from score a where degree<(select avg(degree) from score b where a.cno=b.cno);
+
+解释:
+1.这里的a表和b表是临时表,这两个表内容相同,但是互不干扰
+2.理解where a.cno=b.cno		这个语句会选中a.cno=b.cno的所有对象
+
+一步步分析:
+第一次:101的degree为86,这个86会和平均数比较.平均数计算:从表b找到所有cno和表a的cno相同的列,并将degree进行平均计算.这里会将所有cno=3-245的degree进行平均数计算.
+第二次:102的cno=3-248,degree=75.75和平均数比较.平均数计算:从表b找到所有和表的cno(3-245)相同的cno对应的degree进行平均计算.
+
+以此类推
+
+
+32.查询所有任课教师的tname、depart
+	理解题目:既然这个老师要任课,那么他的学生就要有成绩,如果这个老师没有学生有成绩,说明这个老师就不任课
+	1.将score里面的cno分组:
+	 select cno from score group by cno;
+	2.根据cno的分组情况,获得对应的tno,此时就知道哪些老师没有任课了
+	select tno from course where cno in(select cno from score group by cno);
+	3.根据tno,获得teacher里对应的tname和depart
+	select tname,prof from teacher where tno in(select tno from course where cno in(select cno from score group by cno));
+		
+
+33.查询一个班至少有四名男生的班级号
+		
+select class from student where ssex='男' group by class having count(*)>4;
+
+解释:找出所有男性同学所在的班级,并为这个班级分组,统计每个分组的同学个数必须要大于4
+
+
+34.查询student表中不姓"王"的同学的记录:利用模糊查询
+
+select * from student where sname not like '王%';		上面是like,这里就是not like
+
+
+
+35.查询student表中每个学生的姓名和年龄
+
+年龄=当前年份-出生年份
+
+当前年份的函数:select year(now());
+
+		select sname,year(now())-year(sbirthday) as 年龄 from student;
+
+
+
+36.查询student表中最大的和最小的sbirthday日期年份值:逗号隔开!!!!
+
+select min(year(sbirthday))as 最小年龄, max(year(sbirthday))as 最大年龄 from student;
+
+
+37.以班号和年龄从大到小的顺序查询student表中的全部记录
+
+select * from student order by class desc, sbirthday;
+
+38.查询男教师及其所上的课程:
+
+select cname from course where tno in(select tno from teacher where tsex='男');
+
+
+39.查询最高分同学的sno、cno和degree列:
+
+select * from score where degree in( select max(degree) from score);
+
+40.查询和"孙七"同性别的所有同学的sname
+
+select sname from student where ssex in(select ssex from student where sname='孙七');
+
+
+41.查询和"李四"同性别同班级的学生姓名:
+
+select * from student where ssex in(select ssex from student where sname='李四') and class in(select class from student where sname='李四');
+
+
+
+42.查询所有选修"计算机导论"课程的"男"同学的成绩表
+
+select degree from score where sno in(select sno from student where ssex='男' and sno in(select sno from score where cno in(select cno from course where cname='计算机导论')));
+
+
+43.假设使用下面的命令创建了一个grade表:
+
+create table grade(low int(3),upp int(3),grade char(1));
+
+插入以下数据:
+insert into grade values(90,100,'A');			90-100分是a级
+insert into grade values(80,89,'B');			89-80分是b级
+insert into grade values(70,79,'C');
+insert into grade values(60,69,'D');
+insert into grade values(00,59,'E');
+
+
+--现在查询所有学生的sno、cno和grade列:
+
+		select cno,sno,grade from score,grade where degree<upp and degree>low;
+
+44.派生表
+1.查询出所有课程为3-105的学生的成绩表:
+			select * from course where cno='3-105';			
+2.通过这个表查询出当前这个表的学生的degree
+			select co.degree from(select * from course where cno='3-105') co;		
+			注意,此时里面的表就称之为派生表,如果你需要用这个表,你还必须命名这个派生表
+
+45.exist、not exist关键字,类似于in关键字但不相同
+select Sname from student where exist (select * from sc where sno = student.sno and cno = '1');
+带有exist谓词的子查询不返回任何数据,只产生逻辑值true或false.
+由exist引出的子查询,其目标列表达式通常都用 *,因为带exist的子查询只返回真值或假值,给出列名无实际意义.
+这个相关子查询的处理过程是:首先取外层查询中student表的第一个元组,根据它与内层查询相关的属性值(sno值)处理内层查询,若where子句返回值为真,则取外层查询中该元组的Sname放入结果集;
+然后再取student表的下一个元组,重复这一过程直至外层student表全部检查完为止.
+所以其实这里并没有什么比较,是一种比较特殊的筛选方式.
+
+·mysql连接查询:
+
+sql的四种连接查询:
+1.内连接
+inner join 或 join 
+
+
+2.外连接又分为三种连接:
+
+2.左连接
+left join 或者 left outer join
+
+3.右连接
+right join 或 right outer join
+
+4.完全外连接:mysql不支持完全外连接,但可以通过左右连接实现
+full join 或者 full outer join
+
+
+·创建两个表:
+person表:
+-信息:
+id
+name
+cardId
+
+create table person(
+	id int,
+	name varchar(20),
+	cardId int
+);
+
+
+card表:
+-信息:
+id
+name
+
+create table card(
+	id int,
+	name varchar(20)
+);
+
+
+往card表里插入数据:
+insert into card values(1,'饭卡');
+insert into card values(2,'建行卡');
+insert into card values(3,'银行卡');
+insert into card values(4,'工商卡');
+insert into card values(5,'乘车卡');
+
+往person表里插入数据:
+insert into person values(1,'王境泽',1);
+insert into person values(2,'蔡徐坤',3);
+insert into person values(3,'六小龄童',6);
+
+--这里六小龄童的卡的id是6,但你在card表里面是找不到6的.这里没有外键约束,本该是插不进去的.
+
+1.inner join查询:
+select * from person inner join card on person.cardId=card.id;
+或者
+select * from person join card on person.cardId=card.id;
+
+查询person表,但是这里让person和card表进行连接查询. inner join后面跟被连接的表,然后给一个条件就是 card的id要和person的cardId对应
+
+解释内连查询:
+就是两张表中的数据,通过某个字段相对应,查询出相关记录数据.
+
+
+
+2.左连接:是满足条件的补充
+	select * from person left join card on person.cardId=card.id;
+	或者
+	select * from person left outer join card on person.cardId=card.id;
+打印:
++------+----------+--------+------+--------+
+| id   | name     | cardId | id   | name   |
++------+----------+--------+------+--------+
+|    1 | 王境泽   |      1 |    1 | 饭卡   |
+|    2 | 蔡徐坤   |      3 |    3 | 银行卡 |
+|    3 | 六小龄童 |      6 | NULL | NULL   |
++------+----------+--------+------+--------+
+
+解释做连接:
+会把左边的表里面的所有的数据取出来(前面的表person),而右边的表中的数据(card),如果有相等那就显示出来,如果没有就补null
+大致可以理解为会把左右两个表相同的内容拼凑起来,有就显示相同的内容,没有就补充null.右表是对坐标信息的补充
+
+
+
+3.右连接:
+
+	select * from person right join card on person.cardId=card.id;
+	或者
+	select * from person right outer join card on person.cardId=card.id;
+
+打印:
++------+--------+--------+------+--------+
+| id   | name   | cardId | id   | name   |
++------+--------+--------+------+--------+
+|    1 | 王境泽 |      1 |    1 | 饭卡   |
+|    2 | 蔡徐坤 |      3 |    3 | 银行卡 |
+| NULL | NULL   |   NULL |    2 | 建行卡 |
+| NULL | NULL   |   NULL |    4 | 工商卡 |
+| NULL | NULL   |   NULL |    5 | 乘车卡 |
++------+--------+--------+------+--------+
+
+右连接的解释:
+	和上面的左连接正好相反,左表是对右表信息的补充.
+
+
+
+
+4.完全外连接:注意mysql不支持完全外连接!!!
+	select * from person full join card on person.cardId=card.id;		会报错
+
+如何在mysql实现完全外连接?	通过左右连接查询的合并语句
+	select * from person left join card on person.cardId=card.id
+	union
+	select * from person right join card on person.cardId=card.id;
+	
+对于完全连接的解释:
+左表既是对右表的补充,右表也是对左表的补充.也是在满足条件的情况下.
+
+
+
+
+
+
+·mysql事务:
+·介绍:mysql中,事物其实是一个最小的不可分割的工作单元.事物能保证一个业务的完整性
+目录:
+1.mysql默认是开启事务的(自动提交),手动设置事务属性
+2.开启手动事务
+3.事务的四大特性
+
+
+
+
+比如我们的银行转账:
+a->100		a用户转100元
+update user set money=money-100 where name='a';
+b->+100
+update user set money=money+100 where name='b';
+
+--实际的程序中,如果只有一条语句执行成功了,而另外一条没有执行成功
+--出现数据前后不一致
+
+--多条sql语句可能会有同时完成的要求,要么就同时失败.
+
+--mysql中如何控制事务?
+select @@autocommit;		显示当前事务状态码
+set autocommit=0;		设置事务
+rollback;			回滚
+commit;				提交数据库
+
+1.mysql默认是开启事务的(自动提交)
+
+select @@autocommit;		显示当前事务对应的模式代码,这会显示1,默认就是1,自动提交数据
+
+默认事务(1)开启的作用是:当我们去执行一个sql语句的时候,效果会立即体现出来,且不能回滚.
+
+什么是回滚?rollback;
+
+举个例子:
+create database bank;
+
+create table user(
+	id int primary key,
+	name varchar(20),
+	money int
+);
+
+插入数据:
+insert into user values(1,'a',1000);
+
+回滚就是撤销事物语句的效果.
+
+这里插入玩数据之后,即使我调用了rollback,但是刚才插入的语句仍然生效.
+
+
+如何让回滚语句生效?
+调用 set autocommit=0;			设置事务为0
+
+此时再插入数据:
+insert into user values(2,'b',1000);
+
+rollback;
+调用回滚,刚才的插入语句失效,因为此时的数据库还没有提交
+
+重新插入数据并提交数据库:
+insert into user values(2,'b',1000);
+commit;
+
+此时再调用
+rollback;刚才插入的数据将不会回滚,上面事务为1的时候,调用回滚不生效是因为自动提交了事务.而这里则需要手动提交.
+
+
+
+所以如果我们使用手动提交:
+
+update user set money=money-100 where name='a';
+update user set money=money+100 where name='b';
+
+rollback;
+
+如果我们在ab转账的时候发生了什么错误,我们家可以使用rollback回滚,当我们确认没有问题时,我们可以手动提交.
+
+
+
+2.开启手动事务:
+	首先将事务模式设置回set autocommit=0;		0
+
+手动开启事物:
+begin或者start transaction
+
+无法回滚:
+进行转账操作:
+update user set money=money-100 where name='a';
+update user set money=money+100 where name='b';
+此时调用rollback;将不能回滚
+
+当模式为1时如何回滚?:
+begin;
+update user set money=money-100 where name='a';
+update user set money=money+100 where name='b';
+rollback;					回滚结束,begin和rollback之间的语句将失效
+
+只需要在之前加入begin语句,就相当于手动开启了事务.你还是可以通过rollback来进行回滚,但和上面一样,一切止步于提交commit之前.
+
+commit执行提交语句之后,就无法回滚
+
+
+
+
+3.事务的四大特性:
+A 原子性:事务是最小的单位,不可在分割
+C 一致性:事务要求,同一事物中 sql语句,必须保证同时成功或同时失败
+I 隔离性:事务1和事务2之间是具有隔离性的,也就是事务1和事务2互不影响
+D 持久性:事务一旦结束,就不可以返回
+
+
+事务开启:
+	1.修改默认提交 set autocommit=0;
+	2.begin;
+	3.start transaction;
+
+事务手动提交:
+	commit;
+
+事务手动回滚:
+	rollback;
+
+事务是针对多个事务的情况:
+脏读:一个事务读取到另一个事务还没有提交的数据.事务T1将某一值修改,然后事务T2读取该值,此后T1因为某种原因撤销对该值的修改,这就导致了T2所读取到的数据是无效的,值得注意的是,脏读一般是针对于update操作的.
+不可重复读:事务A在同一个事务中读取的数据前后不一致.(原因是因为事务B修改了数据)
+幻读:事务B已经对表中的数据进行添加操作,并且commit了.但是事务A并不能察觉到数据库数据个数发生改变(此时如果事务B也添加了这行记录就会报错)
+
+不可重复读和幻读的区别:一个是读取的值不同,一个是读取的数据量不同.
+不可重复读:读过的数据再读一次发现两次结果不一致
+幻读:第一次和第二次读取的数据量不同.(实际上幻读是不可重复读的一种)
+
+关于事务的隔离性:事务由低到高(虽然隔离性越来越好,但是处理的能力越来越差,所以实际工作中要视情况而定).
+				脏读			不可重复读		幻读
+1.read uncommitted;	 	可能			可能			可能
+2.read committed;			不可能			可能			可能
+3.repeatable read;			不可能			不可能			可能
+4.serializable;			不可能			不可能			不可能
+5.关于隔离级别的查看和修改
+
+
+1.read uncommitted:
+·介绍:
+如果有事务a,和事务b.
+a事务对数据进行操作,在操作的过程中,事务没有被提交,但是b可以看见a的操作结果
+
+还是在bank数据库的user表插入两条数据:
+insert into user values(3,'小明',1000);
+insert into user values(4,'淘宝店',1000);
+
+小明往淘宝店转账800,淘宝店如何才能看到转账成功呢?
+首先需要修改隔离级别:
+		set global transaction isolation level read uncommitted;
+
+进行转账操作:
+start transaction;			手动开启事务
+update user set money=money-800 where name='小明';
+update user set money=money+800 where name='淘宝店';
+
+此时你再开一个数据库(淘宝店查询),进行查询就可以看到已经转账完毕了.(如果没有转账成功,你仍然可以回滚.)
+
+但此时再进行转账操作的哪一个cmd里面,你仍然可以进行rollback,这样就造成了确认转账错误的情况.
+
+如果两个不同的地方,都在进行操作,如果事务a开启之后,他的事务可以被其它事务读到
+这样的显现称之为(脏读)
+脏读:一个事务读取到了另外一个事务没有提交的数据,称之为脏读.(这里的事务可以简单理解为控制台).这种情况是不允许出现的.
+
+
+
+2.read committed:
+
+首先还是修改隔离级别:
+		set global transaction isolation level read committed;
+
+还是在bank的user数据表:
+
+小张:银行会计
+start transaction;			手动开启事务
+select * from user;
+打印:
++----+--------+-------+
+| id | name   | money |
++----+--------+-------+
+|  1 | a      |   800 |
+|  2 | b      |  1200 |
+|  3 | 小明   |  1000 |
+|  4 | 淘宝店 |  1000 |
++----+--------+-------+
+查询完后,进行小王的操作
+
+现在小张对刚才的表进行money的平均数计算:注意这里出现了和视频中内容冲突的地方!!!
+在视频中这里计算平均值所用的表是小张读取到小王修改后的表.
+而我这里所用的表还是之前,小王没有修改过的表,除非小张进行提交业务,才可以获得小王修改之后的表.
+
+按照视频中所说的,这种隔离会产生的问题:
+读取同一个表,发现前后数据不一致.这种问题可以称之为不可重读问题
+但是我这里不并不会出现这种问题.
+
+
+
+小王:
+start transaction;
+insert into user values(5,'小王',100);
+commit;
+提交结束后,继续小张的成绩.
+
+
+
+
+3.repeatable read:
+首先还是修改隔离级别:
+		set global transaction isolation level repeatable read;
+
+在这种隔离级别下会出现的问题:
+
+张全蛋
+start transaction;
+
+王尼玛
+start transaction;
+
+张全蛋
+insert into user values(6,'张全蛋',1000);
+commit;
+
+此时打印张全蛋那边的表:
++----+--------+-------+
+| id | name   | money |
++----+--------+-------+
+|  1 | a      |   800 |
+|  2 | b      |  1200 |
+|  3 | 小明   |  1000 |
+|  4 | 淘宝店 |  1000 |
+|  5 | 小王   |   100 |
+|  6 | 张全蛋 |  1000 |
++----+--------+-------+
+
+王尼玛;
+打印王尼玛这边的表:
++----+--------+-------+
+| id | name   | money |
++----+--------+-------+
+|  1 | a      |   800 |
+|  2 | b      |  1200 |
+|  3 | 小明   |  1000 |
+|  4 | 淘宝店 |  1000 |
+|  5 | 小王   |   100 |
++----+--------+-------+
+
+此时如果你再在王尼玛这边插入含有主键约束的张全蛋数据:
+insert into user values(6,'张全蛋',1000);
+会直接报主键约束的错误:ERROR 1062 (23000): Duplicate entry '6' for key 'PRIMARY'
+
+
+这种现象就叫做幻读.这种可以解决2的不可重读问题,但是不可以解决当的这种主键约束问题.
+事务a和事务b同时操作一张表,事务a提交的数据,也不能被事务b读到,就可以造成幻读.
+
+
+4.serializable:
+首先还是修改隔离级别:
+		set global transaction isolation level serializable;	
+
+张全蛋:
+start transaction;
+
+王尼玛:
+start transaction;
+
+
+张全蛋:
+insert into user values(7,'赵铁柱',1000);
+commit;
+
+此时无论是在张全蛋还是王尼玛的表里面,都是修改过后的数据了.即使王尼玛还没有提交
+
+接着张全蛋接着操作:
+start transaction;				正常执行
+insert into user values(8,'小猪',1000);		此时,执行该语句时,会阻塞.
+
+只有当王尼玛那边提交数据之后,这边才可以正常执行下去.
+当然如果王尼玛这边提交的时间间隔太长还是会报错 Lock wait timeout exceeded; try restarting transaction
+
+当user表被其它另外一个事务操作的时候(以start transaction;语句来判断是否被其它事务操作).其它事务的里面的写操作是不可以进行的.
+
+从第一步开始分析,当张全蛋开始事务时,计算王尼玛也开始了事务,但是由于张全蛋是先开的,所以王尼玛就无法对相同的表进行写操作,除非张全蛋提交了表.
+那么张全蛋没提交时,王尼玛这边会进入排队状态(串行化)直到张全蛋那边提交.
+
+
+串行化的问题就是:处理数据太慢,性能太差.
+
+
+·脏读、幻读、不可重复读总结:
+
+5.关于隔离级别的查看和修改:
+
+如何查看数据库的隔离级别?
+mysql 8.0:	在mysql8.0中
+				select @@global.transaction_isolation;	系统级别的
+				select @@transaction_isolation;	会话级别的
+mysql 5.x:	中mysql5.x中
+				select @@global.tx_isolation;
+				select @@tx_isolation;
+
+打印:
++--------------------------------+
+| @@global.transaction_isolation |
++--------------------------------+
+| REPEATABLE-READ                |
++--------------------------------+
+
+修改隔离级别:
+set global transaction isolation level read uncommitted;		修改为读已提交的,level后面跟隔离对应的级别内容
+
+
+关于四种模式的效率:
+read uncommitted>read committed>repeatable read>serializable
+
+sql默认的隔离级别为:read uncommitted
+
+
+
+
+
+
+
+
+							MYSQL
+·介绍:
+众多数据库中的一种,支持SQL语言.
+
+							SQL优化
+·MySQL版本:主流版本是5.x
+	5.x:
+	5.0-5.1:早起产品的延续,升级维护
+	5.4-5.x:MySQL整合了三方公司的新存储引擎(推荐5.5)
+	8.0:最新,但貌似用得少?
+
+·mysql字符编码:需要统一为UFT-8
+	设置:在my.ini配置文件下
+	[mysql]
+	default-character-set=utf8
+	[client]
+	default-character-set=utf8
+	注意事项:修改编码只对"之后"创建好的数据库生效.
+
+目录:
+1.mysql分层、存储引擎
+2.sql优化
+4.索引
+5.优化示例
+6.优化案例(一表、两表、三表)
+7.避免索引失效的一些原则
+8.其它的优化方法
+9.SQL排序--慢排序日志
+10.分析海量数据
+11.锁机制
+12.主从复制
+
+1.mysql分层、存储引擎:
+{
+比如这里存在一个客户端和一个服务端:
+
+客户端:
+我们从客户端发送一个select语句
+
+服务端:服务端如何执行客户端的语句?
+服务端大概分为四层:
+
+1.连接层:
+客户端发出的select语句,直接交给连接层来处理.连接层建立连接并且拿到这个select,但是不处理这个语句.
+连接层的作用:提供与客户端连接的服务.
+接下来进入服务层
+
+2.服务层:
+刚才发送给连接层的查询操作,连接层不处理,把这个查询操作给服务层,服务层才真正去查询.
+作用:
+1.提供各种用户使用的接口(select等)
+2.提供mysql优化器(mysql Query Optimizer)
+mysql优化器:如果你写的查询语句,mysql觉得太复杂的话,效率太低的话,那这个优化器就会将这个查询语句写一个等价的写法.
+弊端:如果你写了一个优化后的语句,但是mysql优化器并不一定执行这个语句,他有可能执行另外一个语句.这样造成开发的不便.你写的是a,他却执行b
+接下来进入引擎层
+
+3.引擎层:
+作用:提供了各种存储数据的方式:常见的有 :InnoDB、MyISAM
+
+InnoDB和MyISAM主要的区别:
+InnoDB(默认):事务优先(适合高并发操作:行锁)	行锁:一次锁一行的数据
+MyISAM:性能优先(表锁)				表锁:一次锁一个表的数据
+
+查询数据库引擎:
+
+4.存储层:
+作用:存储数据
+}
+
+·查询当前数据库支持的引擎:
+
+首先mysql的结束符有;和\g
+
+show engines;			以表的形式显示出来
+		
+show engines \G			以列的形式显示出来
+
+
+
+·查询当前使用的引擎:
+show variables like '%storage_engine%';
+
+打印:
++---------------------------------+-----------+
+| Variable_name                   | Value     |
++---------------------------------+-----------+
+| default_storage_engine          | InnoDB    |
+| default_tmp_storage_engine      | InnoDB    |
+| disabled_storage_engines        |           |
+| internal_tmp_mem_storage_engine | TempTable |
++---------------------------------+-----------+
+
+·指定数据库对象的引擎:
+这里先创建了一个数据库:create database myBD;
+
+在创建表时添加引擎设置:
+create table tb(id int auto_increment,name varchar(5),dept varchar(5),primary key(id)) 
+engine=myisam auto_increment=1 default charset=utf8;
+
+engine:后面跟引擎
+auto_increment:后面跟自增每次增加几		如果这里是2,那么id每次会增加2
+default charset:设置默认编码集	
+另外我们还可以再这个表后面设置很多东西
+
+
+
+2.sql优化:SQL优化是概率事件
+	原因:性能低、执行时间太长、SQL语句欠佳(连接查询)、索引失效、服务器参数设置不合理
+
+	a.SQL语句:分为两个过程
+	
+	编写过程:
+		select dinstinct ... from ..join ..on ..where .. group by .. having .. order by .. limit
+	解析过程:
+		from.. on.. join .. where group by .. having.. select dinstinct ..order by limit..
+
+		1.From:当涉及多个表的时候，左边表的输出会作为右边表的输入，之后会生成一个虚拟表VT1.
+		(1-J1)笛卡尔积
+		计算两个相关联表的笛卡尔积(CROSS JOIN),生成虚拟表VT1-J1。
+		(1-J2)ON过滤
+		基于虚拟表VT1-J1这一个虚拟表进行过滤,过滤出所有满足ON 谓词条件的列,生成虚拟表VT1-J2.
+		(1-J3)添加外部列
+		如果使用了外连接(Left,Right,Full(当然mysql不支持Full)),主表(保留表/原本的表)中的不符合ON条件的列也会被加入到			VT1-J2中,作为外部行,生成虚拟表VT1-J3.(就算不满足条件,最后也是会显示的,不过内容为null,具体可看之前的外连接特性)
+
+		2.Where:对VT1过程中生成的临时表进行过滤，满足WHERE子句的列被插入到VT2表中。
+		注意：
+		此时因为分组，不能使用聚合运算；也不能使用SELECT中创建的别名；
+		与ON的区别:
+		如果有外部列,ON针对过滤的是关联表,主表（保留表）会返回所有的列,
+		如果没有添加外部列，两者的效果是一样的.
+		应用:
+		对主表的过滤应该放在WHERE,
+		对于关联表，先条件查询后连接则用ON，先连接后条件查询则用WHERE.
+		
+		3.GROUP BY:这个子句会把VT2中生成的表按照GROUP BY中的列进行分组.生成VT3表。
+		注意:
+		其后处理过程的语句,如SELECT,HAVING,所用到的列必须包含在GROUP BY中,对于没有出现的,得用聚合函数.
+		原因:
+		GROUP BY改变了对表的引用,将其转换为新的引用方式,能够对其进行下一级逻辑操作的列会减少
+		我的理解是
+		根据分组字段,将具有相同分组字段的记录归并成一条记录,因为每一个分组只能返回一条记录,除非是被过滤掉了,而不在			分组字段里面的字段可能会有多个值,多个值是无法放进一条记录的,所以必须通过聚合函数将这些具有多值的列转换成单值
+					
+		4. HAVING:这个子句对VT3表中的不同的组进行过滤，只作用于分组后的数据，满足HAVING条件的子句被加入到VT4表中。
+			
+		5. SELECT:这个子句对SELECT子句中的元素进行处理，生成VT5表。
+		(5-J1)计算表达式 计算SELECT 子句中的表达式,生成VT5-J1
+		(5-J2)DISTINCT
+		寻找VT5-1中的重复列,并删掉,生成VT5-J2
+		如果在查询中指定了DISTINCT子句,则会创建一张内存临时表（如果内存放不下,就需要存放在硬盘了）.这张临时表的表结			构和上一步产生的虚拟表VT5是一样的,不同的是对进行DISTINCT操作的列增加了一个唯一索引,以此来除重复数据.
+
+		6.ORDER BY:从VT5-J2中的表中,根据ORDER BY 子句的条件对结果进行排序,生成VT6表.
+		注意：
+		唯一可使用SELECT中别名的地方.
+		
+		7.LIMIT:LIMIT子句从上一步得到的VT6虚拟表中选出从指定位置开始的指定行数据.
+		注意：
+		offset和rows的正负带来的影响
+		当偏移量很大时效率是很低的,可以这么做:
+		采用子查询的方式优化,在子查询里先从索引获取到最大id,然后倒序排,再取N行结果集
+		采用INNER JOIN优化,JOIN子句里也优先从索引获取ID列表,然后直接关联查询获得最终结果
+
+	b.SQL优化,主要就是在优化索引:
+		索引:相当于书的目录,比如我们要查询一个数据,如果没有索引,就需要一个一个的遍历,很浪费时间,有了索引就可以直接跳转到你需要查的内容对应的地方
+		索引:index是帮助mysql搞笑获取数据的数据结构.索引是数据结构(树:B树(默认)、Hash树)
+
+		索引的弊端:
+			   1.索引本身很大,可以存放在硬盘/内存(通常为硬盘)		
+			   2.索引不是所有情况均适用:a.少量数据 b.平凡更新的数据	c.很少使用的列
+			   3.索引会降低增删改的效率:因为如果一个数据有索引,当我们更改这个数据的时候,不但要更改这个数据还要更改索引
+		索引的优势:
+			   1.提高查询效率(降低了IO使用率)
+			   2.降低CPU使用率(orde by age desc):如果没有索引,我需要把这一堆数据全部拿出来然后排序,但如果有索引根据B数的特性,就不需要排序了,因为已经排好了
+			   			
+	
+	B树:和二叉树一样,小的放左边,大的放右边.实际语法上只要大于2(节点大于2)的都叫B树
+	B数:不光有二叉还有三叉树
+	三叉树:			10	50	
+			5	    12		60
+	比10小的放左边,比50大的放右边.介于10和50的放中间.然后在再子节点放置一个小于10的数,让5个另一个小于10的数,形成一个新区间
+	三叉数:可以存放上百万条数据
+	B树:一般都是指B加数,对于B加数来说数据全部存放在B节点中.拿上面的来举例子.10和50只是作为一个分界线,真正存放数据的是在最	后的叶节点
+	B树中查询任意的数据的次数:n次(B树的高度)
+
+
+4.索引
+	分类:
+		主键索引:
+		单值索引:单列,age一个表可以有多个单值索引
+		唯一索引:不能重复
+		复合索引:多个列构成的索引(相当于二级目录:比如找'找'这个字 先找到Z,在找到zhao)
+			 复合索引查找的特性:(name,age)比如我们找李四18岁,如果只有一个李四,我们就不需要在找age了,直接返回
+	
+	查看表的索引:
+	select index from tb;
+		
+	创建索引:这里用的表还是上面创建的那个tb
+
+		方式一:create
+		create 索引类型 索引名 on 表(字段);
+		drop 索引类型  索引名 on 表; 
+		
+		单值索引:
+		create index dept_index on tb(dept);
+		唯一索引:
+		create unique index name_index on tb(name);
+		复合索引:
+		create index dept_name_index on tb(dept,name);
+		
+		方式二:alter
+		alter table 表名 add constraint 索引名 索引类型(字段)
+		单值索引:
+		alter table tb add index dept_index(dept);		√
+		唯一索引:
+		alter table tb add constraint name_index unique(name);
+		复合索引:
+		alter table tb add index dept_name_index(dept,name);	√
+		主键索引:
+		alter table tb add constraint pk_tcid primary key();
+		
+		此时查看一下表结构:
+
+	删除索引:
+		alter tabel 表名 drop 类型 名称.
+
+index:
+create table tablename(column1 columntype,column2 columntype,index indexname (column(length)));
+create index indexname on tablename(column(length))); 
+alter table tablename add index indexname(column_name);
+drop index indexname on tablename;
+unique:
+create table tablename(column_name column_type,unique indexname (column_name(length)));
+create unique index indexname on tablename(column_name(length));
+alter table tablename add unique indexname(column_name(length));
+primary key:
+
+
+
+
+5.SQL性能问题:
+	a.分析SQL的执行计划:explain,可以模拟sql优化器执行sql语句,从而让开发者知道自已编写的sql状况
+	b.mysql的查询优化会干扰我们的优化
+
+	查询执行计划:explain+sql语句
+		     explain select * from tb;			此时会打印一个表
+
+前提:一定要有索引,要研究这里面的任何一个值的前提都是要有索引.
+
+id:查询的编号							1
+select_type :查询类型						2
+table:你查询的那张表	
+partitions :		
+type:索引类型(类型)						3
+possible_keys :预测用到的索引					4
+key:实际使用的索引						5
+key_len:实际使用索引的长度,貌似是根据数据库编码决定的		6		
+ref:表之间的引用						7
+rows:通过索引查询到的数据量,貌似是优化器预估的记录扫描		8
+filtered:
+Extra:额外的信息  						9                      
+
+
+·创建表+添加数据:
+
+课程表:Course
+cid:课程ID
+cname:课程名称
+tid:教这门课的老师对应的教师ID,这里是一个外键要和Teahcer表的tid关联
+create table course(
+	cid int(3),
+	cname varchar(20),
+	tid int(3)
+);
+
+
+老师表:Teacher
+tid:老师ID
+tname:老师名称
+tcid:对应teacherCard的tcid.
+create table teacher(
+	tid int(3),
+	tname varchar(20),
+	tcid int(3)
+);
+
+
+教师证:teacherCard
+tcid:教师证ID
+tcdesc:教师描述
+create table teachercard(
+	tcid int(3) ,
+	tcdesc varchar(200)
+);
+
+
+插入数据:
+课程表:
+insert into course values(1,'java',1);
+insert into course values(2,'html',1);
+insert into course values(3,'sql',2);
+insert into course values(4,'web',3);
+
+教师表:
+insert into teacher values(1,'蔡徐坤',1);
+insert into teacher values(2,'章金莱',2);
+insert into teacher values(3,'王境泽',3);
+
+教师证:
+insert into teacherCard values(1,'鸡你太美');
+insert into teacherCard values(2,'改编不是乱编,戏说不是胡说.什么是国际巨星啊?文体两开花');
+insert into teacherCard values(3,'哎呀.真香');
+
+
+1.id:查询的编号
+目录:
+1.多表
+2.子查询
+3.多表+子查询
+
+1.查询课程编号为2或教师证编号为3的老师信息:多表
+
+//select * from teacher where tid=(select tid from course where cid=2) or tcid=3;
+
+select t.* from teacher t ,course c ,teachercard tc where t.tid = c.tid and t.tid = tc.tcid and (c.cid = 2 or tc.tcid = 3);
+他这里使用的是三表关联的方法.主要分析执行计划,对于语句不做重点.
+
+查看执行计划:
+explain select t.* from teacher t ,course c ,teachercard tc where t.tid = c.tid and t.tcid = tc.tcid and (c.cid = 2 or tc.tcid = 3) \G
+
+打印结果:
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: t
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 3
+     filtered: 100.00
+        Extra: NULL
+*************************** 2. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: tc
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 3
+     filtered: 33.33
+        Extra: Using where; Using join buffer (Block Nested Loop)
+*************************** 3. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: c
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 4
+     filtered: 25.00
+        Extra: Using where; Using join buffer (Block Nested Loop)
+
+·分析:explain+sql
+id:id值相同从上往下顺序执行.这里我们就可以得知,底层执行的时候执行的顺序是:course-->teacher-->teachercard
+	teacher:3条数据
+	teachercard:3条数据
+	course:4条数据
+
+	再给teacher表增加数据:
+	insert into teacher values(4,'吴亦凡',4);
+	insert into teacher values(5,'面筋哥',5);
+	insert into teacher values(6,'卢本伟',6);
+	
+	此时再查看执行计划:
+	teachercard3->teacher6->course4			这里视频里面的是tc->c->t
+
+	因数量的个数改变而改变的原因:笛卡尔积
+	理解一下笛卡尔积:如果现在有a和b两个表,a表有3个数据b表有6个数据.那么3*6=18一共有18种情况
+
+假设现在有三个表:
+a	b	c		计算笛卡尔积:
+2	3	4		2*3=6 6*4=24
+4	3	2		4*3=12 12*2=24
+				程序的最终结果是没有变的都是24,但是中间结果变了.一个是6一个是12.很明显6比12要小,对于内存来说数据越小越好.而程序就喜欢中间数据量越小越好
+
+	此时删掉course表中的两条数据:查看执行计划:c-->t-->tc
+
+·结论:数据小的表,优先查询.
+	
+
+2.查询教授sql课程的老师的描述(desc):子查询
+select tc.tcdesc from teachercard tc,course c ,teacher t where 	c.tid = t.tid and t.tcid = tc.tcid and c.cname = 'sql';
+将以上多表查询转为子查询:
+explain select tc.tcdesc from teachercard tc where tc.tcid = (select t.tcid from teacher t where t.tid = (select c.cid from course c where c.cname = 'sql'));
+
+id:id值不同越大越优先.程序执行先从最内层在依次执行外层的内容.
+
+打印结果:
+*************************** 1. row ***************************
+           id: 1
+  select_type: PRIMARY
+        table: tc
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 3
+     filtered: 33.33
+        Extra: Using where
+*************************** 2. row ***************************
+           id: 2
+  select_type: SUBQUERY
+        table: t
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 6
+     filtered: 16.67
+        Extra: Using where
+*************************** 3. row ***************************
+           id: 3
+  select_type: SUBQUERY
+        table: c
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 2
+     filtered: 50.00
+        Extra: Using where
+
+
+3.子查询+多表
+explain select t.tname,tc.tcdesc from teacher t ,teachercard tc where t.tcid = tc.tcid and t.tid= (select c.tid from course c where cname='sql');
+
+id:id值有相同也有不同,id值越大越优先.如果相同了再从上往下执行
+
+
+2.select_type :查询类型
+
+select_type的值有:
+
+主查询:PRIMARY					包含子查询SQL中的 主查询(一般是最外层)
+子查询(非主查询):SUBQUERY			包含子查询SQL中的 子查询(非最外层)
+简单查询:simple					不包含子查询和union
+衍生查询:derived				使用到了临时表
+合并查询:union
+联合结果:UNION RESULT
+
+主查询+子查询:
+比如查询教授sql课程的老师的描述(desc):
+select tc.tcdesc from teachercard tc,course c ,teacher t where 	c.tid = t.tid and t.tcid = tc.tcid and c.cname = 'sql';
+那么我们实际查询的表是老师的描述信息,所以teachercard被称为主查询表.另外的表值起到限制条件的作用(另外的表就被称之为子查询)
+
+简单查询:
+	 explain select * from teacher;		此时select_type的值为simple,所以这句话就可以称之为简单查询
+
+衍生查询:
+	产生条件:
+		a.在from子查询中,只有一张表
+			select cr.cname from (select * from course where tid in (1,2)) cr;
+			注意这种查询之前没见过的称之为派生表
+			这里出现了与教材中不一致的地方
+		b.在from子查询中,如果table1 union table2 ,则table1的select_type值为derived,table2为union表
+		explain select cr.cname from (select * from course where tid=1 union select * from course where tid=2) cr;
+
+合并查询:
+	产生条件:上述的b例子,右表为union表	
+
+
+联合结果:
+	告知开发人员那些表之间存在union查询
+
+
+
+3.type:索引类型(类型):注意字段必须要有索引
+·查询一个表的索引:
+		show index from teacher;
+·介绍:索引类型有很多,这里介绍一下最常用的.
+·效率:system>const>eq_ref>ref>range>index>all		越往左效率越高.		要对SQL优化的前提:有索引
+	其中system,const只是理想情况,实际能达到	ref、rang
+
+system(忽略):只有一条数据的系统表:或衍生表(临时表)只有一条数据的主查询
+	衍生表只有一条数据的主查询:
+
+	create table test01(
+		tid int,
+		tname varchar(20)
+	);
+
+	insert into test01 values(1,'a');
+	alter table test01 add constraint tid_pk primary key(tid);		增加主键索引
+	explain select * from (select * from test) t where tid=1;		此时会显示system
+
+
+const:仅仅能查出一条数据的SQL,用于Primary key 或unique索引		(如果你查到的数据这两个索引类型,就算你查到一条数据也不是const)
+索引要求:唯一索引、主键索引
+
+
+eq_ref:唯一性索引:对于每个索引值的查询,返回匹配唯一行数据(有且只有1个,不能多,不能0),也就是这个字段下的所有值必须唯一,查的时候必须查到一条数据(不能查不到)
+一般会在这两个索引上出现:唯一索引、主键索引
+
+select ... from ... where name=...;		你根据这个name,如果要达到eq_ref,name的每条数据都不能重复.
+
+给teachercard表添加主键索引:
+alter table teachercard add constraint pk_tcid primary key(tcid);	
+给teacher表添加唯一键索引:
+alter table teacher add constraint uk_tcid unique index(tcid);
+
+查询:
+	select t.tcid from teacher t,teachercard tc where t.tcid = tc.tcid;
+	根据上面的内容,简单理解,where后面的内容进行匹配,匹配的结果不能重复,也就是tcid不能重复,也不能没有.而且必须内容一一对应
+	explain查询执行状态:
+	此时teacher表的type为ref并不是eq_ref.原因:因为teacher有6个数据,而teachercard只有三个数据.前三个匹配没有问题,但是到第四个的时候,就没匹配到,是不是就是所说的0.0的意思就是0个结果.没有的意思
+	如何达到eq_ref?:让两个表所有内容都能完全匹配,满足where后面的条件.那就把多的那个表的数据删掉.或者把少的那个表的数据填充
+	这里选择删掉teacher里面多出来的三个
+	此时再explian,显示的解释eq_ref
+
+
+
+ref:非唯一性索引,对于每个索引键的查询,返回匹配的所有行(可以是0个,也可以是多个)
+索引要求:暂无
+	现在我给teacher表里添加一行tname重复的数据:
+	insert into teacher values(4,'王境泽',4);
+	打印teacher表:
+	+------+-----------+------+
+	| tid  | tname     | tcid |
+	+------+-----------+------+
+	|    1 | 蔡徐坤    |    1 |
+	|    2 | 章金莱    |    2 |
+	|    3 | 王境泽    |    3 |
+	|    4 | 王境泽    |    4 |
+	+------+-----------+------+
+	根据优化前提:添加索引,这里我就给tname添加空索引
+	alter table teacher add index index_name(name);
+
+	现在查询:
+		select * from teacher where tname='王境泽';
+	查看执行:
+		type为ref
+
+
+range:检索指定范围的行,where后面是一个范围查询(where后面跟关键字 between and 、> < =    in(特殊)等等)
+!!特殊情况:between and 、> < = 这些范围查询是稳定的,但是in有的时候会失效.in比较特殊.如果失效type就是all
+
+	给tid添加索引.我们要对tid这个索引列进行查询.
+	alter table teacher add index tid_index(tid);		增强索引,满足前提
+	根据条件进行查询:
+	select t.* from teacher t where t.tid in(1,2); 		此时type是range
+		
+
+index:查询全部索引中的数据
+	假如有一个表,有age name id 其中name是索引列.index这种情况就是你把这个索引列全部查询了一遍
+	查询:
+	explain select tid from teacher;		tdi是有空索引的,所以只需要查看索引表
+
+all:查询全部表中的数据
+	假如有一个表,有age name id .你吧这个表的age、name、id.全查了一遍,那就是all.
+	查询:
+	explain select cid from course;			course表的cid没有索引,所以要查整个表
+
+总结:前提是要有索引
+system/const:结果只有一条数据
+eq_ref:结果多条,但是每条数据是唯一的
+ref:结果是多条,但是每条数据是0或多条
+
+
+4.possible_keys :预测用到的索引:是一种预测,不准
+查询执行:
+	explain select t.tname,tc.tcdesc from teacher t ,teachercard tc where t.tcid = tc.tcid and t.tid= (select c.tid from 	course c where cname='sql');
+	可以看一下possible_keys和key.如果是null就代表没用索引.
+
+5.key:实际使用的索引
+
+6.key_len:实际使用索引的长度,貌似是根据数据库编码决定的:
+·作用:用于判断复合索引是否被完全使用(a,b,c)
+
+create table test_kl(
+	name char(20) not null default ''		name不可以为空
+);
+alter table test_kl add index index_name(name);
+查询执行计划:
+explain select * from test_kl where name ='';			
+
+结果发现key_len:80	原因:1个字符占4个字节		视频里是3*20=60一个字符占三个字节		但我这里是80
+
+增加一个name1:
+alter table test_kl add column name1 char(20);		name1可以为空
+添加索引:
+alter table test_kl add index index_name1(name1);
+查询执行计划:
+explain select * from test_kl where name1 ='';	
+
+结果:key_len=81			
+
+区别:一个可以为空一个不可以为空.可以为空的那个就多出来一个空.
+详解:如果索引字段可以为null,那么mysql会多拿出一个字节用于标识.
+		
+现在删掉才加的两个索引:
+drop index index_name on test_kl;
+drop index index_name1 on test_kl;
+
+增加复合索引:
+alter table test_kl add index name_name1_index(name,name1);
+
+查询执行计划:
+explain select * from test_kl where name1 ='';			结果:161
+	原因:你要用name1就要用name.所以你必然两个都用:81+80=161
+explain select * from test_kl where name ='';			结果:80		
+	原因:这个name实际上用的只是name.就还是80个字节
+
+
+上面用的全是char固定长度,下面使用varchar可变长度
+
+增加一个name2:
+alter table test_kl add column name2 varchar(20);	可以为null
+
+增加索引:
+alter table test_kl add index index_name2(name2);
+
+查询执行计划:
+explain select * from test_kl where name2 ='';			结果:83
+	原因:20*4=80 + 1(默认可以为null) +2(用两个字节标识可变长度) =83
+
+·关于编码:
+utf8:1个字符4个字节
+gbk:1个字符2个字节
+latin:1个字符1个字节
+
+
+
+7.ref:表之间的引用:
+	·作用:指明当前表所参照的字段
+		select ... where a.c=b.x;	当前是通过a表的c字段来和b表的x字段比较.那么ref就会说你是将b表作为参照的
+关于ref的值:
+	其中b.x可以是常量const.就是被参照的那个是const.另外一个例如这里的a表c字段.ref显示的内容是:该字段的 数据库.表名.字段
+
+将c表的tid增加索引:
+alter table course add index tid_index(tid);
+查询执行计划:
+	explain select * from course c,teacher t where c.tid=t.tid and t.tname='王境泽';
+
+结果:t表(teacher)为const	course为mydb.t.tid
+
+
+
+8.rows:通过索引查询到的数据量,貌似是优化器预估的记录扫描:
+·解释一下:select ... where ... 如果加上的where条件返回的数据有几个,row就是几个
+
+查询执行计划:
+explain select * from course c,teacher t where c.tid=t.tid and t.tname='王境泽';
+
+结果:
+teacher表的结果是2		因为teacher表查到了两个数据.因为有两个王境泽
+course表的结果是1		但是course里面tid和teacher里面的tid匹配的只有web这一行	
+
+
+
+9.Extra:额外的信息:
+	会出现的数值:	
+		     1.using filesort:性能消耗大,需要额外的一次查询.一般出现在order by中
+		     2.using temporary:性能损耗大,用到了临时表,一般出现在group by语句中
+		     3.using index:性能提升,索引覆盖.原因:不读取源文件,只从索引文件中获取数据,不需要会表查询
+		     4.using where:和using index相反.using where需要回表查询
+		     5.impossible where:where子句永远为false
+		     6.Using join buffer:表示mysql引擎使用了连接缓存	mysql认为查询语句太差了		
+	
+1.using filesort:性能消耗大,需要额外的一次查询.一般出现在order by中
+再次之前我们需要先理解一个概念:排序之前需要先查询
+
+注意:下面的这些字段全是单索引
+查询执行计划:
+explain select * from teacher where tname='' order by tname;
+结果:null
+原因:先查询tname,查完了然后在排序tname很合理.
+
+explain select * from teacher where tname='' order by tid;
+结果: Using filesort
+原因:先查询tname,查完了按tid排序的时候还需要再查询一次.	
+
+小结:对于单索引,如果分组排序的是同一个字段,则不会出现using filesort.
+
+
+注意:接下来的字段是符合索引:
+复合索引:不能跨列(最佳左前缀)
+假设我这里有个表,里面有a1,a2,a3这个三个字段,并且他们是一个复合索引
+查询执行计划:
+explain select * from mytb where a1='' order by a3;		
+结果:using filesort
+原因:不能跨列a1和a3跨了一个a2,所以出现了using filesort
+
+查询执行计划:
+explain select * from mytb where a2='' order by a3;	
+结果:using filesort
+原因:跨了a1
+
+查询执行计划:
+explain select * from mytb where a1='' order by a2;
+结果:不会出现
+
+小结:避免 where 和 order by 按照复合索引的顺序使用,不要跨列或无序使用
+
+
+2.using temporary:性能损耗大,用到了临时表,一般出现在group by语句中.如果已经有表了,但不适用,必须再来一张表.需要额外使用一张表
+
+查询执行计划:
+explain select * from teacher where tname='王境泽' group by tname;
+结果:null
+原因:先按照tname查出来,然后再按照tname分组.没有问题
+
+查询执行计划:
+explain select * from teacher where tname='王境泽' group by tid;
+结果:Using temporary
+原因:先查找tname,然后再按照tid分组.此时sql就需要再查询一次
+避免:查询那些列,就根据那些列group by
+
+a.查询执行计划:
+explain select * from test03 where a2=2 and a4=4 group by a2,a4;
+结果:没有using temporary
+原因:根据解析过程,是先where再group by.这里先根据a2a4筛选了一次,再根据a2a4分组一次,就不需要新表了.这里where和group是同一张表
+b.查询执行计划:
+explain select * from test03 where a2=2 and a4=4 group by a3;			
+结果:using temporary
+原因:where先筛选了a2a4,但又要根据a3来分组,就需要用到新的表.
+
+·另外group by 两个字段的情况比较复杂,需要分a2、a4是否为无索引列.单值索引列和唯一索引列来讨论.
+总的来说只要a2 a4有一个是唯一索引就不需要用到临时表
+
+
+3.using index:性能提升,原因:不读取源文件,只从索引文件中获取数据,不需要会表查询
+
+注意接下来的是单值索引:
+查询执行计划:
+explain  select tname from teacher where tname='王境泽';
+结果:Using index
+原因:只要使用到的列 全部都在索引中,就是索引覆盖
+
+注意接下来的是符合索引:
+假如这里有个表,里面有一个复合索引(a1,a2,a3)
+查询执行计划:
+explain select a1,a2 from mytb where a1='' or a2='';
+结果:Using index
+原因:你用的a1、a2全部被包含在复合索引里面.和上面一样是索引覆盖.
+
+现在这个表里面有一个复合索引(a1,a2)
+查询执行计划:
+explain select a1,a2 from mytb where a1='' or a3='';
+结果:不出现Using index
+原因:因为复合索引a1、a2不能覆盖a1和a3
+
+查询执行计划:
+explain select a1,a2 from mytb;
+结果:Using index
+原因:你还是用到了被索引覆盖的两个列
+
+另外:对比当前这个和上上面那个.一个有where一个没有.那么会造成什么影响?
+如果用到了索引覆盖(using index时),会对possible_key和key造成影响
+a.如果没有where,则索引只出现在key中
+b.如果有where,则索引出现在key和possible_keys中
+
+4.using where:和using index相反.using where需要回表查询:
+查询执行计划:
+explain select cname from course where cname='java';
+结果:Using where
+原因:cname没有索引需要回原表查询
+
+5.impossible where:where子句永远为false
+查询执行计划:
+explain select * from teacher where tname='蔡徐坤' and tname='王境泽';
+结果:impossible where
+原因:作为精确查询,tname不可能即等于蔡徐坤又等于王境泽
+
+
+
+
+5.优化示例:SQL优化是概念事件
+比如一个表拥有一个复合索引:a1,a2,a3,a4
+
+select a1,a2,a3,a4 from where a1=1 and a2=2 and a3=3 and a4=4;		
+推荐写法,因为索引使用过的顺序(where后面你的顺序)和复合索引的顺序一致.
+
+select a1,a2,a3,a4 from where a4=1 and a3=3 and a2=2 and a4=4;		
+虽然编写的顺序和索引顺序不一致,但是在sql真正执行前 进过了sql优化器的调整 结构上与上一条sql是一致的
+ 
+以上的两个语句使用了全部的复合索引,ken_len是最大值
+
+select a1,a2,a3,a4 from where a1=1 and a2=2 and a4=4 order by a3;
+Extra结果:Using where,Using index
+	原因:a1 a2 是符合顺序的	但是a4跨列了需要回表查询.
+	没有出现Using filesort的原因是:对于Using filesort而言where 和 order by不要出现跨列使用.这里是全部用到了
+ken_len:只有a1 和 a2的大小
+
+select a1,a2,a3,a4 from where a1=1 and a4=4 order by a3;
+key_len:只有a1的大小	因为a4跨列了
+Extra结果:Using where,Using index,Using filesort
+	原因:本质原因是不要跨列查找.对于Using filesort的跨列使用的意思:where 和 order by 拼起来不要跨列使用.这也是为什么上面没		有出现Using filesort的原因
+
+select a1,a2,a3,a4 from where a1=1 and a4=4 order by a2,a3;
+Extra结果:Using where,Using index
+key_len:只有a1的大小
+
+总结:
+1.如果(a,b,c,d)复合索引和使用的顺序完全一致(且不跨列使用),则复合索引全部使用.如果部分一致(且不跨列使用),则使用部分索引
+2.where 和 order by不要出现跨列使用
+
+
+
+6.优化案例:
+	分类:单表优化、两表优化、三表优化.	这三种表优化的原理互相适用
+
+1.单表优化:主要针对索引位置和索引失效的练习
+创建表:
+bid:书本id
+name:名称
+authorid:作者
+publicid:公共id
+typeid:类型id
+
+	create table book(
+		bid int primary key,
+		name varchar(20) not null,
+		authorid int not null,
+		publicid int not null,
+		typeid int not null
+	);
+
+插入数据:
+insert into book values(1,'java',1,1,2);
+insert into book values(2,'c',2,1,2);
+insert into book values(3,'c#',3,2,1);
+insert into book values(4,'c++',4,2,3);
+
+查询authorid=1 且 typeid为2或3的bid信息
+
+这里为了方便演示,先按照这样查询:select bid from book where typeid in(2,3) and authorid=1
+查询执行计划:
+explain select bid from book where typeid in(2,3) and authorid=1 order by typeid desc;
+结果:
+type:all
+possible_key:null
+key:null
+Extar:Using where Using filesort
+
+可以看到这条语句是必须优化的.性能很低.
+
+开始优化:
+	加索引:
+		alter table book add index idx_bta(bid,typeid,authorid);
+	查询执行计划:
+	type:index
+	possible_key:null
+	key:idx_bta
+	Extar:Using where Using filesort Using index
+
+	根据SQL实际解析顺序调整,调整索引的顺序.
+	为什么要调整?表面上来看这里字段的顺序是bid,typeid,authorid.但是sql解析的时候是从where后面开始解析的,最后(在分组之前)才		执行select
+	
+	调整索引:	
+		alter table book drop index idx_bta;
+		alter table book add index idx_bta(typeid,authorid,bid);	
+		虽然可以回表查询bid,但是将bid放到索引中 可以提升使用Using index.就是bid的时候也不需要回原表,也根据索引来查
+	查询执行计划:
+	type:index
+	possible_key:null
+	key:idx_bta
+	Extar:Using where Using index		与上面不一样的地方在于少了 Using filesort
+	
+接着优化:优化type
+	explain select bid from book where typeid in(2,3) and authorid=1 order by typeid desc;
+	形成index的原因:如果想要达到range.注意in这个关键字是特殊的,有时会失效.对于我们的索引而言,一旦typeid失效,那么authorid也	可能会失效.所以把authorid放在typeid前面,计算typeid失效了,authorid的索引也不会失效.
+	
+	调整索引:
+		alter table book drop index idx_bta;
+		alter table book add index idx_bta(authorid,typeid,bid);
+
+	查看执行计划:需要调整查询语句
+		explain select bid from book where authorid=1 and typeid in(2,3) order by typeid desc;
+	type:range
+	possible_key:null
+	key:idx_bta
+	Extar:Using where Using index Backward index scan	
+
+	小结:
+	    a.索引不能跨列使用,保持索引的定义和使用的顺序一致性
+	    b.索引需要逐步优化
+	    c.将含in的范围查询放到where的最后,防止失效.
+	
+	本例中出现Using where的原因是:typeid索引失效需要回原表查询.
+	如果把in换成=号
+	explain select bid from book where authorid=1 and typeid =3 order by typeid desc;
+	结果:
+	type=ref
+	Extra:Using index
+	讲道理此时key_len也会变大
+
+
+2.两表优化:针对左右表的练习
+老师表:
+tid:老师id
+cid:课程id 
+create table teacher2(
+	tid int primary key,
+	cid int not null
+);
+	
+插入数据:
+insert into teacher2 values(1,2);
+insert into teacher2 values(2,1);
+insert into teacher2 values(3,3);
+
+课程表:
+create table course2(
+	cid int,
+	cname varchar(20)
+);
+
+插入数据:
+insert into course2 values(1,'java');
+insert into course2 values(2,'python');
+insert into course2 values(3,'c');
+
+左连接查询:
+	select * from teacher2 t left join course2 c on t.cid=c.cid where c.cname='java';
+
+	索引往那张表加?解决结论:小表驱动大表	索引建立在经常使用的字段
+小表驱动大表:
+	小表:10
+	大表:300
+
+	where 小表.x = 大表.y;
+	如果小表是10,大表是300.那么小表每拿一次数据大表需要查询300次.	一共是10*300=3000
+	
+	where 大表.x = 小表.y;
+	此时大表每查一次需要查询小表10次 				一共是300*10=3000
+
+	这两个查询最终都会执行3000次,但是对于双层循环来说一般建议将数据小的循环放外层 数据大的循环放内层.
+	一般来说,外层循环越小,内层循环越大对于程序的性能是越高的.
+
+索引建立在经常使用的字段:
+根据本题t.cid=c.cid可知,t.cid字段使用频繁,因此给该字段加索引.一般情况对于左连接给左表加索引,对于右表连接给右表加索引.
+理解:左表连接的时候,右表只是对于左表的补充,所以左表的使用必然频繁.所以给左表加索引.右表连接同理.被加的字段是两个表全部要用到的字段
+
+开始优化:
+	添加索引:
+	alter table teacher2 add index index_teacher2(cid);
+	查询执行计划:
+	explain select * from teacher2 t left join course2 c on t.cid=c.cid where c.cname='java';
+	结果:
+	teacher2表:
+	type:ref
+	key_len=4
+	Extra:Using index
+
+	给course添加索引:因为有where限制
+	alter table course2 add index index_course2_cname(cname);
+
+	查询执行计划:
+	结果:
+	teacher2表 :
+	type:ref
+	key_len=4
+	Extra:Using index 
+	course2表:
+	type:ref
+	key_len=83
+	Extra:Using where
+
+
+3.三表优化:
+	两个以上的表功能是一样的.所以三表和二表、一表差不多,该提升的就提升.
+	三表作为一个总结:
+		a.小表驱动大表
+		b.如果有多张表,索引建立在经常查询的字段上.(那些经常在查询(常用字段)和where后面的字段)
+
+
+
+7.避免索引失效的一些原则:
+	a.复合索引,不要跨列或无序使用(最佳左前缀)
+	b.复合索引,尽量使用全索引匹配
+	c.不要在索引上进行任何操作	比如对索引进行加减乘除计算、函数计算、类型转换.否则索引失效
+	正确:select ... where A.x=..		--假设A.x是一个索引
+	错误:select ... where A.x*3=...		
+	d.复合索引不能使用不等于(!= > <) 或 is not null (is null) ,否则自身以及右侧的索引全部失效.
+	查询计划执行:
+	explain select * from book where authorid=1 and typeid=2;	这里authorid和typeid是两个单值索引
+	结果:
+	possible_key:预测都使用到了authorid和typeid
+	key:实际上只用到了authorid的索引
+	key_len:4	
+	原因:SQL优化是一种概率层面的优化.至于实际是否使用了优化,需要通过explain进行推测.
+
+	查询计划执行:
+	explain select * from book where authorid!=1 and typeid=2;
+	结果:
+	possible_key:authorid和typeid
+	key:typeid		这里改变了
+	key_len:4
+	原因:这里authorid使用了不等于造成了索引失效,虽然authorid失效了,但是typeid并没有失效
+
+体验概率情况:原因是服务层中有SQL优化器,可能会影响我们的优化.
+	假如这里有一个表里面有(a,b)一个复合索引
+	select * from mytb where a=1 and b=1;		结果:索引全部使用
+	select * from mytb where a>1 and b=1;		结果:索引全部失效,通过上述结论可得
+	select * from mytb where a=1 and b>1;	结果:索引全部使用.此时和结论相违背.就是证明结论适合大部分情况,优化是概率事件
+
+
+	e.补救方法:尽量使用索引覆盖
+	f.like尽量以"常量开头",不要以'%'开头,否则索引失效
+	select * from mytb where name='%x%';	即使name有索引,如果以%开头索引也会失效.
+	解决方法:使用索引覆盖
+	select tname from mydb where tname='%x%';此时索引是不会失效的.		查询的tname包含在索引里面
+	
+	g.尽量不要使用类型转换(显示、隐式),否则索引失效
+	select * from teacher where tname='123';
+	select * from teacher where tname=123;		tname是一个字符串,你传123底层会进行类型转换,造成索引失效
+
+	h.尽量不要使用or,否则索引失效   or很强大,强大到可以把索引左边的都失效
+	假如有一个表,有两个索引a,b
+	select * from mytb where a=1 and b=2;		此时两个索引全部用到
+	select * from mytb where a=1 or b=2;		用了or之后两个索引全部失效,即使b在右边
+	
+8.其它的优化方法:
+	a.exist和in什么时候用?
+	如果主查询的数据很大,则用in
+	如果子查询的数据很大,则用exist
+	
+	exist语法:将主查询的结果,放到子查询结果进行条件校验(是否有数据,如果有数据则校验成功).如果符合校验,则保留数据.和in相反
+	select tname from teacher where esists(select * from teacher);先从外表检查数据,将查到的结果放到子查询再查询.
+	--等价于select tname from teacher;
+	
+	b.order by 优化:order by经常会出现Using filesort
+	Using filesort有两种算法:双路排序、单路排序.(根据IO的次数)
+	双路排序:通过IO扫描两次文件(1.从磁盘读取排序字段 读完立即排序 (在buffer中进行排序) 2.扫描其他字段)
+		缺点:性能消耗大
+	单路排序:通过IO扫描一次文件(只读取了一次,读取全部字段放在buffer中,然后在buffer中找到需要排序的内容进行排序)
+		隐患:不一定真的是一次IO,有可能多次IO.而且单路排序比双路排序占用更多的buffer	原因:文件太大,buffer放不下
+		在使用单路排序时,如果数据太大,可以考虑调大buffer的容量大小.	通过set max_length_for_sort_data=1024 单位byte
+		如果max_length_for_sort_data值太低,则mysql会自动从单路变为双路.(太低:需要排序的列的总大小超过了		max_length_for_sort_data值定义的字节数)
+	MySQL4.1之前默认使用双路排序
+	MySQL4.1之后默认使用单路排序
+	
+	提高order by 查询的策略:
+	a选择使用单路还是双路,调整buffer的容量大小
+	b.避免select * ...	不要用*,大部分情况下,你用什么就写什么.如果一个表只有abcd这四个字段.这行的效率没有下面的效率高
+	select a,b,c,d 
+	c.复合索引不要跨列使用,避免Using filesort
+	d.保证全部的排序字段 排序的一致性(都是升序或降序)
+		
+
+9.SQL排查--慢排序日志:MySql提供的一种日志记录,用于记录MySQL中响应时间超过阈值的SQL语句(long_query_time,默认为10s)
+目录:阈值和目录
+	慢查询日志默认是关闭的,建议:开发调优是打开 而最终部署时关闭.
+
+	检查是否开启了慢查询日志:show variables like'%slow_query_log%';
+	打印:
+	+---------------------+-------------+
+	| Variable_name       | Value       |
+	+---------------------+-------------+
+	| slow_query_log      | ON          |
+	| slow_query_log_file | ZT-slow.log |
+	+---------------------+-------------+
+
+	开启慢查询日志:
+		临时开启:到mysql关闭时结束
+			set global slow_query_log=1;	在内存中开启
+	
+		永久开启:
+			在my.ini配置文件中追加配置:
+			[mysql]
+			slow_query_log=1
+			slow_query_log_file=		后面是路径
+		关闭:
+			set global slow_query_log=0;
+
+
+	查看慢查询阈值:show variables like '%long_query_time%';
+	打印:
+	+-----------------+-----------+
+	| Variable_name   | Value     |
+	+-----------------+-----------+
+	| long_query_time | 10.000000 |
+	+-----------------+-----------+
+	临时设置阈值:
+	set global long_query_time=5;	设置完毕后,需要重新登录后生效.不需要重启myqsl服务
+	
+	永久设置阈值:
+		在my.ini配置文件中追加配置:
+		[mysqld]
+		long_query_time=3
+
+
+10.分析海量数据:
+	a.模拟海量数据		存储过程(无return)/存储函数(有return)
+	
+创建数据库:
+create database testdata;
+创建表:
+部门表:
+dno:部门编号
+dname:部门名称
+loc:部门的地理位置
+
+create table dept(
+	dno int primary key default 0,
+	dname varchar(20) not null default '',
+	loc varchar(30) default ''
+) engine=innodb default charset=utf8;
+
+员工表:
+eid:员工id
+ename:员工名称
+job:员工工作
+depton:在哪个部门,这里外键约束部门表的部门编号
+create table emp(
+	eid int primary key,
+	ename varchar(20) not null default '',
+	job varchar(20) not null default '',
+	deptno int not null default 0
+) engine=innodb default charset=utf8;
+
+·通过存储函数 插入海量数据:
+创建存储函数:
+	对于部门表:dno是随机的4位字符串	dname是随机的字符串(6个字母)这些字母从哪里来呢?就是下面的default值里面来
+	
+	·创建随机字符串:
+	delimiter $
+	create function randstring(n int) returns varchar(255)
+	begin
+		declare all_str varchar(100) default 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+		declare return_str varchar(255) default '';
+		declare i int default 0;
+		while i<n
+		do			
+			set return_str=concat( return_str,substring(all_str,floor(1+rand()*52) ,1));
+			set i=i+1;
+		end while;	
+		return return_str;	
+	end$
+
+	我试着转换为java语句:
+public String randString(int n){
+	String all_str="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	String return_str="";
+	int i = 0;
+	while(i<n){
+		return_str=return_str+rand(all_str,1);		这一步不是java语句,大致的作用就是从all_str中随机获取一个字符	
+		i++;
+	}
+	return return_str;
+}
+
+如果报:
+This function has none of DETERMINISTIC, NO SQL, or READS SQL DATA in its declaration and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)
+原因:
+是因为 存储过程/存储函数在创建时 与之前的 慢查询日志冲突了.
+查看冲突:show variables like '%log_bin_trust_function_creators%';
+	打印:
+	+---------------------------------+-------+
+	| Variable_name                   | Value |
+	+---------------------------------+-------+
+	| log_bin_trust_function_creators | OFF   |
+	+---------------------------------+-------+
+临时解决冲突:
+set global log_bin_trust_function_creators = 1;	重启就失效
+
+永久解决:
+[mysqld]
+log_bin_trust_function_creators = 1
+
+
+
+·创建随机整数:
+create function ran_num() returns int(5)
+begin
+	declare i int default 0;
+	set i = floor(rand()*100);
+	return i;
+end$	
+
+
+
+·通过存储过程插入海量数据:emp表中
+create procedure insert_emp(in eid_start int(10), in data_times int(10))
+begin
+	declare i int default 0;
+	set autocommit = 0;		
+		
+	repeat		
+		insert into emp values(eid_start+i,randstring(5),'other',ran_num());
+		set i =i+1;
+		until i = data_times
+	end repeat;	
+	commit;		
+	set autocommit = 1;
+end$
+
+
+解释:
+create procedure insert_emp(in eid_start int(10), in data_times int(10))
+begin
+	declare i int default 0;
+	set autocommit = 0;		取消自动提交,以提高效率
+		
+	repeat		这是一个循环
+		insert into emp values(eid_start+i,randstring(5),'other',ran_num());
+		set i =i+1;
+		until i = data_times
+	end repeat;	结束循环
+	commit;		手动提交
+	set autocommit = 1;
+end$
+
+	
+
+·通过存储过程插入海量数据:dept表中
+create procedure insert_dept(in dno_start int(10),in data_times int(10))
+begin
+	declare i int default 0;
+	set autocommit = 0;		
+		
+	repeat		
+		insert into dept values(dno_start+i,randstring(6),randstring(8));
+		set i =i+1;
+		until i = data_times
+	end repeat;	
+	commit;		
+	set autocommit = 1;
+end$
+
+
+·插入数据:
+	call insert_emp(1000,800000);
+	call insert_dept(10,30);
+
+
+
+
+	b.分析海量数据:
+	1.profiles
+	show profiles;				//查看语句状态
+
+	show variables like '%profiling%';	//查看profiles状态
+	打印:
+	+------------------------+-------+
+	| Variable_name          | Value |
+	+------------------------+-------+
+	| have_profiling         | YES   |
+	| profiling              | OFF   |	这里是关闭的
+	| profiling_history_size | 15    |
+	+------------------------+-------+	
+	
+	打开profiles:
+	set profiling = on;	打开后才记录数据,没打开之前是不记录数据的
+	
+	show profiles:会记录所有profiles打开之后的,全部的sql语句和时间.缺点:时间不够精确
+	打印:
+	+----------+------------+-----------------------------------+
+	| Query_ID | Duration   | Query                             |
+	+----------+------------+-----------------------------------+
+	|        1 | 0.00252425 | show variables like '%profiling%' |
+	+----------+------------+-----------------------------------+
+	Query_ID:起个名称
+	Duration:语句执行时长	很重要
+	Query:执行的语句
+
+
+	--精确分析:sql诊断
+	show profile all for query id值;		查询id值对应的sql语句所花费的详细时间信息(IO/CPU/阻塞等等所花费的时间)
+	把all换成针对cpu和io.	
+	show profile cpu,block io for query id值;
+
+	如果是修改my.ini文件,则必须重启windows下的mysql服务才会生效.
+
+	2.查看全局查询日志(.log):记录开启之后的 全部sql语句.(这些全局的记录操作,仅仅在调优、开发过程中打开即可,在最终部署实施时一定要关闭)
+	show variables like '%general_log%';	默认是关闭的
+	show variables like 'log%';		查看当前日志详情信息
+	show variables like '%output%';		查看当前日志的输出方式(输出文件还是输出表还是输出文件和输出表)
+	打印:
+	+------------------+--------+
+	| Variable_name    | Value  |
+	+------------------+--------+
+	| general_log      | OFF    |
+	| general_log_file | ZT.log |
+	+------------------+--------+
+	set global general_log = 1;		开启全局日志
+
+	set global log_output='table';		指定保存方式为表
+	或	指定保存的地方
+	set global log_output='file';		指定保存方式为文件
+	set global general_log_file='';		指定一个文件的路径存放到里面
+		
+	开启后,会记录所有SQL:会被记录在系统自带的mysql数据库中的general_log表中
+	此时就可以记录你执行的语句了,但是并不会记录时间.
+	
+	以下这些日志文件的存放目录,必须在my.ini配置文件中修改,重启mysql服务之后才会生效.
+	3.错误日志(.err)
+	show variables like '%log_error%';
+	set global log_bin_trust_function_creators = 1;
+	4.二进制日志(log_bin)
+	
+	5.慢查询日志(log_slow-queries)
+	
+	6.更新日志(log_update)
+
+	
+
+11.锁机制:解决因资源共享 而造成的的并发问题
+	示例:买最后一件衣服
+	A:看到衣服	先买了衣服
+	B:看到衣服	再买了衣服
+	问题:如果不加锁,系统没有及时更新的话,有可能导致B也买到了衣服.线程同步那一章.
+	
+	解决方法:
+	A:看到衣服	买:衣服加锁->执行后续的操作->解锁
+	B:看到衣服	买:衣服已消失
+
+	分类:操作类型、操作范围
+	
+操作类型:又分为:读锁、写锁
+	a.读锁(共享锁):对同一个数据,多个线程进行读取操作可以同时进行互不干扰
+	b.写锁(互斥锁):如果当前读写操作(任意操作)没有结束,则其余线程对当前数据无法进行读写操作
+
+操作范围:
+	a.表锁:一次性对一张表进行加锁,如MyISAM存储引擎(上面),开销小、加锁快,但锁范围大,容易发生锁冲突、并发度低.
+	b.行锁:一次性多一行数据进行加锁,开销大加锁慢.容易出现死锁,锁的范围较小,不易发生锁冲突,并发度高(很小概率 发生高并发问题	:脏读 幻读 不可重复读 丢失更新)
+	c.页锁:
+
+
+表锁示例:
+create table tablelock(
+	id int primary key auto_incremenr,
+	name varchar(20)
+) engine myisam;		
+
+插入数据:
+insert into tablelock(name) values('a1');
+insert into tablelock(name) values('a2');
+insert into tablelock(name) values('a3');
+insert into tablelock(name) values('a4');
+insert into tablelock(name) values('a5');
+
+增加锁:
+locak table 表1 read/write,表2 read/write....
+
+查看加锁表:
+show open tables;		0代表没有加锁,1代表被加锁
+释放锁:
+unlock tables;
+分析表锁定的严重性:
+show status like '%table%';
+
+·加读锁:这个锁只针对当前的这个cmd.
+locak table tablelock read;
+	select * from tablelock;		--读(查),可以
+	delete from tablelock where id=1;	--写(增删改),不可以
+
+	select * from emp;			--读,不可以
+	delete from emp where eid=1000;		--写,不可以
+
+另外一个cmd中:
+读可以
+写,会进行等待,等待上面的cmd将锁释放(通过unlock tables;或者事务解锁(提交和回滚))
+
+
+总结:
+某一个会话 对A表加了read锁,则该会话可以对A表进行读操作但不能进行写操作.且会话不能对其它表进行读、写操作.
+
+在另外一个cmd中对A表可以读,但是写的时候会进行等待.
+
+
+·加写锁:
+locak table tablelock write;
+
+当前cmd:可以对加了写锁的表进行任何操作,但是不能操作别的表.
+
+另外的cmd:对加了锁的表可以进行操作,但是前提是要等上一个cmd释放锁
+
+
+MySQL表级锁的锁模式:有这个东西.
+
+
+·分析表锁定:
+--分析表锁定的严重性:
+   show status like 'table%';
+打印:
++----------------------------+-------+
+| Variable_name              | Value |
++----------------------------+-------+
+| Table_locks_immediate      | 1187  |
+| Table_locks_waited         | 0     |
+| Table_open_cache_hits      | 0     |
+| Table_open_cache_misses    | 0     |
+| Table_open_cache_overflows | 0     |
++----------------------------+-------+
+
+Table_locks_immediate:即可能获得到的锁	马上可以给表加锁,加1187层
+Table_locks_waited:需要等待的表锁数.可以理解当前表被加锁的个数,如果数量越多说明该资源竞争越大
+
+一般建议:
+	Table_locks_immediate/Table_locks_waited>5000 大于5000则采用InnoDB否则用MyISAM
+	
+
+行锁示例:一定要关闭自动提交
+
+行锁分析:
+show status like '%innodb_row_lock%';
+打印:
++-------------------------------+-------+
+| Variable_name                 | Value |
++-------------------------------+-------+
+| Innodb_row_lock_current_waits | 0     |
+| Innodb_row_lock_time          | 0     |
+| Innodb_row_lock_time_avg      | 0     |
+| Innodb_row_lock_time_max      | 0     |
+| Innodb_row_lock_waits         | 0     |
++-------------------------------+-------+
+Innodb_row_lock_current_waits:当前正在等待锁的数量
+Innodb_row_lock_time:等待总时长,从系统启动到现在一共等待的时间
+Innodb_row_lock_time_avg:等待平均时长,从系统启动到现在平均等待的时长
+Innodb_row_lock_time_max:等待的最长时间,从系统启动到现在的最长时间
+Innodb_row_lock_waits:从系统到现在一共等待的此时
+
+注意这里没有添加锁,而是将mysql的自动提交变为手动提交.一般通过事务来解锁.(rollback和commit)
+create table linelock(
+	id int primary key auto_increment,
+	name varchar(20)
+)engine = innodb;	
+
+insert into linelock(name) values('1');
+insert into linelock(name) values('2');
+insert into linelock(name) values('3');
+insert into linelock(name) values('4');
+insert into linelock(name) values('5');
+
+cmd0:写操作:
+	insert into linelock(name) values('6');
+cmd1:写操作(改)同样的数据
+	update linelock set name='ax' where id=6;	此时会等待,等待上面的cmd将锁释放(等待cmd0commit或rollback)
+	
+注意:如果cmd0和cmd1操作的是不同的行,则不影响.
+
+
+·行锁的注意事项:
+a.如果没有索引,则行锁会转为表锁(这里的索引为id)
+	这里给name也添加一个索引
+	
+	cmd0:写操作
+	update linelock set name='ai' where name='3';
+
+	cmd1:写操作:
+	update linelock set name='aiX' where name='4';
+
+	结果:没问题,因为cmd0和cmd1执行的是不同的行
+	
+	cmd0:写操作
+	update linelock set name='ai' where name=3;
+
+	cmd1:写操作:
+	update linelock set name='aiX' where name=4;
+	结果:cmd1发生阻塞
+	原因:name是一个varchar,这里需要进行类型转换,一旦类型转换索引就会失效.因此此次操作,会从行锁转换为表锁.
+
+b.行锁的一种特殊情况:间隙锁	间隙锁所属于行锁
+如果linelock表中 没有id=7的数据		8有
+cmd0:
+update linelock set name='x' where id<1 and id>9;
+		进行一个全部重命名操作.再次where范围中,没有id=7的数据,则id=7的数据称为间隙数据.
+		间隙:mysql会自动给间隙 加锁-->这个锁称为间隙锁
+
+cmd1:
+此时如果想要插入一条id=7的数据:
+insert into linelock values(7,'a7');		会进行等待,直到cmd0提交数据
+
+对于cmd1语句我的理解是:相当于已经默认有2-8的数据了(即使没有).他认为2-8全有,会给2-8全部加上锁.
+
+
+如果仅仅是查询数据,能否加锁?可以
+cmd0:通过for update对语句进行加锁
+select * from linelock where id=2 for update;		
+
+cmd1:
+update linelock set name='x' where id=2;
+等待,直到cmd0提交事务
+
+行锁:
+InnoDB默认采用行锁:
+缺点:比表锁性能损耗大
+有点:并发能力强,效率高
+因此建议,高并发用innodb,否则用MyISAM
+
+
+
+12.主从复制
+·介绍:如果只有一个mysql数据库,当来了很多大量的访问的时候,承担的压力就太大了.现在将数据库复制一份变成两份,从而分流请求.
+把这两个数据库分别称之为主数据库和从数据库,把主数据库的增删改查的数据放到从数据库中,自动同步.也可以进行读写分离,对于写操作访问主数据库,对于读操作访问从数据库.
+这种就称之为集群:
+好处:
+1.负载均衡
+2.失败迁移:如果一个mysql挂了,就不会导致整个系统失效,而是会迁移到下一个数据库.
+
+研究重点:如何同步主从数据库.
+
+
+
+
+
+
+8.存储过程:
+
+存储过程:
+·介绍:一组预先编译好的sql语句的集合,理解成批处理语句
+好处:
+(1):提高了代码的重要性
+(2):简化操作
+(3):减少了编译次数并且减少了和数据库服务器的连接次数
+
+存储过程创建:可以没有返回,也可以是一个或多个返回值
+create procedure 函数名(参数) 
+begin
+	
+end;
+
+注意参数列表包含三部分:
+参数模式	参数名	参数类型
+in		name 	varchar
+
+参数模式:
+in:该参数可以作为输入,一般用in就行了
+out:该参数可以作为输出
+inout:该参数可以作为输入和输出
+
+
+存储过程调用:
+call 函数名称(参数);
+
+
+我们直接使用可视化工具来创建函数:
+这是一个示例:
+create procedure `queryCountByGradeWithAge`(in `gAge` int,out `sCount` int) 
+begin
+	select count(1) into sCount from person where age=gAge;
+end
+
+
+
+9.函数:
+·介绍:一组预先编译好的sql语句的集合,理解成批处理语句
+好处:
+(1):提高了代码的重要性
+(2):简化操作
+(3):减少了编译次数并且减少了和数据库服务器的连接次数
+
+创建函数:有且仅有一个返回值
+create function 函数名(参数列表) returns 返回类型
+begin
+	
+	return 返回值;
+end
+
+函数调用:
+select 函数名(参数列表)
+
+一个示例:
+create function ran_num() returns int(5)
+begin
+	declare i int default 0;
+	set i = floor(rand()*100);
+	return i;
+end
+
+
+
+
+
+
+·存储过程和函数的区别:
+存储过程:可以没有返回,也可以是一个或多个返回值,参数有模式
+函数:有且仅有一个返回值,参数没有模式
+
+关于mysql的卸载细节:
+首先是删除mysql
+删除mysql缓存文件:C:\ProgramData\MySQL
+删除mysql注册表:运行regedit中所有mysql相关的配置.可以使用搜索功能.
+最好重启计算机.
+
+
+授权远程访问权限:失败
+
+
+
+
+
+
+
+·10.主从复制读写分离
+
+1.主从复制:
+
+假如现在有两个数据库A和B.
+影响MySQL-A数据库的操作,在数据库执行后,都会写入本地的日志系统A中.
+假设,实时的将变化了的日志系统中的数据库事件操作,在MYSQL-A的3306端口,通过网络发给MYSQL-B.
+MYSQL-B收到后,写入本地日志系统B,然后一条条的将数据库事件在数据库中完成.
+那么,MYSQL-A的变化,MYSQL-B也会变化,这样就是所谓的MYSQL的复制,即MYSQL replication.
+在上面的模型中,MYSQL-A就是主服务器,即master,MYSQL-B就是从服务器,即slave.
+日志系统A,其实它是MYSQL的日志类型中的二进制日志,也就是专门用来保存修改数据库表的所有动作,即bin log.(注意MYSQL会在执行语句之后,释放锁之前,写入二进制日志,确保事务安全)
+日志系统B,并不是二进制日志,由于它是从MYSQL-A的二进制日志复制过来的,并不是自己的数据库变化产生的,有点接力的感觉,称为中继日志,即relay log.
+可以发现,通过上面的机制,可以保证MYSQL-A和MYSQL-B的数据库数据一致,但是时间上肯定有延迟,即MYSQL-B的数据是滞后的.
+(即便不考虑什么网络的因素,MYSQL-A的数据库操作是可以并发的执行的,但是MYSQL-B只能从relay log中读一条,执行下.因此MYSQL-A的写操作很频繁,MYSQL-B很可能跟不上.)
+
+2.主从复制的几种方法:
+同步复制:
+所谓的同步复制,意思是master的变化,必须等待slave-1,slave-2,...,slave-n完成后才能返回.
+这样,显然不可取,也不是MYSQL复制的默认设置.比如,在WEB前端页面上,用户增加了条记录,需要等待很长时间.
+
+异步复制:
+如同AJAX请求一样.master只需要完成自己的数据库操作即可.至于slaves是否收到二进制日志,是否完成操作,不用关心.MYSQL的默认设置.
+
+半同步复制:
+master只保证slaves中的一个操作成功,就返回,其他slave不管.
+这个功能,是由google为MYSQL引入的.
+
+3.主从复制分析:
+问题1:master的写操作,slaves被动的进行一样的操作,保持数据一致性,那么slave是否可以主动的进行写操作?
+
+答:假设slave可以主动的进行写操作,slave又无法通知master,这样就导致了master和slave数据不一致了.因此slave不应该进行写操作,至少是slave上涉及到复制的数据库不可以写.实际上,这里已经揭示了读写分离的概念.
+
+4.读写分离:
+由于slave数据库无法进行增删改操作,所以slave数据库专门用来进行读操作.
+那么master数据库就用来进行写操作.
+
+问题2:主从复制中,可以有N个slave,可是这些slave又不能进行写操作,要他们干嘛?
+
+答:可以实现数据备份.
+类似于高可用的功能,一旦master挂了,可以让slave顶上去,同时slave提升为master.
+异地容灾,比如master在北京,地震挂了,那么在上海的slave还可以继续.
+主要用于实现scale out,分担负载,可以将读的任务分散到slaves上.
+很可能的情况是,一个系统的读操作远远多于写操作,因此写操作发向master,读操作发向slaves进行操作)
+
+
+问题3:随着应用的日益增长,读操作很多,我们可以扩展slave,但是如果master满足不了写操作了,怎么办呢?
+
+答:scale on ?更好的服务器? 没有最好的,只有更好的,太贵了...
+scale out ? 主从复制架构已经满足不了.
+可以分库(垂直拆分),分表(水平拆分).
+
+
+
+
+
+27.mysql权限大全
+
+select_priv		查询权限
+insert_priv		插入权限
+update_priv		更新权限
+delete_priv		删除权限
+index_priv		索引创建删除权限
+alter_priv		修改表权限
+create_priv		创建表或库权限
+drop_priv		删除表或库权限(应该还包括 触发器、视图权限)
+create_view_priv	创建视图权限
+show_view_priv		查看视图权限
+create_routine_priv	创建存储过程存储函数权限
+alter_rontine_priv	修改存储函数存储过程权限
+references_priv		创建外键权限
+execute_priv		允许执行存储过程和存储函数权限
+
+管理权限:
+grant_priv		授权权限
+create_tmp_table_priv	创建临时表权限
+file_priv		在mysql可以访问的目录进行磁盘读写权限
+super_priv		允许执行一系列数据库管理命令权限,包括kill某个进程等
+reload_priv		允许使用fulsh命令权限
+shutdown_priv		允许关闭数据库实例权限
+lock_tables_priv	允许加表锁权限
+process_priv		允许查看mysql中进程信息权限
+show_db_priv
+repl_slave_priv		允许slave主机通过此用户连接master以便建立主从 复制关系
+repl_client_priv	允许执行show master status,show slave status,show binary logs命令
+
+
+
+28.应用优化
+1.使用连接池
+2.减少对MySQL的访问
+3.使用查询缓存:
+
+查询查询缓存	show variables like '%query_cache%';
+参数解释:
+have_query_cache	表明服务器在安装时是否已经配置了高速缓存
+query_cache_size	表明缓存区大小,单位为MB
+query_cache_type	的变量值从0到2,含义分别为:0或off(缓存关闭)、1或者on(缓存打开,使用SQL_NO_CACHE提示的select除外)、2或者demand(只有带			SQL_cache的select语句提供高速缓存)
+监视缓存使用情况:show status
+
+4.增加cache层
+5.负载均衡:利用算法,将固定的负载量分布到不同的服务器上,以此来减轻单台服务器的压力,达到优化的目的.
+
+
+
+29.mysql常见问题和应用技巧
+
+1.如何处理mysql存储引擎的表损坏
+
+i.使用myisamchk:用来修复isam表损坏的问题
+myisamchk -r tablename		如果不行可以使用
+myisamchk -o tablename
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
