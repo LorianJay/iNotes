@@ -51,10 +51,10 @@ export NVM_DIR="$HOME/.nvm"
 
 #### 1.1.5 安装node  
 1.安装最新版本  
-`nvm install node # "node" is an alias for the latest version`  
+`nvm install node`  
 
 2.安装特定版本  
-`nvm install v20.20.2 # or 16.3.0, 12.22.1, etc`  
+`nvm install v20.20.2`  
 
 3.查看所有版本  
 `nvm ls-remote`  
@@ -70,6 +70,10 @@ export NVM_DIR="$HOME/.nvm"
 
 7.查看当前使用的版本  
 `nvm current`  
+
+8.全局选择node版本  
+`nvm alias default v24.17.0`
+方式5切换到node版本只针对当前终端生效,正确的切换命令应该是用当前命令
 
 #### 1.1.6 验证node安装完成  
 执行`node --version`即可  

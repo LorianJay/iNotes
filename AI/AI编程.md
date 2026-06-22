@@ -7,6 +7,7 @@
 **目录:**  
 1.1 相关术语  
 1.2 大模型推荐  
+1.3 AI工具推荐  
 
 ### 1.1 相关术语  
 1.LLM(大语言模型)  
@@ -195,6 +196,49 @@ CodeX的客户端目前只支持mac
 * ⭐️Cursor(AI-IDE无脑选这个就行了)  
 * ⭐️Qoder(如果是jetbrains可以用)  
 * Trae(价格比Cursor便宜,但没有Claude模型,需要下载国际版,可能存在token消耗过快的问题,实测会浪费token生成无意义的内容)  
+
+### 1.3 AI工具推荐  
+**目录:**  
+1.3.1 AI编程工具  
+1.3.2 多媒体创作工具  
+1.3.3 AI开发框架  
+1.3.4 AI浏览器插件  
+
+#### 1.3.1 AI编程工具  
+1.Cursor  
+
+2.Claude Code
+
+3.Cline  
+
+#### 1.3.2 多媒体创作工具  
+1.Nano Banana  
+最强的生图工具,支持中文不像Midjourney⁡那样需要用英文提示词,可以结合网站[AI提示词](https://ai.codefather.cn/painting)来生成图片  
+
+2.即梦AI
+
+3.Veo 3  
+Veo 3是Google最先进的AI视频生成模型
+
+4.Eleven Labs  
+Eleven Labs是AI语音合成工具,模仿声音效果特别逼真
+
+#### 1.3.3 AI开发框架   
+1.Spring AI  
+Spring AI是Java AI开发的标配,提供统一API简化大模型集成  
+
+2.LangChain4j  
+LangChain4j是Java版的LangChain,支持声明式语法,开发体验巨爽,适合构建复杂Agent  
+
+3.Vercel AI Gateway  
+Vercel AI Gateway是AI模型网关服务,让你能统一调用数百个AI模型,它提供了统‍一的 API,我不用去学习每个模型的A⁡PI文档,直接用​Vercel AI Gateway就行  
+
+#### 1.3.4 AI浏览器插件  
+1.Monica  
+浏览器AI助手  
+
+2.AITDK  
+AITDK是SEO和内容创作神器  
 
 ## 2.学习路线  
 **目录:**  
