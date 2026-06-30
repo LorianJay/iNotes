@@ -1,6 +1,6 @@
 # 目录 
 1.KubeSphere实战  
-
+devops还可以参考教程:https://www.codefather.cn/course/1789189862986850306/section/1990755061927555073  
 
 ## 1.KubeSphere实战  
 **目录:**  
