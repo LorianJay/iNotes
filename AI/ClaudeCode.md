@@ -152,7 +152,7 @@ Plugins是打包层,<font color="#00FF00">Plugin将skills、hooks、subagents和
 |-------------------|-------------------|------------------------------------|------------------------------|
 | CLAUDE\.md         | 会话开始          | 完整内容                           | 每个请求                     |
 | Skills            | 会话开始+使用时 | 启动时的描述,使用时的完整内容     | 低(每个请求的描述)         |
-| MCP         | 会话开始          | 工具名称;完整架构                 | 按需低,直到使用工具         |
+| MCP         | 会话开始          | 工具名称;完整架构                 | 按需-低,直到使用工具         |
 | Code intelligence | 文件编辑后和按需  | 编辑后的诊断;符号查找时的位置信息 | 低;减少其他地方的文件读取   |
 | Subagents         | 生成时            | 具有指定skills的新鲜上下文       | 与主会话隔离                 |
 | Hooks             | 触发时            | 无(外部运行)                     | 零,除非hook返回额外上下文 |
@@ -171,7 +171,341 @@ Plugins是打包层,<font color="#00FF00">Plugin将skills、hooks、subagents和
 
 ### 1.3 .claude目录  
 **目录:**  
-1.3.1 
+1.3.1 概述  
+1.3.2 项目级目录树  
+1.3.3 用户级目录树  
+
+#### 1.3.1 概述  
+1.claude目录  
+claude主要探索两个目录,即`项目下的.claude目录`和`~/.claude目录`,用于读取指令、设置、skills、subagents、记忆,可以将项目下的.claude文件夹提交到git从而与团队合作开发,而`~/.claude`中的文件是个人配置,适用于您的所有项目  
+
+#### 1.3.2 项目级目录树  
+**目录:**  
+1.3.2.1 目录树一览  
+1.3.2.2 CLAUDE\.md  
+1.3.2.3 .mcp.json  
+1.3.2.4 .worktreeinclude  
+1.3.2.5 .claude/目录  
+1.3.2.6 .claude/settings.json  
+1.3.2.7 .claude/settings.local.json  
+1.3.2.8 .claude/rules/目录  
+1.3.2.9 .claude/skills/目录  
+1.3.2.10 .claude/output-styles/目录  
+1.3.2.11 .claude/agents/目录  
+1.3.2.12 .claude/workflows/目录  
+1.3.2.13 .claude/agent-memory/目录  
+
+##### 1.3.2.1 目录树一览  
+1.项目级  
+![项目级别](resources/ClaudeCode/4.png)  
+
+##### 1.3.2.2 CLAUDE\.md  
+1.如何使用  
+在项目根目录下创建的文件(也可以放到.Claude/CLAUDE\.md下,不一定要在项目根路径下),<font color="#00FF00">Claude会在每一个对话前使用该文件,所以将项目的约定、常用命令、架构等项目级别的长期记忆放到该文件中</font>,以便Claude能够按照此架构进行操作  
+
+2.技巧
+* 设置文件长度在200行以内
+* Claude文件会加载到每个对话中,如果文件的某些内容仅对特定任务生效,则最好将其抽象为skills或路径级的规范中,以便按需加载;该文件内容应存放最具有通用性的内容
+* 列出最常用的命令,这样Claude就会自动使用这些命令而不需要每次都手动输入
+* 运行`/memory`命令从会话中打开和编辑Claude\.md
+* 也可以将文件放到.Claude/CLAUDE\.md下使用效果一样
+
+3.示例  
+```markdown
+# Project conventions
+
+## Commands
+- Build: `npm run build`
+- Test: `npm test`
+- Lint: `npm run lint`
+
+## Stack
+- TypeScript with strict mode
+- React 19, functional components only
+
+## Rules
+- Named exports, never default exports
+- Tests live next to source: `foo.ts` -> `foo.test.ts`
+- All API routes return `{ data, error }` shape
+```
+
+##### 1.3.2.3 .mcp.json  
+1.如何使用  
+在项目根目录下创建的文件,配置模型的MCP服务器,使得Claude能够访问外部工具:数据库、API、浏览器等,<font color="#00FF00">该文件保存整个团队使用的项目级的MCP服务器</font>  
+
+2.技巧  
+* 可以使用`${环境变量}`的方式隐藏敏感信息
+* 在项目根目录下创建的文件,而不是.claude文件夹内
+* 对于仅用户级的服务使用,请将MCP服务放入`~/.claude.json`而不是项目级别的`.mcp.json`文件
+
+3.示例  
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        // 敏感信息直接引用环境变量
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+##### 1.3.2.4 .worktreeinclude  
+1.如何使用  
+在项目根路径下创建该文件,当Claude使用`--worktree`命令、`EnterWorktree`工具、子Agent的`isolation: worktree`时,创建git工作树的时候Claude会读取该文件  
+在该文件中,需要列出从主项目中复制到每个新工作树的gitignored文件,工作树是新签出的,因此默认情况下会丢失.env等未跟踪的文件,这里的匹配方式使用.gitignore语法,只有与模式匹配并且被gitignored的文件才会被复制,因此跟踪的文件永远不会重复  
+*注意:.gitignore是排除文件,但.worktreeinclude是包含文件*  
+当项目越来越大的时候可能包含成千上万的文件,假设要使用工作数功能,这个文件可以不将当前的整个项目文件复制下来,而是<font color="#00FF00">让特定的工作文件夹只专注于某些配置文件或特定模块</font>  
+
+2.技巧  
+* 在项目根目录下创建的文件,而不是.claude文件夹内
+* 仅对Git生效
+* 也适用于桌面应用程序的并行会话
+
+3.示例  
+此示例将.env文件和secrets.json文件复制到Claude创建的每个工作树中,注释以#开头,空行将被忽略,匹配规则与.gitignore相同(只不过这个是匹配哪些文件包含)  
+```markdown
+# Local environment
+.env
+.env.local
+
+# API credentials
+config/secrets.json
+```
+
+##### 1.3.2.5 .claude/目录  
+1.介绍  
+在项目的根路径下创建该目录,该文件夹下的所有内容都是特定于项目级别的,使用git的情况下可以提交这些文件以便团队共享此文件  
+
+##### 1.3.2.6 .claude/settings.json 
+1.介绍  
+该文件会覆盖全局的`~/.claude/settings.json`文件,该文件的设置直接作用于Claude,与指导性文件claude\.md不同的是,该文件的设置Claude会强制执行,具体包含权限控制Claude可以使用那些命令和工具、在对话中的特定阶段使用哪些hook(回调)  
+
+2.命令主键  
+* permissions:在Claude使用特定工具或命令之前允许、拒绝或提示
+* hooks:在工具调用之前或文件编辑之后等事件上运行自定义脚本
+* statusLine:自定义Claude工作时底部显示的行
+* model:为本项目选择一个默认模型
+* env:每个会话中设置的环境变量
+* outputStyle:从`output-styles`中选择自定义的系统提示样式
+
+3.技巧
+* 控制台命令的权限匹配支持通配符,例如`Bash(npm test *)`,该命令匹配任何以`npm test`开头的命令
+
+4.示例  
+下面的示例允许运行`npm test`和`npm run`命令而不提示,阻止`rm -rf`,并在Claude编辑或写入文件后对文件运行jq命令  
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test *)",
+      "Bash(npm run *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [{
+      "matcher": "Edit|Write",
+      "hooks": [{
+        "type": "command",
+        "command": "jq -r '.tool_input.file_path' | xargs npx prettier --write"
+      }]
+    }]
+  }
+}
+```
+
+##### 1.3.2.7 .claude/settings.local.json  
+1.如何使用  
+比settings.json优先级更高的文件,这个文件很容易理解,.claude/settings.json是项目公共的设置文件,当个人需要一些和团队设置不同的配置时使用该文件,该文件不需要提交到git  
+
+2.使用技巧  
+* Claude Code在第一次写入时将此文件添加到`~/.config/git/ignore`中,如果你使用自定义`core.excludesFile`,也请在其中添加模式;若要和团队成员使用该文件规则,则请将该文件添加到`.gitignore`内容中  
+
+##### 1.3.2.8 .claude/rules/目录  
+1.介绍  
+该文件夹下存放Claude需要遵守的规则,这些规则分为两类,一种是无路径规则(对所有文件生效),一种是有路径规则(对特定文件生效)  
+这些规则也是需要分类的,当写前端时只加载前端规则,写后端时只加载后端规则(需要你手动分类),意思就是按文件路径划分,比方通过paths属性限制后端的文件是哪些,然后Claude会先读取paths属性且当有文件匹配时才将规则加载到上下文,<font color="#00FF00">这个路径是根据项目自已设计的</font>  
+如果某个规则没有指定任何文件路径,那么它的前置元数据(frontmatter)会在"会话开始时"立刻全局加载,就像CLAUDE\.md文件一样,如果指定了具体的文件路径,只有当Claude真正去读取或修改匹配文件时才会读取该规则  
+
+2.技巧  
+* 当Claude超过200行的时候,开始拆分规则
+* 使用`path`属性,并在前置元数据(frontmatter)中配合通配符(globs),来把具体的开发规则限制在特定的目录或特定的文件类型中
+
+3.`.claude/rules/testing.md`示例  
+当Claude读取到和下方`paths`属性指定的文件路径通配符匹配时读取,下方的这个示例仅当Claude处理测试文件时才加载,`paths`属性中的元数据通配符定义哪些文件会触发该规则,此处匹配以`.test.ts`或`.test.tsx.`结尾的文件,对于其他的文件该规则不会加载到上下文中  
+```markdown
+---
+paths:
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+---
+
+# Testing Rules
+
+- Use descriptive test names: "should [expected] when [condition]"
+- Mock external dependencies, not internal modules
+- Clean up side effects in afterEach
+```
+
+4.`.claude/rules/api-design.md`示例  
+下面的这个示例是适用于后端的规则(其实就是"src/api/*\*\/\*.ts"这个路径下的文件要使用的规则)  
+```markdown
+---
+paths:
+  - "src/api/**/*.ts"
+---
+
+# API Design Rules
+
+- All endpoints must validate input with Zod schemas
+- Return shape: { data: T } | { error: string }
+- Rate limit all public endpoints
+```
+
+##### 1.3.2.9 .claude/skills/目录  
+1.如何使用  
+直接通过`/[skill-name]`来使用/加载skill,或者当Claude匹配任务与skills的时候会加载skills  
+每个技能都是一个文件夹,其中包含SKILL\.MD和其所需要的任何支持文件,可以使用元数据来控制权限,当设置`disable-model-invocation: true`时仅有用户可以使用skills,当设置`user-invocable: false`时仅有模型可以使用  
+*提示:文件夹的名称就是skills技能的名称*  
+
+2.技巧  
+* 技能接受参数
+  例如`/deploy staging`会将"staging"作为\$ARGUMENTS传递,使用\$0、\$1等进行位置访问,也就是说在技能文档中可以使用\$0的方式作为参数的占位符,等调用的时候再具体指定具体参数
+* `description`属性决定Claude何时自动调用该skills
+* 将参考文档与SKILL\.md放在一起,Claude知道技能目录路径,并且当你提到它们时可以自动阅读这些参考文档
+
+3.`.claude/skills/security-review/`示例  
+
+4.`.claude/skills/security-review/SKILL.md`  
+执行`/security-review <target>`命令来使用该技能,该技能是用户类型的,Claude无法自动调用该技能  
+```markdown
+---
+description: Reviews code changes for security vulnerabilities, authentication gaps, and injection risks
+// 该元数据指定当前的skills不允许模型调用
+disable-model-invocation: true
+argument-hint: <branch-or-path>
+---
+
+## Diff to review
+
+// !`...` 命令会运行shell命令并将其输出注入到模型提示词中
+// $ARGUMENTS会替换为调用技能后面提供的参数
+!`git diff $ARGUMENTS`
+
+Audit the changes above for:
+
+1. Injection vulnerabilities (SQL, XSS, command)
+2. Authentication and authorization gaps
+3. Hardcoded secrets or credentials
+
+// Claude可以察觉技能目录路径,因此提及checklist.md这样的参考文档时可以让Claude读取它
+Use checklist.md in this skill directory for the full review checklist.
+
+Report findings with severity ratings and remediation steps.
+```
+
+5.`.claude/skills/security-review/checklist.md`  
+Claude在运行技能时按需阅读该文件,技能可以捆绑任何支持文件:参考文档、模板、脚本;技能目录路径位于SKILL.md前面,因此Claude可以按名称读取捆绑文件  
+```markdown
+# Security Review Checklist
+
+## Input Validation
+- [ ] All user input sanitized before DB queries
+- [ ] File upload MIME types validated
+- [ ] Path traversal prevented on file operations
+
+## Authentication
+- [ ] JWT tokens expire after 24 hours
+- [ ] API keys stored in environment variables
+- [ ] Passwords hashed with bcrypt or argon2
+```
+
+##### 1.3.2.10 .claude/output-styles/目录  
+1.介绍  
+这个是Claude的对话输出风格,输出风格一般是个人的即存放于`~/.claude/output-styles/`目录下,如果要和团队共享相同的输出风格则可以设置此文件夹,具体存放的内容见`~/.claude/output-styles/`  
+
+##### 1.3.2.11 .claude/agents/目录  
+1.如何使用  
+该文件可以让专用子代理具有自己的上下文窗口,每个Markdown文件都定义一个子代理,具有自己的系统提示、工具访问权限以及可选的自己的模型,子代理在新的上下文窗口中运行,保持主对话简洁,对于并行工作或独立任务很有用  
+
+2.小技巧  
+* 每个代理都会获得一个新的上下文窗口,与当前主会话分开
+* 使用元数据来限制每个代理的工具访问权限
+* 输入`@`并从自动完成列表中选择一个直接代理
+
+3.`.claude/agents/code-reviewer.md`示例  
+Claude为了完成审查任务会使用该文件,或者用户使用`@`从自动完成列表中提及该文件  
+这是一个被限制为只能使用"只读工具"的subagent示例,`description`元数据告知Claude何时自动委托给它,`tools`元数据限制它的读取、文本检索、文件通配符匹配,这样它就只能审查代码而绝无法进行修改,文件的主体内容则会转化为该子智能体的系统提示词  
+```markdown
+---
+name: code-reviewer
+description: Reviews code for correctness, security, and maintainability
+tools: Read, Grep, Glob
+---
+
+You are a senior code reviewer. Review for:
+
+1. Correctness: logic errors, edge cases, null handling
+2. Security: injection, auth bypass, data exposure
+3. Maintainability: naming, complexity, duplication
+
+Every finding must include a concrete fix.
+```
+
+##### 1.3.2.12 .claude/workflows/目录  
+1.何时使用  
+编排许多子代理的动态工作流脚本,启动时加载,每个文件名都对应一条命令(类似skills)  
+每个.js文件都是一个动态工作流,即运行时所执行的一段脚本,用于生成并协调众多的子智能体,这些工作流是由Claude自动编写并从`/workflows`目录保存到此处的,而不是由人工从零开始撰写,<font color="#00FF00">即该目录下的文件Claude自已编写</font>  
+
+2.小技巧  
+* 项目工作流程优先于`~/.claude/workflows/`中同名的个人工作流程
+* 使用`s`快捷键或命令,将/workflows中的某次运行记录保存下来,即可创建出一个这样的工作流
+
+##### 1.3.2.13 .claude/agent-memory/目录  
+1.何时使用  
+这个目录存放子agent的记忆,和主对话的记忆区分下来,MEMORY\.md的前200行(上限为 25KB)在运行时加载到子代理系统提示词中  
+子Agent通过`memory: project`元数据得到一个专用的记忆路径,和`~/.claude/projects/`中的主会话自动记忆不同,每个子代理读取和写入自己的MEMORY\.md  
+
+2.技巧  
+* 并不是每个子智能体都会产生记忆文件,只有当你在这个子智能体的元数据中设置了`memory:`字段,系统才会为它开辟专门的记忆存储空间
+* 该目录存放的是项目级别的子智能体记忆,旨在与你的团队共享,如果不想将记忆纳入Git,请使用`memory: local`,这会将其写入`.claude/agent-memory-local/`目录,若需要跨项目共享记忆,请使用`memory: user`,这会将其写入`~/.claude/agent-memory/`
+
+3.`.claude/agent-memory/\<agent-name\>/MEMORY\.md`示例  
+该文件由子Agent自动写入并维护,子Agent启动时会自动加载到子Agent的系统提示词中  
+```markdown
+# code-reviewer memory
+
+## Patterns seen
+- Project uses custom Result<T, E> type, not exceptions
+- Auth middleware expects Bearer token in Authorization header
+- Tests use factory functions in test/factories/
+
+## Recurring issues
+- Missing null checks on API responses (src/api/*)
+- Unhandled promise rejections in background jobs
+```
+
+#### 1.3.3 用户级目录树  
+**目录:**  
+1.3.3.1 用户级目录树一览  
+1.3.3.2 .claude.json  
+
+##### 1.3.3.1 用户级目录树一览  
+1.用户级  
+![用户级](resources/ClaudeCode/5.png)  
+
+##### 1.3.3.2 .claude.json  
+
+
+
+
 
 ## 2.使用Claude Code 
 **目录:**  
