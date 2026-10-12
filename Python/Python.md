@@ -14,7 +14,7 @@
 1.3 链式表达式  
 1.4 运算符  
 
-## 变量命名规则
+## 1.1 变量命名规则  
 Python变量的命名规则,区分大小写,变量名字中可以包含英文、下划线、数字,但是不能以数字开头  
 
 ## 1.2 局部变量和全局变量  
@@ -112,9 +112,15 @@ Python中的比较运算符支持链式比较,例如:`if(10 < i <=20):...` 表�
 2.4 列表  
 2.5 元组  
 2.6 字典  
+2.7 集合  
+2.8 类  
 
 ## 2.1 内置数据类型分类
+1.类型分类  
 Python中有6中主要的内置数据类型,分别是:数值、字符串、列表、元组、集合、字典  
+
+2.type  
+在[[Python#43-常用函数]]中的`type`函数可以查看变量的类型  
 
 ## 2.2 数值类型  
 1.数值类型
@@ -283,6 +289,45 @@ set0 = {1}
 set1 = {2}
 print(set0 | set1) #输出{1,2}
 ```
+
+## 2.8 类  
+1.定义方式  
+Python使用`class`关键字来定义类,类要遵循下述格式  
+```python
+class [类名]:
+    def __init__(self,args0...): #构造函数
+    def [method](self,args0...): #自定义方法
+```
+
+2.self的含义  
+self表示为<font color="#00FF00">自身实例本身</font>  
+```python
+# coding: utf-8
+class Man:
+    """示例类"""   # 示例类
+
+    def __init__(self, name):
+        self.name = name
+        print("Initilized!")
+
+    def hello(self):
+        print("Hello " + self.name + "!")
+
+    def goodbye(self):
+        print("Good-bye " + self.name + "!")
+
+m = Man("David")
+m.hello()
+m.goodbye()
+# 输出结果为
+# Initilized!
+# Hello David!
+# Good-bye David!
+```
+*提示:在Python中可以像self.name这样,通过在self后面添加属性名来<font color="#00FF00">生成</font>或访问<font color="#00FF00">实例变量</font>*  
+*实例变量是存储在各个实例中的变量*  
+
+
 
 # 3.算法与控制语句  
 **目录:**  
@@ -602,7 +647,13 @@ print(struct_time) #输出的结果为2022-12-01 21:04:39,Thursday,December
 首先导入函数库`import RPI.GPIO`  
 Python实际上也是可以控制硬件的,比如树莓派这种,要控制树莓派必须先导入GPIO库,然后做相应的操作  
 
-## 6.5 numpy库
+## 6.5 numpy库  
+**目录:**  
+6.5.1 numpy和matplotlib概述  
+6.5.2 numpy  
+6.5.3 matplotlib  
+
+### 6.5.1 简介  
 1.numpy概述
 首先安装`pip install numpy`  
 导入函数库`import numpy`  
@@ -611,7 +662,7 @@ numpy库是用于做科学计算所使用的包
 2.matplotlib概述 
 首先安装`pip install matplotlib`
 导入函数库`import matplotlib.pyplot`
-matplotlib库是Python中用于绘图的包
+matplotlib库是Python中用于绘图的包,使用matplotlib可以轻松实现绘制图形和实现数据的可视化  
 
 3.numpy库和matplotlib库常用方法:
 * `numpy.linspace(int,int,int) return T` 生成X轴的数据,args0为X轴坐标的起点,args1为X轴坐标的终点,args2为X轴上有多少个点.
@@ -626,6 +677,196 @@ matplotlib库是Python中用于绘图的包
 * `matplotlib.pyplot.plot(T,T,String)` 绘制(args0,args1)曲线,args2为曲线颜色,例如:r--代表红色,b-- 代表蓝色
 * `matplotlib.pyplot.title(String)` 给函数一个标题,支持数学表达式
 * `matplotlib.pyplot.show()` 展示
+
+### 6.5.2 numpy
+**目录:**
+6.5.2.1 numpy进行算术运算  
+6.5.3.2 N维数组  
+6.5.4.3 广播  
+6.5.5.4 访问元素  
+
+#### 6.5.2.1 numpy进行算术运算  
+```python
+x = np.array([1.0,2.0,3.0])
+y = np.array([2.0,4.0,6.0])
+x + y # 对应元素相加,输出为([3,6,9])
+x - y # 对应元素相减
+```
+
+#### 6.5.3.2 N维数组  
+1.创建N维矩阵  
+numpy不仅可以生成一维数组,还可以生成多维数组  
+```python
+A = np.array([1,2],[3,4])
+print(A)
+# 输出结果为
+# 1 2
+# 3 4
+
+A.shape
+# 输出结果为 (2,2)
+
+A.dtype
+# 输出结果为dtype('int64')
+```
+上述代码生成了一个2x2的矩阵,矩阵A的形状可以通过shape来查看,矩阵元素的数据类型可以通过dtype查看  
+
+2.N维矩阵的算术运算  
+```python
+B = np.array([3,0],[0,6])
+A + B
+# 输出结果为
+# 4 2 
+# 3 10
+
+A * B
+# 输出结果为
+# 3 0
+# 0 24
+
+A * 10
+# 输出结果为
+# 10 20 
+# 30 40
+```
+
+#### 6.5.4.3 广播  
+1.概述
+在[[Python#653-n维数组]]的例子中发现,2*2的矩阵A可以和10进行乘法运算,在这个例子中标量10被扩展成了2x2的形状,然后再与矩阵A进行乘法运算,这个功能就称之为<font color="#FF00FF">广播</font>  
+
+2.例子  
+```python
+A = np.array([1,2],[3,4])
+B = np.array([10,20])
+A * B
+# 输出结果为
+# 10 40 
+# 30 80
+```
+在上述例子中,一维数组B变成了和二维数组A相同的形状,然后再进行计算,实际上它这里是这么算得  
+1 2 10 20 = 10 20 
+3 4 10 20 = 30 80 
+
+#### 6.5.5.4 访问元素  
+1.手动访问
+元素的索引从0开始  
+```python
+X = np.array([51,55],[14,19],[0,4])
+print(X)
+# 输出结果为
+# 51 55
+# 14 19
+# 0 4
+
+X[0]
+# 访问第0行,输出结果为 array([51,55])
+
+X[0][1]
+# 访问(0,1)元素,输出结果为55 实际上这里的访问和数组很类似
+```
+
+2.使用for访问
+```python
+for row in X:
+    print(row)
+
+# 输出结果为
+# 51 55
+# 14 19
+# 0 4
+```
+
+3.使用数组访问各个元素  
+```python
+X = X.flatten() #将X转为一维数组
+print(X)
+# 输出结果为[51 55 14 19 0 4]
+
+X[np.array([0,2,4])] # 获取索引为0、2、4的元素
+# 输出结果为array([51,14,0]) 
+```
+*提示:这种标记法要学会,使用np.array([0,2,4])的这种方式创建一个数组,该数组的值就作为访问X数组的索引*
+
+4.获取大于15的元素  
+*提示:这里使用类似上面3的技巧*
+```python
+X > 15
+# 输出结果为 array([True,True,False,True,False,False],dtype=bool)
+
+X[X > 15]
+# 输出结果为 array([51,55,19])
+```
+*提示:先使用X>15从X中筛选出所有满足大于15的元素,并创建一个用于访问的新数组,再用该数组去访问X本身*  
+
+### 6.5.3 matplotlib  
+**目录:**  
+6.5.3.1 绘制sin图形  
+6.5.3.2 追加cos图形  
+6.5.3.3 显示图形  
+
+#### 6.5.3.1 绘制简单图形  
+1.绘制sin函数的代码  
+```python
+# coding: utf-8
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 生成数据
+x = np.arange(0, 6, 0.1)
+y = np.sin(x)
+
+# 绘制图形
+plt.plot(x, y)
+# 注意这里的代码和原版不一样,因为Linux环境下的图形设置相关,所以这里改为将结果保存为一张图片
+plt.savefig("sin_graph.png")
+```
+
+2.解释  
+这里使用arrange方法生成了[0,0.1,0.2...,5.8,5.9]的数据x,然后对x的各个元素应用sin函数,将x的数据传给plt.plot方法,然后绘制图形,最终输出为一张图片  
+![sin图形](resources/Python/1.png)  
+
+#### 6.5.3.2 追加cos图形  
+1.追加cos函数的代码  
+```python
+# coding: utf-8
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 生成数据
+x = np.arange(0, 6, 0.1) # 以0.1为单位，生成0到6的数据
+y1 = np.sin(x)
+y2 = np.cos(x)
+
+# 绘制图形
+plt.plot(x, y1, label="sin")
+plt.plot(x, y2, linestyle = "--", label="cos")
+plt.xlabel("x") # x轴的标签
+plt.ylabel("y") # y轴的标签
+plt.title('sin & cos')
+plt.legend()
+plt.savefig("sin_cos_graph.png")
+```
+
+2.解释  
+在刚才的sin图形的基础上追加cos函数的图形,并尝试使用pyplot的添加标题和X轴标签名等其他功能  
+![cos图形](resources/Python/2.png)  
+
+#### 6.5.3.3 显示图形  
+1.显示图形的代码  
+```python
+# coding: utf-8
+import matplotlib.pyplot as plt
+from matplotlib.image import imread
+
+img = imread('../dataset/lena.png') #读入图像,路径要正确
+plt.imshow(img)
+
+plt.show()
+```
+
+2.结果  
+![效果](resources/Python/3.png)  
+按照道理来说,上述图像就会显示你选择的那个图形,但是现在我这里的Linux环境暂时不太好整  
 
 ## 6.6 IO流  
 1.概述  
@@ -734,3 +975,29 @@ pip是一个包管理工具,主要用来安装、更新和卸载Python的第三�
 * `pip show [library]` 查看某个库的详细信息
   * `library`:库的名称
 * `pip install --upgrade [library]` 更新指定库
+
+3.在Linux上使用pip  
+系统Python由apt管理,为了避免pip安装的包覆盖系统依赖,Linux会阻止你直接向系统环境安装第三方库  
+所以需要给Python<font color="#00FF00">安装创建虚拟环境的能力</font>,可以在不污染系统Python环境的情况下学习和开发,在Linux中Python的运行环境分为两种  
+(1) 系统环境,Kubuntu自己使用的Python及其依赖,尽量不要随意修改  
+(2) 虚拟环境,为学习项目创建一个独立的Python环境,第三方库安装在里面,不会直接覆盖系统环境中的库
+
+3.1 安装虚拟环境支持  
+`sudo apt install python3-venv`
+
+3.2 创建虚拟环境目录  
+使用venv这种方式,相当于每个项目都有不同的环境,所以是基于项目的  
+`cd "/home/lorianjay/root/software/dev/Project/Python Project/DeepLearning"` 进入目标项目(工作目录)  
+
+3.3 创建虚拟环境  
+`python3 -m venv .venv` 此时会在目录下生成`.venv`文件夹,它保存这个项目的虚拟环境
+
+3.4 激活虚拟环境  
+`source .venv/bin/activate`  
+
+3.5 在虚拟环境中安装pip  
+`python -m pip install numpy`  
+
+3.6 推出虚拟环境  
+`deactivate`  
+
