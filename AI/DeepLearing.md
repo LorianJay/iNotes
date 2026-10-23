@@ -394,6 +394,9 @@ plt.savefig("sig_step_compare.png")
 (1) 虽然两个函数在平滑性上有差异,但是如果从宏观视角看,两者的结构均为<font color="#00FF00">输入小时,输出接近0,随着输入增大,输出向1靠近</font>,换句话说,当输入信号为重要信号时,阶跃函数和sigmoid函数都会输出较大的值,当输入信号不重要时,两者都输出较小的值  
 (2) 不管输入信号的大小,两者的输出信号均在0到1之间  
 
+4.补充  
+参考[[DeepLearing#326-为了要设定损失函数]]  
+
 ### 2.2.6 非线性函数  
 1.非线性函数  
 阶跃函数和sigmoid函数都是<font color="#00FF00">非线性函数</font>,所谓非线性函数对应的是线性函数,若函数的输出值是输入值的常数倍数就称为线性函数,所以线性函数就是一条笔直的直线,反之就是非线性函数  
@@ -846,11 +849,16 @@ print("Accuracy:" + str(float(accuracy_cnt) / len(x)))
 # 3.神经网络的学习  
 **目录:**  
 3.1 从数据中学习  
+3.2 损失函数  
+3.3 导数  
+3.4 梯度  
+3.5 学习算法的实现  
 
 ## 3.1 从数据中学习  
 **目录:**  
 3.1.1 概述  
 3.1.2 数据驱动  
+3.1.3 训练数据和测试数据  
 
 ### 3.1.1 概述  
 1.概述  
@@ -878,6 +886,605 @@ print("Accuracy:" + str(float(accuracy_cnt) / len(x)))
 
 3.机器学习的方法  
 现在已经介绍了两种针对机器学习任务的方法,可以用下图来表示,此外图中还展示了深度学习的方法,在第二个方法中(利用特征向量和机器学习的方法),特征向量仍是由人工设计,而在神经网络中,<font color="#00FF00">连图像中包含的重要特征量也都是由机器来学习的</font>
+![机器学习](resources/DeepLearing/26.png)  
+
+4.深度学习  
+深度学习有时也称为<font color="#FF00FF">端到端学习</font>,端到端的意思就是从一端到另一端的意思,即从原始数据(输入)中获得目标结果(输出)的意思  
+神经网络的优点是对所有的问题都<font color="#00FF00">可以用同样的流程来解决</font>,不管要求解的问题是识别5,还是识别狗、人脸,神经网络都是通过不断地学习所提供的数据,尝试发现待求解的问题的模式,也就是说,<font color="#00FF00">与待处理的问题无关</font>,神经网络可以将数据直接作为原始数据,进行端对端的学  
+
+### 3.1.3 训练数据和测试数据  
+1.训练数据和测试数据  
+机器学习中,一般将数据分为<font color="#00FF00">训练数据和测试数据</font>两部分来进行学习和实验等,首先使用训练数据进行学习,寻找最优的参数;然后,使用测试数据评价训练得到的模型的实际能力  
+目的就是用来提升模型的<font color="#00FF00">泛化能力</font>,避免<font color="#FF00FF">过拟合</font>等问题,此外训练数据也可以称为<font color="#00FF00">监督数据</font>  
+
+2.泛化能力  
+泛化能力是指处理未被观察过的数据(不包含在训练数据中的数据)的能力,获得泛化能力是机器学习的最终目标,在识别手写数字的问题中,泛化能力可能会被用在自动读取明信片的邮政编码的系统上,此时手写数字识别就必须具备较高的识别"任意一个人写的任意文字"写的字的能力,如果系统只能正确识别已有的训练数据,那有可能是只学习到了训练数据中的个人的习惯写法  
+
+## 3.2 损失函数  
+**目录:**  
+3.2.1 概述  
+3.2.2 均方误差  
+3.2.3 交叉熵误差  
+3.2.4 mini-batch学习  
+3.2.5 mini-batch交叉熵误差实现  
+3.2.6 为了要设定损失函数  
+
+
+### 3.2.1 概述  
+神经网络以某个指标为线索寻找最优权重参数,神经网络的学习中所用的指标称为<font color="#FF00FF">损失函数</font>,这个损失函数可以用任意函数,但一般用均方误差和交叉熵误差等  
+损失函数是表示神经网络性能的<font color="#00FF00">恶劣程度</font>的指标,即当前神经网络对监督数据(训练数据)在多大程度上<font color="#FF0000">不</font>拟合,在多大程度上<font color="#FF0000">不</font>一致  
+
+### 3.2.2 均方误差  
+1.均方误差公式
+$$E = \frac{1}{2} \sum_{k} (y_k - t_k)^2$$
+*这里$y_k$表示神经网络输出,$t_k$表示监督数据,$k$表示数据的维度*    
+*提示:均方误差是最经典的损失函数*
+
+2.手写识别的例子  
+在[[DeepLearing#262-神经网络的推理处理]]的例子中$y_k$、$t_k$是由如下10个元素构成的数据  
+```python
+>>> y = [0.1, 0.05, 0.6, 0.0, 0.05, 0.1, 0.0, 0.1, 0.0, 0.0]
+>>> t = [0, 0, 1, 0, 0, 0, 0, 0, 0, 0]
+```
+数组元素的索引从第一个开始依次对应数字0,1,...9,这里神经网络y的输出是softmax函数的输出,softmax(参考[[DeepLearing#25-输出层的设计]])函数的输出是以概率进行输出的
+t是监督数据,将正确解标签设为1,其他均设为0,这里标签2为1表示正确解是2,将正确解标签表示为1,其他标签表示为0的表示方法称为one-hot表示(之前已经提到过[[DeepLearing#261-mnist数据集]])  
+
+3.代码实现均方误差公式  
+```python
+def mean_squared_error(y, t):
+    return 0.5 * np.sum((y-t)**2)
+```
+上述代码的y和t对应公式中的y和t,现在使用该函数实际进行计算  
+```python
+>>> # 设2为正确解
+>>> t = [0, 0, 1, 0, 0, 0, 0, 0, 0, 0]
+>>>
+>>> # 例1 2的概率最高的情况(0.6)
+>>> y = [0.1, 0.05, 0.6, 0.0, 0.05, 0.1, 0.0, 0.1, 0.0, 0.0]
+>>> mean_squared_error(np.array(y), np.array(t))
+0.097500000000000031
+>>>
+>>> # 例2 7的概率最高的情况(0.6)
+>>> y = [0.1, 0.05, 0.1, 0.0, 0.05, 0.1, 0.0, 0.6, 0.0, 0.0]
+>>> mean_squared_error(np.array(y), np.array(t))
+0.59750000000000003
+```
+上述例子表明,正确解为2,第一个例子神经网络输出的最大值为2,第二个例子神经网络输出的最大值为7,也即第一个例子的损失函数值更小和监督数据之间的误差更小
+
+### 3.2.3 交叉熵误差  
+1.交叉熵公式  
+$$E = -\sum_{k} t_k \log y_k$$  
+*提示:上述式子$\log$表示的是以e为底的自然对数$\log_e$,$y_k$是神经网络的输出,$t_k$是正确解标签*  
+
+2.例子  
+因为$t_k$中只有正确解标签的索引为1,其他均为0(one-hot表示),所以上述式子<font color="#00FF00">只计算对应正确解标签的输出的自然对数</font>,交叉熵误差的值是由正确解标签所对应的输出结果决定的
+*例子:比如正确解标签的索引为2,与之对应的神经网络输出是0.6则交叉熵误差为$-\log^{0.6} = 0.51$,若对应的神经网络输出为0.1,则则交叉熵误差为$-\log^{0.1} = 2.30$,*  
+所以由这个例子就可以看出,如果正确解标签对应的输出越大,其值(交叉熵误差)就越接近0,反之正确解标签对应的输出越小,其值(交叉熵误差)就越接近1,<font color="#00FF00">实际上就是$\log_e$函数的图像曲线</font>  
+
+3.代码实现交叉熵误差公式  
+```python
+def cross_entropy_error(y, t):
+    delta = 1e-7
+    return -np.sum(t * np.log(y + delta))
+```
+*注意:函数内部在计算np.log时,加上了一个微小值delta,因为当出现np.log(0)的时候会变为负无限大的-inf,这会导致后续计算无法进行,所以才添加一个微小值*  
+下面使用`cross_entropy_error(y,t)`函数进行简单的计算,效果和之前的例子是一样的  
+```python
+>>> t = [0, 0, 1, 0, 0, 0, 0, 0, 0, 0]
+>>> y = [0.1, 0.05, 0.6, 0.0, 0.05, 0.1, 0.0, 0.1, 0.0, 0.0]
+>>> cross_entropy_error(np.array(y), np.array(t))
+0.51082545709933802
+>>>
+>>> y = [0.1, 0.05, 0.1, 0.0, 0.05, 0.1, 0.0, 0.6, 0.0, 0.0]
+>>> cross_entropy_error(np.array(y), np.array(t))
+2.3025840929945458
+```
+
+### 3.2.4 mini-batch学习  
+1.概述  
+之前考虑的都是针对单个数据的损失函数,但严格来说损失函数就是针对训练数据计算值并找出使得该值尽可能小的参数,因此计算损失函数时必须将所有训练数据作为对象,若要求所有训练数据的损失函数总和,就要将式子写成下面这样(以交叉熵误差为例)  
+$$E = -\frac{1}{N} \sum_{n} \sum_{k} t_{nk} \log y_{nk}$$  
+*解释:假设有N个数据,$t_{nk}$表示第$n$个数据的第$k$个元素的值,$y_{nk}$是神经网络的输出,$t_{nk}$是训练数据,其实和之前是一样的*  
+
+上述式子其实只是把求单个数据的损失函数的式子扩大到了N份数据,不过最后还要除以N进行正规化,通过除以N,可以求单个数据的<font color="#00FF00">平均损失函数</font>,通过这样的平均化,<font color="#FF00FF">可以获得和训练数据的数量无关的统一指标</font>  
+
+2.mini-batch学习  
+MINIST数据集的训练数据有60000个,如果以全部数据为对象求损失函数的和,则计算过程需要花费较长的时间,特别是遇到一些数据量达到几百万、几千万的,就很难计算也不现实,因此从全部数据中选取一部分作为全部数据的<font color="#00FF00">近似</font>,神经网络的学习也是从训练数据中选出一部分,然后对每个mini-batch进行学习,这种学习方式就是<font color="#FF00FF">mini-batch学习</font>  
+
+3.代码实现选取随机训练数据  
+```python
+# 获取数据集
+(x_train, t_train), (x_test, t_test) = load_mnist(flatten=True, normalize=False)
+# 获取训练数据总量为60000
+train_size = x_train.shape[0]
+batch_size = 10
+# 从0-59999从随机取10个数字
+batch_mask = np.random.choice(train_size, batch_size)
+x_batch = x_train[batch_mask]
+t_batch = t_train[batch_mask]
+```
+之后只需指定这些随机选出的索引,取出mini-batch然后使用这个mini-batch计算损失函数即可  
+
+### 3.2.5 mini-batch交叉熵误差实现  
+1.实现mini-batch交叉熵误差函数  
+*提示:根据之前对单个数据的交叉熵误差进行修改,下面的代码可以同时处理单个数据和批量数据*  
+```python
+def cross_entropy_error(y, t):
+    if y.ndim == 1:
+        t = t.reshape(1, t.size)
+        y = y.reshape(1, y.size)
+    # y.shape[0]是这一批batch有多少个数据,y.shape[1]固定为784
+    batch_size = y.shape[0]
+    return -np.sum(t * np.log(y + 1e-7)) / batch_size
+```
+y是神经网络的输出,t是训练数据,y的维度为1时,即求单个数据的交叉熵误差时,需要改变数据的形状,并且当输入为mini-batch的时候,要用batch的个数进行正规化,计算单个数据的平均交叉熵误差  
+
+2.标签模式(非one-hot表示)  
+*提示:当训练数据是标签形式(非one-hot表示时,像是2、7这样的标签时),交叉熵误差可以通过下面的代码实现*  
+```python
+def cross_entropy_error(y, t):
+    if y.ndim == 1:
+        t = t.reshape(1, t.size)
+        y = y.reshape(1, y.size)
+    batch_size = y.shape[0]
+    return -np.sum(np.log(y[np.arange(batch_size), t] + 1e-7)) / batch_size
+```
+首先`np.arange(batch_size)`会生成一个从0到batch_size-1的数组,比如当batch_size为5的时候,会生成`[0,1,2,3,4]`,此时t中的标签是以`[2,7,0,9,4]`的形式存储的,所以y[np.arange(batch_size),t]能抽出各个数据的正确解标签对应的神经网络的输出,在这个例子中会生成[y[0,2], y[1,7], y[2,0],y[3,9], y[4,4]]  
+进一步解释,最后的y一定是一个二维数组,大小是batch_size*10,其中batch_size表示这批图像有多少个,10就是神经网络识别图片对应每个数字的概率,所以y[0,2]表示的意思是,神经网络对第0个图像最终预测其结果为2的概率是多少,其实就是$\log y_k$中的$y_k$的值,这里是<font color="#00FF00">直接提取</font>不需要像之前那样再挨个乘了  
+
+### 3.2.6 为了要设定损失函数  
+1.为什么要设定损失函数  
+在神经网络中,寻找最优参数(权重和偏移量时),要寻找使得损失函数最小的值的参数,此时就需要计算参数的导数,然后以这个导数为参考,逐步更新参数的值  
+假设现在有一个神经网络,现在只关注这个神经网络中某一个权重参数值,此时对该权重参数的损失函数求导,表示的是<font color="#00FF00">如果稍微改变这个权 重参数的值,损失函数的值会如何变化</font>,如果导数值为负,通过使该权重参数向X轴正方向改变,可以减小损失函数的值;反过来,如果导数的值为正,过使该权重参数向X轴负方向改变,可以减小损失函数的值;当导数的值为0时,无论权重参数向哪个方向变化,损失函数的值都不会改变,此时该权重参数的更新会停在此处  
+所以不使用识别精度作为神经网络的指标,是<font color="#00FF00">因为如果以识别精度为指标,则参数的导数在绝大多数地方都会变为0</font>  
+
+2.识别精度  
+简单来说不能用识别精度作为指标的原因是,如果以识别精度为指标,即使稍微改变权重的值,识别精度也不会有太大的改变,即便识别精度有所改善,它的值也不会像32.0123%这样连续变化,而是变为33%、34%这种不连续的、离散的值  
+如果把损失函数作为指标,则当前损失函数的值可以表示为0.92543...这样的值,如果稍微改变参数的值,对应的损失函数也会发生连续变化  
+
+3.阶跃函数  
+<font color="#00FF00">识别精度对微小的参数变化基本上没有什么反应,即便有反应,它的值也是不连续地、突然地变化</font>,作为激活函数的阶跃函数也有同样的问题,因为阶跃函数的导数在绝大多数地方均为0,此时神经网络将无法学习,如果使用了阶跃函数,那么即便将损失函数作为指标,参数的微小变化也会被阶跃函数抹杀,导致损失函数的值不会产生任何变化  
+
+4.sigmoid函数  
+相比之下sigmoid函数不仅函数的输出是连续变化的,而且曲线的斜率(导数)也是连续变化的,<font color="#FF00FF">即sigmoid函数的导数在任何地方都不为0</font>  
+
+## 3.3 导数  
+**目录:**  
+3.3.1 导数  
+3.3.2 数值微分的例子  
+3.3.3 偏导数  
+
+
+### 3.3.1 导数  
+1.概述  
+本笔记不过多赘述导数相关知识,本章节主要讲解Python实现导数(为梯度下降铺垫),首先看导数定义式  
+$$\frac{df(x)}{dx} = \lim_{\Delta x \to 0} \frac{f(x + \Delta x) - f(x)}{\Delta x}$$  
+
+2.数值微分的初步实现  
+```python
+# 不好的实现示例
+def numerical_diff(f, x):
+    h = 10e-50
+return (f(x+h) - f(x)) / h
+```
+*提示:上述代码的h相当于公式中的$\Delta x$*  
+上述这种直接带值求解微分的方法称为<font color="#FF00FF">数值微分</font>,这个函数有两处需要改进  
+
+2.1 舍入误差  
+在上述的实现中,为了把尽可能小的值赋值给h(让h无限接近0),所以使用了10e-50,但是这样反而产生了<font color="#FF00FF">舍入误差</font>,所谓舍入误差即因省略小数的精细部分的数值而最终造成计算结果上的误差,比如在Python中舍入误差可如下表示,可以看到如果用float32来表示1e-50就会变成0.0,无法正确表示出来,所以第一个改进点就是将微小值h改为$10^{-4}$  
+```python
+>>> np.float32(1e-50)
+0.0
+```
+
+2.2 中心差分  
+上述实现中计算的导数对应的是$x+h$和$x$之间的斜率,因为不可能真的把$h$取得像$\Delta x$那般无限接近0,故真正的导数(真的切线)和上述实现中得到的导数值在严格意义上并不一致  
+为了减小这个误差,可以计算函数$f$在$(x+h)$和$(x-h)$之间的差分,因为这种计算方法以$x$为中心,计算它左右两边的差分,所以也称为<font color="#FF00FF">中心差分</font>((x+h)和x之间的差分称为<font color="#00FF00">前向差分</font>)  
+
+3.优化后的数值微分  
+```python
+# 参数1为函数 参数2为求函数f在x处的导数值
+def numerical_diff(f, x):
+    h = 1e-4 # 0.0001
+    return (f(x+h) - f(x-h)) / (2*h)
+```
+
+### 3.3.2 数值微分的例子  
+1.背景  
+本节要求导的函数为$y=0.01x^2 + 0.1x$用Python实现的代码为  
+```python
+def function_1(x):
+    return 0.01*x**2 + 0.1*x
+```
+
+2.绘制上述函数对应的图像曲线  
+*提示:绘制的Python代码省略*  
+![二次函数图像曲线](resources/DeepLearing/27.png)  
+
+3.计算函数导数  
+现在计算函数在$x=5$和$x=10$处的导数  
+```python
+>>> numerical_diff(function_1, 5)
+0.1999999999990898
+>>> numerical_diff(function_1, 10)
+0.2999999999986347
+```
+$f(x)=0.01x^2 + 0.1x$的解析解(对应的是数值解)是$\frac{df(x)}{dx} = 0.02x + 0.1$,因此在x=5和x=10处,真正的导数分别为0.2和0.3,和上面的数值微分的结果相比,虽然严格意义上内容不一致,但其实误差非常小,基本上可以认同它们是相等的  
+
+4.函数和其对应切线  
+使用上述的数值微分值作为斜率,画一条直线图像如下,可以确认这些直线确实对应函数的切线  
+![函数和其对应切换](resources/DeepLearing/28.png)  
+
+### 3.3.3 偏导数  
+1.背景  
+本节要求偏导的函数为$f(x_0,x_1) = x_0^2 + x_1^2$,该公式有两个变量,用Python实现的代码为  
+```python
+def function_2(x):
+    return x[0]**2 + x[1]**2
+# 或者 return np.sum(x**2)
+```
+上述二元函数的图像为  
+![二元函数图像](resources/DeepLearing/30.png)  
+
+2.求偏导数示例  
+当$x_0=3,x_1=4$时,关于$x_0$的偏导数$\frac{\partial f}{\partial x_0}$  
+```python
+>>> def function_tmp1(x0):
+...
+ return x0*x0 + 4.0**2.0
+...
+>>> numerical_diff(function_tmp1, 3.0)
+6.00000000000378
+```
+*提示:求偏导数的时一定是先固定一个变量,在此基础上再求另外一个变量在某点处的导数*  
+
+## 3.4 梯度  
+**目录:**  
+3.4.1 概述  
+3.4.2 梯度法  
+3.4.3 神经网络的梯度  
+3.4.4 神经网络的梯度  
+
+### 3.4.1 概述  
+1.梯度  
+在之前的例子中,当时是固定了某个变量然后算另一个变量在某处的导数,现在希望求$x_0=3,x_1=4$时$(x_0,x_1)$的偏导数$(\frac{\partial f}{\partial x_0},\frac{\partial f}{\partial x_1})$,另外像$(\frac{\partial f}{\partial x_0},\frac{\partial f}{\partial x_1})$这样的由<font color="#FF00FF">全部变量的偏导数</font>(类似偏导函数)汇总而成的向量称为<font color="#FF00FF">梯度</font>  
+
+2.梯度实现代码  
+```python
+def numerical_gradient(f, x):
+    h = 1e-4 # 0.0001
+    grad = np.zeros_like(x) # 生成和 x 形状相同的数组
+for idx in range(x.size):
+    tmp_val = x[idx]
+    # f(x+h) 的计算,直接对整个数组的所有元素操作
+    x[idx] = tmp_val + h
+    fxh1 = f(x)
+    # f(x-h) 的计算
+    x[idx] = tmp_val - h
+    fxh2 = f(x)
+    # 中心差分法
+    grad[idx] = (fxh1 - fxh2) / (2*h)
+    x[idx] = tmp_val # 还原值
+return grad
+
+# 这里已经不是二元函数了
+def function_2(x):
+    if x.ndim == 1:
+        return np.sum(x**2)
+    else:
+        return np.sum(x**2, axis=1)
+```
+这里用该函数实际计算一下梯度,如此就可以计算$(x_0,x_1)$在各点处的梯度,上例中点(3,4)处的梯度是(6,8)  
+```python
+>>> numerical_gradient(function_2, np.array([3.0, 4.0]))
+array([ 6., 8.])A
+>>> numerical_gradient(function_2, np.array([0.0, 2.0]))
+array([ 0., 4.])
+>>> numerical_gradient(function_2, np.array([3.0, 0.0]))
+array([ 6., 0.])
+```
+*提示:关于`numerical_gradient`这个函数重点强调一下,其中的x.size这个方法,就是数组的大小,比如上述np.array([3.0, 4.0])的例子,它返回的就是2,所以说这个方法并不是一次性求,而是<font color="#00FF00">分别求每个点的偏导数</font>,而且为什么function_2变成一元函数了,因为在当前的这个二元函数中,求任意一个变量的导数另外一个变量都视为常数,所以另外一个变量在本例中不产生任何作用*
+
+3.梯度图像  
+为了更好地理解,这里把$f(x_0 + x_1) = x_0^2 + x_1^2$画在图上,不过这里画的是<font color="#00FF00">元素值为负梯度的向量</font>  
+如图所示,梯度呈现为有向向量,梯度指向函数$f(x_0,x_1)$的最低处(即最小值处),而且离最低处越远,箭头越大  
+梯度实际指向的是<font color="#00FF00">各点处的函数值降低的方向</font>,<font color="#FF00FF">梯度指向的方向是各点处的函数值减小最多的方向</font>
+![梯度图像](resources/DeepLearing/31.png)  
+```python
+import numpy as np
+import matplotlib.pylab as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+def _numerical_gradient_no_batch(f, x):
+    h = 1e-4 # 0.0001
+    grad = np.zeros_like(x)
+    
+    for idx in range(x.size):
+        tmp_val = x[idx]
+        x[idx] = float(tmp_val) + h
+        fxh1 = f(x) # f(x+h)
+        
+        x[idx] = tmp_val - h 
+        fxh2 = f(x) # f(x-h)
+        grad[idx] = (fxh1 - fxh2) / (2*h)
+        
+        x[idx] = tmp_val # 还原值
+        
+    return grad
+
+def numerical_gradient(f, X):
+    if X.ndim == 1:
+        return _numerical_gradient_no_batch(f, X)
+    else:
+        grad = np.zeros_like(X)
+        
+        for idx, x in enumerate(X):
+            grad[idx] = _numerical_gradient_no_batch(f, x)
+        
+        return grad
+
+def function_2(x):
+    if x.ndim == 1:
+        return np.sum(x**2)
+    else:
+        return np.sum(x**2, axis=1)
+
+def tangent_line(f, x):
+    d = numerical_gradient(f, x)
+    print(d)
+    y = f(x) - d*x
+    return lambda t: d*t + y
+     
+if __name__ == '__main__':
+    # 步长和范围
+    x0 = np.arange(-2, 2.5, 0.25)
+    x1 = np.arange(-2, 2.5, 0.25)
+    X, Y = np.meshgrid(x0, x1)
+    
+    X = X.flatten()
+    Y = Y.flatten()
+    
+    grad = numerical_gradient(function_2, np.array([X, Y]).T)
+    
+    plt.figure()
+    plt.quiver(X, Y, -grad[:, 0], -grad[:, 1],  angles="xy", color="#666666")#,headwidth=10,scale=40,color="#444444")
+    plt.xlim([-2, 2])
+    plt.ylim([-2, 2])
+    plt.xlabel('x0')
+    plt.ylabel('x1')
+    plt.grid()
+    plt.legend()
+    plt.draw()
+    plt.show()
+```
+
+### 3.4.2 梯度法  
+1.梯度法概述  
+神经网络的学习目标是找到最优参数,即找到使损失函数取最小值时的函数,但是一般而言损失函数很复杂,很难知道它在何时取最小值,而通过梯度来寻找函数最小值的方法就是<font color="#FF00FF">梯度法</font>  
+注意,梯度表示的是各点处的函数值减小最多的方向,因此无法保证梯度所指的方向就是函数的最小值或者真正应该前进的方向(这个在机器学习中也有提到过)  
+
+函数的极小值、最小值和<font color="#FFC800">鞍点</font>处的梯度为0,鞍点是从某个方向上看是极大值,从另一个方向上看是极小值的点,虽然梯度法要寻找梯度为0的地方,但是那个地方不一定就是最小值(也有可能是极小值或鞍点),此外当函数很复杂且呈现扁平状的时候,学习可能会进入一个几乎平坦的地区,陷入一个称为<font color="#FFC800">学习高原</font>的无法前进的停滞期  
+
+虽然梯度的方向并不一定指向最小值,但沿着它的方向能够最大限度地减小函数的值。因此,在寻找函数的最小值(或者尽可能小的值)的位置的任务中,要以梯度的信息为线索,决定前进的方向  
+
+在梯度法中,函数的取值从当前位置沿着梯度方向前进一定距离,然后在新的地方重新求梯度,再沿着新梯度方向前进,如此反复,不断地沿梯度方向前进,像这样,通过不断地沿梯度方向前进,逐渐减小函数值的过程就是<font color="#FF00FF">梯度法</font>  
+
+2.梯度法表示  
+$$\begin{aligned}
+x_0 &= x_0 - \eta \frac{\partial f}{\partial x_0} \\
+x_1 &= x_1 - \eta \frac{\partial f}{\partial x_1}
+\end{aligned}$$
+上述式子中$\eta$表示更新量即<font color="#FF00FF">学习率</font>(参考机器学习的知识点),学习率就是学习的效率,即在一次学习中应该多大程度上更新参数  
+上述式子表示更新一次,实际上这个步骤会反复执行,通过反复执行该函数最终减小函数的值  
+*提示:当前学习率的确定是有说法的,暂且不表*  
+
+3.梯度法的实现  
+```python
+def gradient_descent(f, init_x, lr=0.01, step_num=100):
+    x = init_x
+for i in range(step_num):
+    grad = numerical_gradient(f, x)
+    x -= lr * grad
+return x
+```
+*解释:f是目标函数,init_x是初始值,lr是学习率,step_num是梯度法的重复次数,`gradient_descent()`函数用来求函数的梯度,用该梯度乘以学习率得到的值进行更新操作*  
+使用这个函数可以求函数的极小值,甚至是最小值;这个函数实际上很刁的,如果函数在该点处的导数为正,则函数值会减小向X轴负半轴运动,如果函数在该点处的导数为负,则函数值会增大向X轴整半轴运动;所以该函数总是往<font color="#FF00FF">沟里走</font>  
+
+4.使用梯度法求最小值  
+*问题:使用梯度法求$f(x_0+x_1) = x_0^2+x_1^2$的最小值*  
+```python
+>>> def function_2(x):
+    return x[0]**2 + x[1]**2
+>>> init_x = np.array([-3.0, 4.0])
+>>> gradient_descent(function_2, init_x=init_x, lr=0.1, step_num=100)
+array([-6.11110793e-10, 8.14814391e-10])
+```
+这里的初始值为(3,4),使用梯度法寻找最小值最终的结果为(-6.1e-10,8.1e-10)非常接近真实最小值(0,0),所以使用梯度法基本上得到了正确结果,用图表示其更新过程如下所示  
+![梯度法](resources/DeepLearing/32.png)  
+
+5.超参数  
+像学习率这样的参数称为<font color="#00FF00">超参数</font>,这是一种和神经网络参数性质不同的参数,神经网络参数是通过训练数据和学习算法自动获得的,学习率这样的<font color="#00FF00">超参数是人工设定的</font>  
+
+### 3.4.3 神经网络的梯度  
+1.梯度的目的  
+现在来到神经网络梯度了,神经网络的梯度就是损失函数关于权重参数的梯度(偏导数),其实谁关于谁可以理解为,比如之前二次函数通过改变参数X最终将函数指减少,你通过改变谁来最终让谁减少,<font color="#FF00FF">通过改变权重最终让损失函数减少</font>  
+
+2.神经网络的梯度公式  
+例如有一个2*3的权重W的神经网络,损失函数用L表示,此时梯度可以用$\frac {\partial L}{\partial W}$表示,数学表示如下  
+$$W = \begin{pmatrix} w_{11} & w_{21} &w_{31} \\ w_{12} & w_{22} & w_{32} \end{pmatrix}$$
+$$\frac {\partial L}{\partial W} = \begin{pmatrix} \frac {\partial L}{\partial w_{11}} & \frac {\partial L}{\partial w_{12}} &\frac {\partial L}{\partial w_{13}} \\ \\ \frac {\partial L}{\partial w_{21}} & \frac {\partial L}{\partial w_{21}} & \frac {\partial L}{\partial w_{23}} \end{pmatrix}$$  
+
+$\frac {\partial L}{\partial W}$的元素由各个关于$W$的偏导数构成,比如第一行第一列的$\frac {\partial L}{\partial w_{11}}$<font color="#00FF00">表示当$w_{11}$稍微变化时,损失函数$L$会发生多大变化(其变化率/导数是多少)</font>  
+
+3.神经网络类  
+下面以一个简单的神经网络为例,来实现求梯度的代码,为此先实现一个`SimpleNet`类  
+```python
+import sys, os
+sys.path.append(os.pardir)  # 为了导入父目录中的文件而进行的设定
+import numpy as np
+from common.functions import softmax, cross_entropy_error
+from common.gradient import numerical_gradient
+
+class simpleNet:
+    def __init__(self):
+        # 用高斯分布进行初始化权重参数
+        self.W = np.random.randn(2,3)
+
+    def predict(self, x):
+        return np.dot(x, self.W)
+
+    # x接收输入数据
+    # t接收正确解标签
+    def loss(self, x, t):
+        # 神经网络计算
+        z = self.predict(x)
+        y = softmax(z)
+        # 损失函数计算,y是最终预测结果,t是正确答案标签
+        loss = cross_entropy_error(y, t)
+
+        return loss
+```
+下面简单试用一下这个类  
+```python
+>>> net = simpleNet()
+>>> print(net.W) # 权重参数
+[[ 0.47355232 0.9977393 0.84668094],
+[ 0.85557411 0.03563661 0.69422093]]
+>>>
+>>> x = np.array([0.6, 0.9])
+>>> p = net.predict(x)
+>>> print(p)
+[1.05414809 0.63071653 1.1328074] # 神经网络结果
+>>> np.argmax(p) # 最大值的索引
+2
+>>>
+>>> t = np.array([0, 0, 1]) # 正确解标签
+>>> net.loss(x, t) # 计算损失函数
+0.92806853663411326
+```
+
+4.求解梯度  
+```python
+>>> def f(W):
+    return net.loss(x, t)
+>>> dW = numerical_gradient(f, net.W)
+>>> print(dW)
+[[ 0.21924763 0.14356247 -0.36281009]
+[ 0.32887144 0.2153437 -0.54421514]]
+```
+上述定义的f就是目标函数,即要找出该函数的极小值,net.W是要达到目的时准备改变的参数,函数`f(W)`的W参数是一个加参数,实际上并不会被用到,但是`numerical_gradient`函数内部会调用f并传参,所以这里是为了保持兼容  
+进一步解释代码,首先很重要的一点是net是一个类,`numerical_gradient`函数内部会修改net.W的值(并且是一个一个地修改,比如先通过一个$\Delta x$大小修改$w_{11}$后再修改$w_{12}$)修改完成后立马调用函数`f`即损失函数,损失函数会给出这个权重修改完后的对应值的改变,然后再利用<font color="#00FF00">中心差分</font>算出本次修改的导数,即最终得到如公式所示的上述`dW`的结果  
+
+5.分析更新效果  
+上述计算进行了一次偏导数(梯度),从最终的结果来看在$\frac {\partial L}{\partial W}$中的$\frac {\partial L}{\partial w_{11}}$的值大约是0.2,这表示如果将$w_{11}$的值增加$h$($\Delta x$),那么损失函数会增加$0.2h$,在比如$\frac {\partial L}{\partial w_{23}}$对应的值大约是-0.5,这表示如果将$w_{23}$的值增加$h$,那么损失函数会减少$0.5h$,因此从减小损失函数的值目的出发,$w_{23}$属于正方向更新,$w_{11}$属于负方向更新  
+*补充:还要提一点,在计算偏导数时,使用是向x轴的正半轴走一个微量$\Delta x$,如果导数为正那就向相反的方向走就一定能够使得函数值变小,因为对<font color="#FF00FF">当前点</font>而言,曲线(连续函数)一定有坡度,<font color="#00FF00">如果往前走一步如果是爬坡,那么往后走一步一定是下坡</font>*  
+
+6.展望  
+既然已经求得神经网络的梯度,此时只需要根据梯度更新权重参数即可,至此已经可以实现神经网络的学习了  
+
+## 3.5 学习算法的实现  
+**目录:**  
+3.5.1 随机梯度下降  
+3.5.2 2层神经网络  
+3.5.3 mini-batch的实现  
+3.5.4 基于测试数据的评价  
+
+### 3.5.1 随机梯度下降  
+按照之前的4个小节的学习,现在要通过梯度下降法更新参数,不过因为这里使用的数据是随机选择的mini batch数据,所以又称为随机梯度下降法,即<font color="#00FF00">对随机选择的数据进行的梯度下降法</font>,随机梯度下降法一般由一个名为SGD的函数来实现  
+
+
+### 3.5.2 2层神经网络  
+1.TwoLayerNet类
+为了实现2层神经网络先定义一个TwoLayerNet类,实现代码可跳转[TwoLayerNet](resources/DeepLearing/01.py)  
+
+2.函数解释  
+2.1 TwoLayerNet类中的变量  
+|  变量  |                                                         说明                                                          |
+|:------:|:---------------------------------------------------------------------------------------------------------------------:|
+| params |               保存神经网络的参数的字典型变量 </br> params['W1']是第1层的权重,params['b1']是第1层的偏置                |
+| grads  | 保存梯度的字典型变量(`numerical_gradient()`方法的返回值)<br>grads['W1']是第1层权重的梯度,grads['b1']是第1层偏置的梯度 |
+
+2.2 TwoLayerNet类中的方法  
+|                        方法                        |                                          说明                                          |
+|:--------------------------------------------------:|:--------------------------------------------------------------------------------------:|
+| __init__(self, input_size,hidden_size,output_size) | 进行初始化<br>参数从头开始依次表示输入层的神经元数、隐藏层的神经元数、输出层的神经元数 |
+|                  predict(self,x)                   |                                进行推理,参数x是图像数据                                |
+|                   loss(self,x,t)                   |                                    计算损失函数的值                                    |
+|                 accuracy(self,x,t)                 |                                    计算总体识别精度                                    |
+|            numerical_gradient(self,x,t)            |                                   计算权重参数的梯度                                   |
+|                gradient(self, x, t)                |                             numerical_gradient()的高速版                              |
+
+3.函数解释  
+3.1 `__init__`函数  
+`__init__(input_size,hidden_size,output_size)`函数是类的初始化方法,input_size表示输入层神经元数、hidden_size是隐藏层神经元数、output_size是输出层神经元数量,在进行手写识别的时候因为输入图像大小为784(28*28),输出为10个类别,所以指定参数`input_size=784`、`output_size=10`将隐藏层的参数`hidden_size`指定为一个合理值即可  
+```python
+net = TwoLayerNet(input_size=784, hidden_size=100, output_size=10)
+# 第一层权重参数的形状
+net.params['W1'].shape # (784, 100)
+net.params['b1'].shape # (100,)
+net.params['W2'].shape # (100, 10)
+net.params['b2'].shape # (10,)
+```
+此外该初始化方法会对权重参数进行初始化,如何设置权重参数的初始值暂且不表,目前权重使用符合高斯分布的随机数进行初始化,偏移量使用0进行初始化  
+
+3.2 `loss`函数  
+损失函数会基于`predict()`推理的结果和正确解标签计算交叉熵误差  
+
+3.3 `numerical_gradient`函数  
+`numerical_gradient(self, x, t)`函数会计算各个参数(权重+偏移量)的梯度,根据<font color="#00FF00">数值微分法</font>计算各个参数相对于<font color="#00FF00">损失函数</font>的梯度,参考[[DeepLearing#343-神经网络的梯度]]  
+
+3.4 `gradient`函数  
+`numerical_gradient`函数基于数值微分计算参数的梯度,下一章将介绍高速计算梯度的方法,即<font color="#FF00FF">误差反向传播法</font>,误差反向传播所求到的梯度和数值微分法的结果基本一样,但是可以高速处理  
+
+
+### 3.5.3 mini-batch的实现  
+1.概述  
+神经网路的学习实现使用的就是前面介绍过的mini-batch学习,即从训练数据中随机选择一部分数据再以这些mini-batch为对象,使用梯度更新参数的过程,下面以TwoLayerNet类为例,使用MINIST数据集进行学习  
+```python
+(x_train, t_train), (x_test, t_test) = load_mnist(normalize=True, one_hot_label=True)
+
+train_loss_list = []
+
+# 超参数(手动设置的参数)
+iters_num = 10000  # 适当设定循环的次数
+train_size = x_train.shape[0]
+batch_size = 100
+learning_rate = 0.1
+
+# 神经网络
+network = TwoLayerNet(input_size=784, hidden_size=50, output_size=10)
+
+for i in range(iters_num):
+    # 获取mini-batch
+    batch_mask = np.random.choice(train_size, batch_size)
+    x_batch = x_train[batch_mask]
+    t_batch = t_train[batch_mask]
+    
+    # 计算梯度
+    #grad = network.numerical_gradient(x_batch, t_batch)
+    grad = network.gradient(x_batch, t_batch)
+    
+    # 更新参数
+    for key in ('W1', 'b1', 'W2', 'b2'):
+        network.params[key] -= learning_rate * grad[key]
+    
+    # 记录学习过程
+    loss = network.loss(x_batch, t_batch)
+    train_loss_list.append(loss)
+
+# 图像绘制
+x = np.arange(len(train_loss_list))
+plt.plot(x, train_loss_list, label='train loss')
+plt.xlabel("iteration")
+plt.ylabel("loss")
+plt.title("Training Loss Curve")
+plt.legend(loc='upper right')
+plt.show()
+```
+
+2.代码解释  
+这里mini-batch的大小为100,需要每次从60000个训练数据中随机取出100个数据,然后对这100笔数据的mini-batch求梯度,使用随机梯度下降算法SGD更新参数,这里梯度法的更新次数为10000次(即进行10000次的学习),每更新一次都对训练数据计算损失函数的值,并把该值添加到train_loss_list数组中,用图像表示这个损失函数的值的推移,可以发现随着学习进行,损失函数的值在不断减小,表示神经网络的权重参数在逐渐拟合数据  
+![损失函数下降](resources/DeepLearing/33.png)  
 
 
 

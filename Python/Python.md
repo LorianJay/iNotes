@@ -472,6 +472,7 @@ for i in [array]
 4.1.2 可选参数  
 4.1.3 可变参数  
 4.1.4 函数嵌套定义与调用  
+4.1.5 函数lambda定义  
 
 ### 4.1.1 函数的基本定义方式 
 1.函数定义方式  
@@ -487,7 +488,7 @@ def function(args0,args1...):
 * 如果函数不写return语句,那么函数体将不能为空,否则会报错
 * 如果想指定返回一个空,则写上return语句但不写返回值就行
 
-## 4.1.2 可选参数  
+### 4.1.2 可选参数  
 1.函数定义  
 ```Python
 def function(args0,args1...,agrs3=1,args4="String"): 
@@ -499,14 +500,14 @@ def function(args0,args1...,agrs3=1,args4="String"):
 再其后面可以有<font color="#FF00FF">可选参数</font>,例如args3和args4,除了声明形式参数之外,这两个参数还直接用赋值符号给了一个默认值,这种参数就称作可选参数,在调用函数时,如果没有指定可选参数,则函数会自动使用参数的默认值  
 
 
-## 4.1.3 可变参数  
+### 4.1.3 可变参数  
 ```Python
 def function(*args0): #可变参数args0,这个可变参数实际上就是一个数组.
     <函数体>
     return <返回值>
 ```
 
-## 4.1.4 函数嵌套定义与调用  
+### 4.1.4 函数嵌套定义与调用  
 ```Python
 def function():
     function2() #在这里也可以调用
@@ -515,6 +516,17 @@ def function():
     function2() #可以在function函数体内调用function2()
     return <返回值>
 ```
+
+### 4.1.5 函数lambda定义  
+1.概述  
+Python中`lambda`是用来定义<font color="#00FF00">匿名函数</font>的关键字,一般用于编写简短、一次性的函数  
+
+2.定义格式  
+`[point] = lambda [parameter_list]: [expression]`  
+* `point`是指针,后续可以使用该指针访问这个函数
+* `parameter_list`是参数列表,和正常的函数参数列表一样
+* `expression`一行表达式,此处只能是表达式不能是语句,且表达式作为函数的返回值
+
 
 ## 4.2 导入函数库  
 1.函数库导入和使用方法
