@@ -596,7 +596,9 @@ def softmax(a):
 
 2.公式优化  
 于是上述的经典公式可以按如下方法优化  
-$$yk = \frac{e^{a_k}}{\sum_{i=1}^{n} e^{a_i}} = \frac{Ce^{a_k}}{C\sum_{i=1}^{n} e^{a_i}} \\ = \frac{e^{(a_k + logC)}}{\sum_{i=1}^{n} e^{(a_i + logC)}} \\ = \frac{e^{(a_k + C')}}{\sum_{i=1}^{n} e^{(a_i + C')}}$$  
+$$\begin{aligned}
+    yk = \frac{e^{a_k}}{\sum_{i=1}^{n} e^{a_i}} &= \frac{Ce^{a_k}}{C\sum_{i=1}^{n} e^{a_i}} \\ &= \frac{e^{(a_k + logC)}}{\sum_{i=1}^{n} e^{(a_i + logC)}} \\ &= \frac{e^{(a_k + C')}}{\sum_{i=1}^{n} e^{(a_i + C')}}
+\end{aligned}$$
 首先在分子和分母都乘任意常数C,然后将C移动到指数函数中,记为$logC$,最后把$logC$替换为$C'$  
 上述式子说明,在进行softmax的指数函数运算时,加上或减去某个常数并不会改变运算结果,这里的$C'$可以使用任何值,一般会使用输入信号中的最大值  
 
@@ -1412,7 +1414,7 @@ class simpleNet:
 |                   loss(self,x,t)                   |                                    计算损失函数的值                                    |
 |                 accuracy(self,x,t)                 |                                    计算总体识别精度                                    |
 |            numerical_gradient(self,x,t)            |                                   计算权重参数的梯度                                   |
-|                gradient(self, x, t)                |                             numerical_gradient()的高速版                              |
+|                gradient(self, x, t)                |                              numerical_gradient()的高速版                              |
 
 3.函数解释  
 3.1 `__init__`函数  
@@ -1483,13 +1485,699 @@ plt.show()
 ```
 
 2.代码解释  
-这里mini-batch的大小为100,需要每次从60000个训练数据中随机取出100个数据,然后对这100笔数据的mini-batch求梯度,使用随机梯度下降算法SGD更新参数,这里梯度法的更新次数为10000次(即进行10000次的学习),每更新一次都对训练数据计算损失函数的值,并把该值添加到train_loss_list数组中,用图像表示这个损失函数的值的推移,可以发现随着学习进行,损失函数的值在不断减小,表示神经网络的权重参数在逐渐拟合数据  
+这里mini-batch的大小为100,需要每次从60000个训练数据中随机取出100个数据,然后对这100笔数据的mini-batch求梯度,使用随机梯度下降算法SGD更新参数,这里梯度法的更新次数为10000次(即<font color="#FF00FF">进行10000次的学习,每次学习100个数据</font>),每更新一次都对训练数据计算损失函数的值,并把该值添加到train_loss_list数组中,用图像表示这个损失函数的值的推移,可以发现随着学习进行,<font color="#00FF00">损失函数的值在不断减小</font>,表示神经网络的权重参数在逐渐拟合数据  
+*提示:弄明白这里的代码,iters_num是一共进行多少轮学习,每轮学习都会从整个数据集中随机取出100条数据进行学习,所以最终一共会有10000\*100=1000000张图片被学习,之所以采用mini-batch之前也说过,是为了方便损失函数的计算*  
 ![损失函数下降](resources/DeepLearing/33.png)  
 
+### 3.5.4 基于测试数据的评价  
+1.更加精确评估神经网络  
+根据[[DeepLearing#353-mini-batch的实现]]发现通过反复学习确实可以降低损失函数的值,不过这个损失函数是<font color="#00FF00">对训练数据的某个mini-batch的损失函数</font>,在神经网络的学习中,必须确认是否能够正确识别训练数据以外的其他数据,即确认是否会发生<font color="#FF00FF">过拟合</font>  
+神经网络学习的目标是掌握<font color="#00FF00">泛化能力</font>,因此要评价神经网络的泛化能力,就必须使用不包含在训练数据中的数据,下述代码每经过一个epoch都会记录下训练数据和测试数据的识别精度  
+
+2.epoch  
+epoch是一个单位,一个epoch表示学习中所有训练数据均被使用过一次时的学习次数,比如对于2000条数据,每次学习100条数据,那么理论上只要学习20次就会把所有数据全部学习一遍,此时将所有数据都学习过一次时对应的学习次数称为epoch  
+所以`iter_per_epoch = max(train_size / batch_size, 1)`这条代码,为什么是train_size/batch_size,因为每次都从总数据集中取batch_size大小进行学习,所有每学习train_size/batch_size次时所有数据都会学习完一轮,此时就需要记录一轮学习完毕后训练数据和测试数据的识别精度  
+*提示:根据上述代码,假设训练数据是60000,那么一共学习10000轮,每轮学习100条数据,最终本算法实际上学习到的图片数量为10000\*100=1000000条,实际上是远远大于60000条的*  
+*提示:当然真正的算法会先把总数据量按照batch_size进行切分,而这里的算法是直接从总数据中每次随机取100条,理论上可能有些数据无法学习,但这里就忽略了*  
+
+3.代码实现  
+```python
+# 读入数据
+(x_train, t_train), (x_test, t_test) = load_mnist(normalize=True, one_hot_label=True)
+
+# 神经网络
+network = TwoLayerNet(input_size=784, hidden_size=50, output_size=10)
+
+# 超参数
+iters_num = 10000  # 适当设定循环的次数
+train_size = x_train.shape[0]
+batch_size = 100
+learning_rate = 0.1
+
+# 损失函数曲线、训练集和测试集的准确度
+train_loss_list = []
+train_acc_list = []
+test_acc_list = []
+
+iter_per_epoch = max(train_size / batch_size, 1)
+
+for i in range(iters_num):
+    # 获取mini-batch
+    batch_mask = np.random.choice(train_size, batch_size)
+    x_batch = x_train[batch_mask]
+    t_batch = t_train[batch_mask]
+    
+    # 计算梯度
+    #grad = network.numerical_gradient(x_batch, t_batch)
+    grad = network.gradient(x_batch, t_batch)
+    
+    # 更新参数
+    for key in ('W1', 'b1', 'W2', 'b2'):
+        network.params[key] -= learning_rate * grad[key]
+
+    # 记录学习过程
+    loss = network.loss(x_batch, t_batch)
+    train_loss_list.append(loss)
+
+    # 每epoch后记录算法对训练集和测试集的准确率
+    if i % iter_per_epoch == 0:
+        train_acc = network.accuracy(x_train, t_train)
+        test_acc = network.accuracy(x_test, t_test)
+        train_acc_list.append(train_acc)
+        test_acc_list.append(test_acc)
+        print("train acc, test acc | " + str(train_acc) + ", " + str(test_acc))
+```
+
+4.训练结果图像表示  
+将上述代码中得到的结果用图表示如下,实线表示训练数据的识别精度,测试数据的识别精
+度,随着epoch的进行(学习的进行),训练数据和测试数据评价的识别精度都提高了,并且这两个识别<font color="#00FF00">精度基本上没有差异</font>(两条线基本重叠在一起);因此可以说这次的学习中没有发生过拟合的现象  
+![训练结果](resources/DeepLearing/34.png)  
+
+# 4.误差反向传播法  
+**目录:**  
+4.1 计算图  
+4.2 链式法则  
+4.3 反向传播  
+4.4 简单层的实现  
+4.5 激活函数层的实现  
+4.6 Affine/Softmax层的实现  
+4.7 误差反向传播法的实现  
+
+## 4.1 计算图  
+**目录:**  
+4.1.1 概述  
+4.1.2 用计算图求解  
+4.1.3 局部计算  
+4.1.4 计算图的优势  
+
+### 4.1.1 概述  
+要理解误差反向传播法,一般有两种方法即基于数学式的和基于计算图的,本教材会从更容易上手的计算图来展开  
+
+### 4.1.2 用计算图求解  
+1.买苹果的问题  
+*问题:小明在超市买了2个100元一个的苹果,消费税是10%,请计算支付金额*  
+计算图通过节点和箭头表示计算过程,节点用○表示,○中是计算的内容;将计算的中间结果写在箭头的上方,<font color="#00FF00">表示各个节点的计算结果从左向右传递</font>,上述问题的求解过程如下  
+```mermaid
+flowchart LR
+    start((🍎))--->|100|A((X2))--->|200|B((X1.1))--->|220|C((end))
+```  
+如上图所示,开始时苹果的100元流到"×2"节点,变成200元,然后被传递给下一个节点,接着这个200元流向"×1.1"节点,变成220元,因此从这个计算图的结果可知答案为220元  
+除了上述表示法之外还有一种表示方法,就是○中只写计算符号,把乘数单独标记在外面,例如  
+```mermaid
+flowchart LR
+    start((🍎))--->|100|A((X))--->|200|B((X))--->|220|C((end))
+    D[苹果个数 2] ---> A
+    E[消费税 1.1] ---> B
+```  
+
+2.买苹果和橘子  
+*问题:小明在超市买了2个苹果、3个橘子,每个苹果100元,每个橘子150元,消费税是10%,请计算支付金额*  
+```mermaid
+flowchart LR
+    apple((🍎))--->|100|A((X))--->|200|add
+    D[苹果个数 2] ---> A
+    orange((🍊))--->|150|F((X))--->|450|add
+    I[橘子个数 3] ---> F
+    add((+))--->|650|J((X))--->|715|K((end))
+    L[消费税 1.1] --->J
+```  
+
+3.计算图的流程  
+根据上述的两个问题,得知在求解计算图时需要按如下流程进行,(1)构建计算图;(2)在计算图上,从左向右进行计算  
+这里从左向右进行计算是一种正方向上的传播,简称<font color="#FF00FF">正向传播</font>,正向传播是从计算图出发点到结束点的传播,同理从右到左的传播就是<font color="#FF00FF">反向传播</font>  
+
+### 4.1.3 局部计算  
+1.局部计算  
+计算图的特征是可以通过传递<font color="#00FF00">局部计算</font>获得最终结果,局部计算是指无论全局发生了什么,都能<font color="#00FF00">只根据与自己相关的信息输出接下来的结果</font>  
+
+2.例子说明  
+在超市里买了2个苹果和其他很多东西,此时可以画出如图所示的计算图  
+```mermaid
+flowchart LR
+    start((🍎))--->|100|A((X))--->|200|F((+))--->|4200|B((X1.1))--->|4620|C((end))
+    D[苹果个数 2] ---> A
+    E[消费税 1.1] ---> B
+    another[其它的东西]--->|"进行复杂计算\n4000"|F
+```  
+上图的重点是,苹果和其他很多东西的求和运算(4000+200=4200),其中并不关心4000这个数字是如何计算出来的,而只要把这两个数字相加即可,<font color="#00FF00">即各个节点只需要处理与自已有关的计算</font>  
+综上,计算图可以集中精力于局部计算,无论全局的计算有多么复杂,各个步骤所要做的就是对象节点的局部计算;最终便可以获得全局的复杂计算的结果  
+
+### 4.1.4 计算图的优势  
+1.优点汇总  
+* 无论全局的计算多么复杂,都可以通过局部计算使各个节点致力于简单的计算,从而简化问题
+* 利用计算图可以将中间的节点全部保存起来
+* <font color="#00FF00">通过反向传播高效计算导数</font>
+
+2.买苹果问题
+```mermaid
+flowchart LR
+    start((🍎))--->|100|A((X))--->|200|B((X))--->|220|C((end))
+    D[苹果个数 2] ---> A
+    E[消费税 1.1] ---> B
+```  
+回顾之前的买苹果问题,假设想知道苹果价格的上涨会在多大程度上影响最终的支付金额,即求支付金额关于苹果的价格的导数,设苹果的价格为$x$,支付金额为$L$,则相当于求$\frac{\partial L}{\partial x}$,这个公式表示当苹果的价格稍微上涨时,支付金额会增加多少  
+
+3.反向传播求导数  
+支付金额关于苹果价格的导数的值可以通过计算图的反向传播求出来,如下图所示  
+反向传播使用与正向传播相反的箭头(粗线)表示,反向传播传递局部函数,将导数的值写在箭头的下方,在这个例子中反向传播从右向左传递导数的值(1->1.1->2.2),即支付金额关于苹果价格的导数的值为2.2,即苹果每上涨1元最终的支付金额会增加2.2元(严格来讲,如果苹果增加某个微小值则最终支付的金额会是该微小值的2.2倍)  
+计算图的另一个好处是,计算中途求得的导数的结果(中间传递的导数)可以被共享,从而可以
+高效地计算多个导数
+```mermaid
+flowchart LR
+    C((end))==>|1|B((X))==>|1.1|A((X))==>|2.2|start((🍎))
+    D[苹果个数 2] ---> A
+    E[消费税 1.1] ---> B
+```  
+
+## 4.2 链式法则  
+**目录:**  
+4.2.1 计算图的反向传播  
+4.2.2 链式法则  
+4.2.3 链式法则和计算图  
+
+### 4.2.1 计算图的反向传播  
+1.概述  
+反向传播将局部函数从右到左传递,传递局部函数的原理是基于 **<font color="#FF00FF">链式法则</font>** 的  
+现假设存在$y=f(x)$的计算,计算的反向传播如下图所示  
+![反向传播](resources/DeepLearing/35.png)  
+将信号E乘以节点的局部导数$\frac{dy}{dx}$然后将结果传递给下一个节点,这个局部导数说的是正向传播中$y=f(x)$的导数,比如假设$y=f(x)=x^2$则局部导数为$\frac{dy}{dx}=2x$把这个局部导数乘以上游传过来的值(本例中为E)然后传递给前面的节点,反向传播的原理可以通过链式法则进行解释  
+*<font color="#FF00FF">提示:可以说整个地4章的内容就是基于链式法则的,所以链式法则是最本质的东西,很重要</font>*  
+
+### 4.2.2 链式法则  
+1.复合函数  
+先定义复合函数,$z=(x+y)^2$是由两个式子构成的,$z=t^2$和$t=x+y$  
+
+2.链式法则  
+*要点:如果某个函数由复合函数表示,则该复合函数的导数可以用构成复合函数的各个函数的导数的乘积表示*  
+以上述的两个公式为例,$\frac{\partial z}{\partial x}$(z关于x的导数)可以用$\frac{\partial z}{\partial t}$和$\frac{\partial t}{\partial x}$的乘积表示,用数学式表示如下$\frac{\partial z}{\partial x}=\frac{\partial z}{\partial t}\frac{\partial t}{\partial x}$再把式子中的$\partial t$越去即可  
+使用链式法则求$\frac{\partial z}{\partial x}$的导数,为此要先求局部导数$\frac{\partial z}{\partial t}=2t$ $\frac{\partial t}{\partial x}=1$最后计算$\frac{\partial z}{\partial x}=\frac{\partial z}{\partial t}\frac{\partial t}{\partial x}=2t * 1 = 2(x + y)$  
+
+### 4.2.3 链式法则和计算图  
+1.计算图表示  
+![链式法则](resources/DeepLearing/36.png)  
+上图为链式法则的计算图表示,其中**2表示平方运算,图中最左边的反向传播结果,根据链式法则,$\frac{\partial z}{\partial z}\frac{\partial z}{\partial t}\frac{\partial t}{\partial x}=\frac{\partial z}{\partial t}\frac{\partial t}{\partial x}=\frac{\partial z}{\partial x}$成立,对应z关于x的导数  
+
+2.将式子结果带入图中  
+将[[DeepLearing#422-链式法则]]中的$\frac{\partial z}{\partial t}=2t$ $\frac{\partial t}{\partial x}=1$结果带入图中得到  
+![计算结果](resources/DeepLearing/37.png)  
+
+
+## 4.3 反向传播  
+**目录:**  
+4.3.1 加法节点的方向传播  
+4.3.2 乘法节点的反向传播  
+4.3.3 苹果的例子  
+
+### 4.3.1 加法节点的方向传播  
+1.背景  
+现以$z=x+y$为对象,观察其反向传播,$z=x+y$的导数为$\frac{\partial z}{\partial x}=1$ $\frac{\partial z}{\partial y}=1$  
+用图表示如下  
+![加法节点的反向传播](resources/DeepLearing/38.png)  
+
+2.执行流程  
+反向传播将从上游传过来的导数(本例中是$\frac{\partial L}{\partial z}$)乘以1,然后传向下游,因为加法节点的反向传播只乘以1,所以<font color="#FF00FF">输入的值会原封不动地流向下一个节点</font>  
+首先要搞清楚,如果是加法节点,<font color="#00FF00">两个变量的导数一定为1</font>,也就是不存在$2x$这种情况,因为如果是$2x$它实际上可以这么转换,转换为m和y相加  
+```mermaid
+flowchart LR
+    E((+))
+    A((x))-->|*2|B(("m(2x)"))-->E
+    D((y))-->E-->Z((Z))
+```  
+
+3.模型的最终输出  
+在本例中,把上游传过来的导数值设为$\frac{\partial L}{\partial z}$,如下图所示假定一个最终输出值为L的大型计算图,$z=x+y$的计算位于这个大型计算图的某个地方,从上游会传来$\frac{\partial L}{\partial z}$的值,并向下游传递$\frac{\partial L}{\partial x}$和$\frac{\partial L}{\partial y}$  
+加法节点存在于某个最后输出的计算的一部分,反向传播时,从最右边的输出出发,<font color="#FF00FF">局部导数</font>从节点向节点反方向传播  
+![模型输出](resources/DeepLearing/39.png)  
+
+4.具体的例子  
+假设有10+5=15这个计算,反向传播时,从上游会传来值1.3,因为加法节点的反向传播只是将输入信号输出到下一个节点,所以反向传播将1.3向下一个节点传递  
+
+### 4.3.2 乘法节点的反向传播  
+1.背景  
+现以$z=xy$为对象,这个式子的导数为$\frac{\partial z}{\partial x}=y$ $\frac{\partial z}{\partial y}=x$  
+乘法的反向传播会将上游的值乘以正向传播时的<font color="#00FF00">输入信号</font>的<font color="#00FF00">翻转值</font>后传递给下游,所谓的翻转值就是乘以另外一边的输入信号,比如正向传播时信号是x的话,反向传播时则是y;正向传播时信号是y的话,反向传播时则是x  
+![反向传播](resources/DeepLearing/40.png)  
+
+2.例子  
+假设有计算$10 \times 5=50$,反向传播时从上游传来1.3,因为乘法的反向传播会乘以输入信号的翻转值,所以各自可按1.3 × 5 = 6.5、1.3 × 10 = 13计算  
+另外,加法的反向传播只是将上游的值传给下游,并不需要正向传播的输入信号;而,乘法的反向传播<font color="#00FF00">需要正向传播时的输入信号值</font>,因此实现乘法节点的反向传播时,要保存正向传播的输入信号  
+![例子](resources/DeepLearing/41.png)  
+
+### 4.3.3 苹果的例子  
+1.问题  
+回到最开始买苹果的例子,现在要解决的是苹果的价格、苹果的个数、消费税这3个变量如何各自影响最终支付金额,即分别求最终价格关于这三个变量的导数  
+
+2.图  
+![苹果反向传播](resources/DeepLearing/42.png)  
+如前所述,乘法节点的反向传播会将输入信号翻转后传给下游,从上图可知,苹果的价格的导数是2.2,苹果的个数的导数是110,消费税的导数是200  
+这些导数可以解释为,消费税对最终价格的影响的变化率是200,苹果价格对最终价格的变化率是2.2,苹果个数对最终价格的影响的变化率是110  
+
+## 4.4 简单层的实现  
+**目录:**  
+4.4.1 层  
+4.4.2 乘法层的实现  
+4.4.3 加法层的实现  
+
+
+### 4.4.1 层  
+本节将用Python实现前面的购买苹果的例子,把要实现的计算图的乘法节点称为<font color="#00FF00">乘法层</font>加法节点称为<font color="#00FF00">加法层</font>  
+后续要把构建神经网络的<font color="#00FF00">层</font>实现为一个类,所谓的层是神经网路的功能单位,比如负责sigmoid函数的Sigmoid、负责矩阵乘积的Affine等,都以层为单位进行实现,因此这里也以层为单位来实现乘法节点和加法节点  
+*注意:把层抽象为类,所以一层对应一个类的实例化对象*  
+
+### 4.4.2 乘法层的实现  
+1.代码  
+层的实现中有两个共通的方法`forward()`和`backward()`,分别对应正向传播和反向传播  
+```python
+class MulLayer:
+    def __init__(self):
+        self.x = None
+        self.y = None
+
+    def forward(self, x, y):
+        self.x = x
+        self.y = y                
+        out = x * y
+        return out
+
+    def backward(self, dout):
+        dx = dout * self.y
+        dy = dout * self.x
+        return dx, dy
+```
+
+2.函数解释  
+`__init__()`中会初始化实例变量x和y,它们用于保存正向传播时的输入值;`forward()`接收x和y两个参数,将它们相乘后输出;`backward()`将从上游传来的导数乘以正向传播的翻转值,然后传给下游  
+
+3.买苹果  
+上述函数就是MulLayer(乘法层)的实现,现在用它实现前面购买苹果的例子  
+```python
+# coding: utf-8
+from layer_naive import *
+
+apple = 100
+apple_num = 2
+tax = 1.1
+
+# 一层对应一个实例
+mul_apple_layer = MulLayer()
+mul_tax_layer = MulLayer()
+
+# forward
+apple_price = mul_apple_layer.forward(apple, apple_num)
+price = mul_tax_layer.forward(apple_price, tax)
+
+# backward
+dprice = 1
+dapple_price, dtax = mul_tax_layer.backward(dprice)
+dapple, dapple_num = mul_apple_layer.backward(dapple_price)
+
+print("price:", int(price))
+print("dApple:", dapple)
+print("dApple_num:", int(dapple_num))
+print("dTax:", dtax)
+# 输出结果
+# price: 220
+# dApple: 2.2
+# dApple_num: 110
+# dTax: 200
+```
+
+### 4.4.3 加法层的实现  
+1.代码  
+```python
+class AddLayer:
+    def __init__(self):
+        pass
+
+    def forward(self, x, y):
+        out = x + y
+        return out
+
+    def backward(self, dout):
+        dx = dout * 1
+        dy = dout * 1
+        return dx, dy
+```
+
+2.函数解释  
+加法层不需要特意进行初始化,所以`__init__()`中什么也不运行(`pass`语句表示什么也不运行),加法层的`forward()`接收x和y两个参数,将它们相加后输出,`backward()`将上游传来的导数原封不动地传递给下游  
+
+3.实现买苹果和橘子的例子  
+现在同时使用加法层和乘法层来实现买苹果和橘子的例子  
+```mermaid
+flowchart LR
+    apple((🍎))--->|100|A((X))--->|200|add
+    D[苹果个数 2] ---> A
+    orange((🍊))--->|150|F((X))--->|450|add
+    I[橘子个数 3] ---> F
+    add((+))--->|650|J((X))--->|715|K((end))
+    L[消费税 1.1] --->J
+```  
+```python
+from layer_naive import *
+
+# 初始参数
+apple = 100
+apple_num = 2
+orange = 150
+orange_num = 3
+tax = 1.1
+
+# layer
+mul_apple_layer = MulLayer()
+mul_orange_layer = MulLayer()
+add_apple_orange_layer = AddLayer()
+mul_tax_layer = MulLayer()
+
+# forward
+apple_price = mul_apple_layer.forward(apple, apple_num)  # (1)
+orange_price = mul_orange_layer.forward(orange, orange_num)  # (2)
+all_price = add_apple_orange_layer.forward(apple_price, orange_price)  # (3)
+price = mul_tax_layer.forward(all_price, tax)  # (4)
+
+# backward
+dprice = 1
+dall_price, dtax = mul_tax_layer.backward(dprice)  # (4)
+dapple_price, dorange_price = add_apple_orange_layer.backward(dall_price)  # (3)
+dorange, dorange_num = mul_orange_layer.backward(dorange_price)  # (2)
+dapple, dapple_num = mul_apple_layer.backward(dapple_price)  # (1)
+
+print("price:", int(price))
+print("dApple:", dapple)
+print("dApple_num:", int(dapple_num))
+print("dOrange:", dorange)
+print("dOrange_num:", int(dorange_num))
+print("dTax:", dtax)
+# 输出结果
+# price: 715
+# dApple: 2.2
+# dApple_num: 110
+# dOrange: 3.3000000000000003
+# dOrange_num: 165
+# dTax: 650
+```
+
+4.小节  
+计算图中层的实现(这里是加法层和乘法层)非常简单,使用这些层可以进行复杂的导数计算。下面,我们来<font color="#FF00FF">实现神经网络中使用的层</font>  
+
+## 4.5 激活函数层的实现  
+**目录:**  
+4.5.1 ReLU层  
+4.5.2 Sigmoid层  
 
 
 
+### 4.5.1 ReLU层  
+1.概述  
+我们将计算图的思路应用到神经网络中,这里我们把构成<font color="#00FF00">神经网络的层抽象为一个类</font>,先来实现激活函数的ReLU层和Sigmoid层  
 
+2.ReLU函数和导数  
+ReLU函数可以表示为  
+$$y = \begin{cases} 
+x \quad (x > 0) \\ 
+0 \quad (x \le 0) \\ 
+\end{cases}$$
+其对应的导数为
+$$\frac{dy}{dx} = \begin{cases} 
+1 \quad (x > 0) \\ 
+0 \quad (x \le 0) \\ 
+\end{cases}$$
+
+3.正向传播和反向传播  
+如果正向传播时的输入x大于0,则反向传播会将上游的值原封不动地传给下游;如果正向传播时的x小于等于0,则反向传播中传给下游的信号将停在此处,用计算图表示如下  
+![ReLU](resources/DeepLearing/43.png)  
+
+4.代码实现  
+```python
+class Relu:
+    def __init__(self):
+        self.mask = None
+
+    def forward(self, x):
+        # self.mask保存True/False数组,将x中所有<=0的元素保存为True
+        self.mask = (x <= 0)
+        # 拷贝x数组
+        out = x.copy()
+        # 将原本x中所有<=0的元素全部置为0,满足ReLU公式
+        out[self.mask] = 0
+        return out
+
+    def backward(self, dout):
+        # 根据正向传播中所有x<=0的地方,将其反向传播的值置为0
+        dout[self.mask] = 0
+        dx = dout
+        return dx
+```
+如果正向传播时的输入值小于等于0,则反向传播的值为0,因此反向传播中会使用正向传播时保存的mask,将从上游传来的dout的mask中的元素为True的地方设为0  
+*补充:ReLU层的作用就像电路中的开关一样;正向传播时,有电流通过的话,就将开关设为 ON;没有电流通过的话,就将开关设为OFF;反向传播时,开关为ON的话,电流会直接通过;开关为OFF的话,则不会有电流通过*  
+
+5.代码测试  
+```python
+>>> x = np.array( [[1.0, -0.5], [-2.0, 3.0]] )
+>>> print(x)
+[[1.0 -0.5]
+[-2.0 3.0]]
+>>> mask = (x <= 0)
+>>> print(mask)
+[[False True]
+[True False]]
+```
+
+### 4.5.2 Sigmoid层  
+1.sigmoid函数式子  
+$$y = \frac{1}{1 + e^{-x}}$$  
+![sigmoid](resources/DeepLearing/44.png)  
+上图中除了×和+之外,还有exp和/运算,exp会进行$y=e^x$计算,/会进行$y=\frac{1}{x}$计算  
+
+2.反向传播  
+在这张图中,×和+的反向传播在之前[[DeepLearing#43-反向传播]]已经介绍过了,主要就是$y=e^x$和$y=\frac{1}{x}$的反向传播,分别对它们求导得  
+$\frac{dy}{dx}=-\frac{1}{x^2}=-y^2$ $\frac{dy}{dx}=e^x$  
+最终得到如下图所示的方向传播路径  
+![反向传播](resources/DeepLearing/45.png)  
+*注意:图中直接使用$y^2$,理论上应该是$-\frac{\partial L}{\partial y}\frac{1}{x^2}$其中x是$1+e^{-x}$这个整体,但其实$\frac{1}{x^2}=y^2={(\frac{1}{1+e^{-x}})}^2$是一样的,直接用算好的结果即可,而不是重复去计算*  
+然后为什么经过$e^x$函数的反向传播是$-\frac{\partial L}{\partial y}y^2e^{-x}$,反向传播应该乘其导数$e^x$,这是因为这里要把$-x$看成一个整体,就好比之前的乘法层,如果另一侧是-100你肯定要取-100,而不是100,这里的$-x$也是针对输入参数$x$而言的  
+
+3.sigmoid反向传播  
+根据上述内容,计算图可以进行sigmoid层的反向传播,反向传播的最终结果为<font color="#FF00FF">$\frac{\partial L}{\partial y}y^2e^{-x}$</font>,这个值会继续传播给下游节点,$\frac{\partial L}{\partial y}y^2e^{-x}$只需要根据正向传播的输入$x$和输出$y$就可以计算出来,因此上述的计算图可以集约化为<font color="#00FF00">sigmoid节点</font>  
+![集约化](resources/DeepLearing/46.png)  
+第2点的图和集约化图的计算结果是完全相同的,但简洁版的计算图可以省略反向传播中的计算过程,因此计算效率较高,而且也不需要关注中间的实现细节  
+
+4.化简  
+$\frac{\partial L}{\partial y}y^2e^{-x}$可以进一步化简  
+$$\begin{aligned}
+\frac{\partial L}{\partial y} y^2 e^{-x} &= \frac{\partial L}{\partial y} \frac{1}{(1+e^{-x})^2} e^{-x} \\
+&= \frac{\partial L}{\partial y} \frac{1}{1+e^{-x}} \frac{e^{-x}}{1+e^{-x}} \\
+&= \frac{\partial L}{\partial y} y(1-y)
+\end{aligned}$$
+因此如下图所示的sigmoid层的反向传播,只需要根据正向传播的输出就能计算出结果  
+![反向传播](resources/DeepLearing/47.png)  
+
+5.代码实现  
+```python
+class Sigmoid:
+    def __init__(self):
+        self.out = None
+
+    def forward(self, x):
+        out = sigmoid(x)
+        self.out = out
+        return out
+    
+    def backward(self, dout):
+        dx = dout * (1.0 - self.out) * self.out
+        return dx
+```
+在上述代码中,正向传播时将输出保存在了实例变量out中,反向传播时,使用该变量out进行计算  
+
+## 4.6 Affine/Softmax层的实现  
+**目录:**  
+4.6.1 Affine层  
+4.6.2 批版本的Affine层  
+4.6.3 Softmax-with-Loss层  
+
+
+### 4.6.1 Affine层  
+1.仿射变换  
+神经网络的正向传播中进行的矩阵的乘积运算在几何学领域被称为<font color="#00FF00">仿射变换</font>,这里将进行仿射变换的处理实现为Affine层  
+所谓的仿射变换包括一次线性变换和一次平移,分别对应神经网路的加权和运算与加偏移量运算  
+*提示:Affine层主要用于解决矩阵乘法计算的正向传播和反向传播*  
+
+2.矩阵相乘  
+之前在介绍[[DeepLearing#243-各层间信号传递的实现]]时,计算各层间信号传递时使用的是`Y = np.dot(X,W) +B`的计算方式,它可以用计算图表示  
+![矩阵相乘](resources/DeepLearing/48.png)  
+
+3.反向传播  
+以矩阵为对象的反向传播,按矩阵的各个元素进行计算时,步骤和以标量(普通变量)的计算图相同,如此可以得到如下式子  
+$$\begin{aligned}
+    \frac{\partial L}{\partial X} = \frac{\partial L}{\partial X} \cdot W^T
+\end{aligned}$$
+
+$$\begin{aligned}
+    \frac{\partial L}{\partial W} = X^T \cdot \frac{\partial L}{\partial Y}
+\end{aligned}$$
+
+根据上述式子写出对应的计算图反向传播,要注意$X$和$\frac{\partial L}{\partial X}$形状相同$W$和$\frac{\partial L}{\partial W}$形状相同,$X=(x_0,x_1,x_2,...,x_n)$$\frac{\partial L}{\partial X} = (\frac{\partial L}{\partial x_0},\frac{\partial L}{\partial x_1},...,\frac{\partial L}{\partial x_n})$  
+![计算图方向传播](resources/DeepLearing/49.png)  
+*提示:这里要特别注意矩阵的形状,只有矩阵形状对应上才能够自然推导出公式*  
+
+### 4.6.2 批版本的Affine层  
+1.计算图
+*提示:本节和当时的[[DeepLearing#263-批处理]]的内容很类似*  
+![Affine](resources/DeepLearing/50.png)  
+上图是批版本Affine层的计算图,现在输入的$X$的形状是(N,2)  
+
+2.正向传播偏移量  
+正向传播时偏移量被加到$X \cdot W$的各个数据上,比如N=2时,偏移量会被分别加到这两个数据上,具体的例子如下所示  
+```python
+>>> X_dot_W = np.array([[0, 0, 0], [10, 10, 10]])
+>>> B = np.array([1, 2, 3])
+>>>
+>>> X_dot_W
+array([[ 0, 0, 0],[ 10, 10, 10]])
+>>> X_dot_W + B
+array([[ 1, 2, 3],[11, 12, 13]])
+```
+
+3.反向传播偏移量
+因此反向传播时,各个数据的反向传播值需要汇总为偏移量的元素,用代码表示如下  
+在这个例子中,假定数据有两个(N=2),偏移量的反向传播会对这两个数据的导数按元素进行求和,因此这里使用了np.sum()对第0轴(以数据为单位的轴)方向上的元素进行求和  
+```python
+>>> dY = np.array([[1, 2, 3,], [4, 5, 6]])
+>>> dY
+array([[1, 2, 3],[4, 5, 6]])
+>>>
+>>> dB = np.sum(dY, axis=0)
+>>> dB
+array([5, 7, 9])
+```
+*通俗解释:<font color="#00FF00">因为$B$在正向传播时同时影响了样本1和样本2,所以在更新$B$时,必须把这两部分对$B$的影响全部加起来,才是$B$最终受到的总梯度</font>*  
+
+4.代码实现  
+综上所述,Affine的实现如下所示  
+```python
+class Affine:
+    
+    def __init__(self, W, b):
+        self.W = W
+        self.b = b
+        self.x = None
+        self.dW = None
+        self.db = None
+def forward(self, x):
+    self.x = x
+    out = np.dot(x, self.W) + self.b
+    return out
+
+def backward(self, dout):
+    dx = np.dot(dout, self.W.T)
+    self.dW = np.dot(self.x.T, dout)
+    self.db = np.sum(dout, axis=0)
+    return dx
+```
+
+### 4.6.3 Softmax-with-Loss层  
+1.概述  
+*提示:现在已经学了很多函数,急不得的话可以回顾一下[[DeepLearing#22-激活函数]]和[[DeepLearing#25-输出层的设计]]*  
+![Softmax](resources/DeepLearing/51.png)  
+输入图像通过Affine层和ReLU层进行转换,10个输入通过Softmax层进行正规化后再输出(即将输出值的和调整为1),此外因为有10个手写数字的分类,所以Softmax层的输出也有10个  
+神经网络有学习和推理两个阶段,而神经网络的推理阶段一般不使用Softmax层,在进行推理时因为最终只需要给出一个答案,所以此时只对得分的最大值感兴趣,此时直接将最后一个Affine的输出作为结果,而神经网路的学习是需要Softmax层的  
+
+2.Softmax层的计算图  
+因为这里也包含作为损失函数的交叉熵误差,所以又称为Softmax-with-Loss层,Softmax-with-Loss层(Softmax函数和交叉熵误差)的计算图如图所示,此图较为复杂,图中直接给出了最终结果  
+![Softmax](resources/DeepLearing/52.png)  
+
+3.简化图  
+![简化图](resources/DeepLearing/53.png)  
+在上述计算图中,`softmax`函数记为`Softmax`层,交叉熵误差记为`Cross Entropy Error`层,这里要进行3类分类,从前面的层接受3个输入,Softmax层将输入$(a_1,a_2,a_3)$正规化,输出$(y_1,y_2,y_3)$,Cross Entropy Error层接收Softmax的输出(y1,y2,y3)和结果标签(t1,t2,t3),从这些数据中输出损失L  
+
+4.反向传播  
+在上图简化图中,注意其反向传播的结果,Softmax层的反向传播得到了($y_1-t_1,y_2-t_2,y_3-t_3$)这样的"漂亮"结果,由于($y_1,y_2,y_3$)是Softmax层的输出($t_1,t_2,t_3$)是监督数据,所以($y_1−t_1,y_2 − t_2, y_3 − t_3$)是Softmax层的输出和结果标签的差分,神经网络的反向传播会把这个差分表示的误差传递给
+前面的层,这是神经网络学习中的重要性质  
+神经网络学习的目的就是通过调整权重参数,使神经网络的输出(Softmax的输出)接近结果标签(t).因此,必须将神经网络的输出与结果标签的误差高效地传递给前面的层.刚刚的$(y_1 - t_1, y_2 - t_2, y_3 - t_3)$正是Softmax层的输出与教师标签的差,直截了当地表示了当前神经网络的输出与教师标签的误差  
+
+5.举例子  
+这里考虑一个具体的例子,比如思考教师标签是 $(0,1,0)$ ,Softmax层的输出是 $(0.3,0.2,0.5)$ 的情形,因为正确解标签处的概率是0.2(20%),这个时候的神经网络未能进行正确的识别,此时,Softmax层的反向传播传递的是 $(0.3, -0.8, 0.5)$ 这样一个大的误差.因为这个大的误差会向前面的层传播,所以Softmax层前面的层会从这个大的误差中学习到"大"的内容  
+
+再举一个例子,比如思考教师标签是 $(0, 1, 0)$,Softmax层的输出是 $(0.01, 0.99, 0)$ 的情形(这个神经网络识别得相当准确).此时Softmax层的反向传播传递的是 $(0.01, -0.01, 0)$ 这样一个小的误差.这个小的误差也会向前面的层传播,因为误差很小,所以Softmax层前面的层学到的内容也很"小".
+
+6.Softmax-with-Loss层的实现  
+```python
+class SoftmaxWithLoss:
+    def __init__(self):
+    self.loss = None # 损失
+    self.y = None # softmax的输出
+    self.t = None # 监督数据(one-hot vector)
+
+def forward(self, x, t):
+    self.t = t
+    self.y = softmax(x)
+    # 当前batch的平均损失函数
+    self.loss = cross_entropy_error(self.y, self.t)
+    return self.loss
+
+def backward(self, dout=1):
+    batch_size = self.t.shape[0]
+    # 为什么除以batch_size?
+    dx = (self.y - self.t) / batch_size
+    return dx
+```
+为什么除以batch_size?在Softmax层确实是($y_n-t_n$),但是来到Cross Entropy Error层的反向传播时,因为L是全部损失函数的平均值,根据数学上的计算这一层的导数是$\frac{1}{N}$,但图中未标出  
+
+## 4.7 误差反向传播法的实现  
+**目录:**  
+4.7.1 误差反向传播法的神经网络实现  
+4.7.2 误差反向传播法的梯度确认  
+
+
+### 4.7.1 误差反向传播法的神经网络实现  
+1.学习流程  
+可以参考之前[[DeepLearing#35-学习算法的实现]]的相关内容,大致流程为mini-batch->计算梯度->更新参数->循环  
+现在有了反向传播就可以优化原本采用数值微分计算的梯度  
+现在将2层神经网络实现为[TwoLayerNet](./resources/DeepLearing/02.py)类  
+
+2.TwoLayerNet的实例变量  
+| 实例变量  | 说明                                                                                                                                          |
+|:----------|:----------------------------------------------------------------------------------------------------------------------------------------------|
+| params    | 保存神经网络的参数的字典型变量<br>params['W1']是第1层的权重,params['b1']是第1层的偏置<br>params['W2']是第2层的权重,params['b2']是第 2层的偏置 |
+| layers    | 保存神经网络的层的有序字典型变量<br>以layers['Affine1'], layers['ReLu1'],layers['Affine2']的形式,通过有序字典保存各个层                       |
+| lastLayer | 神经网络的最后一层<br>本例中为SoftmaxWithLoss层                                                                                               |
+
+3.TwoLayerNet类的方法  
+| 方法                                                               | 说明                                                                                                            |
+|:-------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------|
+| __init__(self,input_size,hidden_size,output_size, weight_init_std) | 进行初始化<br>参数从头开始依次是输入层的神经元数,隐藏层的神经元数,输出层的神经元数,初始化权重时的高斯分布的规模 |
+| predict(self, x)                                                   | 进行识别(推理)<br>参数x是图像数据                                                                               |
+| loss(self,x,t)                                                     | 计算损失函数的值<br>参数x是图像数据,t是正确解标签                                                               |
+| accuracy(self,x,t)                                                 | 计算识别精度                                                                                                    |
+| numerical_gradient(self, x, t)                                     | 通过数值微分计算关于权重参数的梯度(同上一章)                                                                    |
+| gradient(self, x, t)                                               | 通过误差反向传播法计算关于权重参数的梯度                                                                        |
+
+4.代码解释  
+在[TwoLayerNet](./resources/DeepLearing/02.py)类中使用了`OrderedDict`类,它是有序字典,因此神经网络的正向传播只需按照添加元素的顺序调用各层的`forward()`方法就可以完成处理,而反向传播只需要按照相反的顺序调用各层即可  
+因为Affine层和ReLU层的内部会正确处理正向传播和反向传播,所以这里要做的事情仅仅是<font color="#00FF00">以正确的顺序连接各层</font>,再按顺序(或者逆序)调用各层(模块化设计)  
+
+### 4.7.2 误差反向传播法的梯度确认  
+1.求解梯度的两种方法  
+基于数值微分方法和基于解析性地求解数学式的方法是计算梯度的两种方法,后一种方法通过使用误差反向传播法,即使存在大量的参数,也可以高效地计算梯度  
+误差反向传播法完全是数值微分法的上位替代,数值微分法实现简单,而误差反向传播法实现困难,所以一般可以<font color="#00FF00">用数值微分法来检验误差反向传播法是否正确</font>这种操作被称为<font color="#FF00FF">梯度确认</font>  
+
+2.梯度确认的代码  
+```python
+# 读入数据
+(x_train, t_train), (x_test, t_test) = load_mnist(normalize=True, one_hot_label=True)
+
+network = TwoLayerNet(input_size=784, hidden_size=50, output_size=10)
+
+x_batch = x_train[:3]
+t_batch = t_train[:3]
+
+grad_numerical = network.numerical_gradient(x_batch, t_batch)
+grad_backprop = network.gradient(x_batch, t_batch)
+
+for key in grad_numerical.keys():
+    diff = np.average( np.abs(grad_backprop[key] - grad_numerical[key]) )
+    print(key + ":" + str(diff))
+```
 
 
 

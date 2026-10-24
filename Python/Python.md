@@ -171,7 +171,9 @@ Python中字符串也提供<font color="#00FF00">区间访问方式</font>,采�
 ```Python
 string = "ABCD"
 print(string[0:3])  #输出结果为ABC
+print(string[:3])  #输出结果为ABC
 ```
+*提示:如果左侧不写则默认左侧内容为0*  
 
 6.常用方法
 * `format(String...) return String` 格式化当前字符串,例如:
