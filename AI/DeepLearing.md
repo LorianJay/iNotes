@@ -1462,7 +1462,7 @@ for i in range(iters_num):
     x_batch = x_train[batch_mask]
     t_batch = t_train[batch_mask]
     
-    # 计算梯度
+    # 计算梯度->使用数值微分/反向传播
     #grad = network.numerical_gradient(x_batch, t_batch)
     grad = network.gradient(x_batch, t_batch)
     
@@ -2001,6 +2001,7 @@ class Sigmoid:
 神经网络的正向传播中进行的矩阵的乘积运算在几何学领域被称为<font color="#00FF00">仿射变换</font>,这里将进行仿射变换的处理实现为Affine层  
 所谓的仿射变换包括一次线性变换和一次平移,分别对应神经网路的加权和运算与加偏移量运算  
 *提示:Affine层主要用于解决矩阵乘法计算的正向传播和反向传播*  
+*注意:Affine层只是完成基础的点乘运算,计算结果还需要再经过激活函数的计算,才能作为下一层的输入*  
 
 2.矩阵相乘  
 之前在介绍[[DeepLearing#243-各层间信号传递的实现]]时,计算各层间信号传递时使用的是`Y = np.dot(X,W) +B`的计算方式,它可以用计算图表示  
@@ -2127,7 +2128,7 @@ def backward(self, dout=1):
 **目录:**  
 4.7.1 误差反向传播法的神经网络实现  
 4.7.2 误差反向传播法的梯度确认  
-
+4.7.3 使用误差反向传播法学习  
 
 ### 4.7.1 误差反向传播法的神经网络实现  
 1.学习流程  
@@ -2177,12 +2178,449 @@ grad_backprop = network.gradient(x_batch, t_batch)
 for key in grad_numerical.keys():
     diff = np.average( np.abs(grad_backprop[key] - grad_numerical[key]) )
     print(key + ":" + str(diff))
+# 运行结果如下
+# W1:4.18302514043381e-10
+# b1:2.650338259604229e-09
+# W2:6.200822667225752e-09
+# b2:1.397117932164238e-07
+```
+读入MNIST数据集,使用训练数据的一部分,确认数值微分求出的梯度和误差反向传播法求出的梯度的误差,这里误差的计算方法是求各个权重参数中对应元素的差的绝对值,并计算其平均值
+从结果看出,通过数值微分和误差反向传播法求出的梯度的差非常小,此时便认为通过反向传播法求得的梯度是正确的  
+*提示:数值微分和误差反向传播法的计算结果之间的误差为0是很少见的,这是因为受到计算机数值精度的限制,所以误差一般不为0,而是一个很小的数值,如果结果很大,说明误差反向传播存在错误*  
+
+### 4.7.3 使用误差反向传播法学习  
+详情见[[DeepLearing#353-mini-batch的实现]]完全一样的代码,其中  
+```python
+# 二选一,第一个是数值微分,第二个是反向传播
+grad = network.numerical_gradient(x_batch, t_batch)
+grad = network.gradient(x_batch, t_batch)
 ```
 
+# 5.与学习相关的技巧  
+**目录:**  
+5.1 参数的更新  
+5.2 权重的初始值  
+5.3 Batch Normalization  
+5.4 正则化  
 
 
 
+## 5.1 参数的更新  
+**目录:**  
+5.1.1 全章概述  
+5.1.2 SGD的缺点  
+5.1.3 Momentum  
+5.1.4 AdaGrad  
+5.1.5 Adam  
+5.1.6 使用何种更新方法  
 
+### 5.1.1 全章概述  
+1.概述
+本章涉及寻找最优权重参数的最优化方法、权重参数的初始值、超参数的设定方法  
+为了应对过拟合,本章还将介绍权值衰减、Dropout等正则化方法  
+本章还对Batch Normalization方法进行简单介绍  
+
+2.随机梯度下降的问题  
+神经网络的学习的目的是找到使损失函数的值尽可能小的参数,即寻找最优参数的问题,解决这个问题的过程称为<font color="#00FF00">最优化</font>,但是由于神经网络的庞大和复杂,最优化问题十分复杂  
+之前的章节中,为了找到最优参数算法将参数的梯度(导数)作为线索,使用参数的梯度,沿梯度方向更新参数,并重复这个步骤多次,从而逐渐靠近最优参数,这个过程称为<font color="#00FF00">随机梯度下降法</font>也称SGD  
+但是根据不同的问题也存在比SGD更加聪明的方法,接下来将介绍SGD的缺点并介绍SGD以外的其他最优化方法  
+
+3.复习SGD  
+参考[[DeepLearing#34-梯度]]的相关知识点  
+
+3.SGD的缺点  
+随机梯度下降法的本质,其实就是在一个漆黑一片的世界中找到最深的一个坑,唯一能够参考的就是这个世界的坡度
+
+### 5.1.2 SGD的缺点  
+1.函数最小值  
+现在来求$f(x,y)=\frac{1}{20}x^2 + y^2$函数的最小值,它的函数图像和等高线如下图所示  
+![SGD](resources/DeepLearing/54.png)  
+
+2.函数的梯度  
+![函数梯度](resources/DeepLearing/55.png)  
+这个梯度的特征是,y轴方向上大,x轴方向上小;换句话说,就是y轴方向的坡度大,而x轴方向的坡度小  
+
+3.梯度下降  
+现在对该函数进行梯度下降算法,从$(x,y) = (-7.0,2.0)$开始,最终SGD算法呈现<font color="#00FF00">Z字形</font>,这是一个相当低效的路径,SGD的缺点是如果函数的形状非均向(比如呈延伸状)搜索的路径就会非常低效,SGD低效的根本原因是,梯度的方向并没有指向最小值的方向  
+![梯度下降](resources/DeepLearing/56.png)  
+
+### 5.1.3 Momentum  
+1.公式表示  
+用数学式表示Momentum方法如下所示  
+$$\begin{aligned}
+v &\leftarrow \alpha v - \eta \frac{\partial L}{\partial W} \\
+W &\leftarrow W + v
+\end{aligned}$$  
+和前面的SGD一样,$W$表示更新的权重参数,$\frac{\partial L}{\partial W}$表示损失函数关于$W$的梯度,$\eta$表示学习率,新变量$v$对应物理上的速度,上述式子表现了<font color="#00FF00">物体在梯度方向上受力,在这个力的作用下,物体的速度增加这一物理法则</font>,这种算法给人的感觉就好像是小球在地面上滚动  
+其中$\frac{\partial L}{\partial W}$是外力(重力),它推动小球往底部走,当物体不受任何外力的时候,也就是$\frac{\partial L}{\partial W}=0$时,此时需要由$\alpha v$这一项让小球逐渐减速,比如将$\aleph$设定为0.9之类的值,这样由于$v \leftarrow \alpha v$会让$v$的速度不断减小  
+
+2.代码实现  
+```python
+class Momentum:
+    def __init__(self, lr=0.01, momentum=0.9):
+        self.lr = lr
+        self.momentum = momentum
+        self.v = None
+    
+    # params是神经网络的权重(字典,比如{'W1': array(...),'b1':array(...)})
+    def update(self, params, grads):
+        if self.v is None:
+            self.v = {}
+            # 创建一个和权重形状完全相同的全0数组,作为初始速度
+            # key就是权重的名称,比如W1、B1、W2、B2
+            for key, val in params.items():                                
+                self.v[key] = np.zeros_like(val)
+                
+        for key in params.keys():
+            self.v[key] = self.momentum*self.v[key] - self.lr*grads[key] 
+            params[key] += self.v[key]
+```
+
+3.代码解释  
+这里的params和grads会按照神经网络的层<font color="#00FF00">同时存放整个网络所有层的参数</font>(例如W1,b1,W2,b2等),一开始V什么都不保存,只有在第一次更新的时候,会按照<font color="#00FF00">字典型变量的形式保存与参数结构相同的数据</font>,并且每一层初始的速度都是v=0  
+*注意:v和神经网络层是对应的,比如W1对应一个v,B1对应一个v*  
+
+4.举个例子  
+假设当前算出来的梯度`grads['W'] = 2.0`,第一次更新速度$\text{self.v['W']} = 0.9 \times 0 - 0.01 \times 2.0 = -0.02$(此时小球获得了向左的微小速度),接着更新权重;第一次更新速度依旧假设梯度是`grads['W'] = 2.0`,此时计算速度$\text{self.v['W']} = 0.9 \times (-0.02) - 0.01 \times 2.0 = -0.018 - 0.02 = -0.038$  
+发现规律,第一次的速度是`-0.02`第二次则加剧到`-0.038`,这就是这个算法的优势,如果连续多步的梯度方向一致,速度会不断叠加变大,从而让参数更新得更快,越过平坦的弯路,其本质是因为将上一步的v保存了下来  
+
+5.最终梯度效果  
+![梯度效果](resources/DeepLearing/57.png)  
+发现Z字形的程度减轻了,因为虽然x轴方向上受到的力非常小,但是一直在同一方向上受力,所以朝同一个方向会有一定的加速;反过来,虽然y轴方向上受到的力很大,但是因为交互地受到正方向和反方向的力,它们会互相抵消,所以y轴方向上的速度不稳定  
+所以该算法总结就是:<font color="#FF00FF">加速下降</font>+<font color="#FF00FF">抵抗震荡</font>
+
+### 5.1.4 AdaGrad  
+1.学习率  
+在神经网络的学习中,学习率(数学式中记为 $\eta$)的值很重要,学习率过小,会导致学习花费过多时间;反过来,学习率过大,则会导致学习发散而不能正确进行  
+在关于学习率的有效技巧中,有一种被称为<font color="#FF00FF">学习率衰减</font>(learning rate decay)的方法,即随着学习的进行,使学习率逐渐减小,这种方法会使全体参数的学习率一起降低,而AdaGrad进一步发展了这个想法,即<font color="#00FF00">针对每个参数定制其学习率</font>  
+
+2.数学式  
+下面这个式子是AdaGrad更新方法的数学式表示  
+$$h \leftarrow h + \frac{\partial L}{\partial W} \odot \frac{\partial L}{\partial W}$$$$W \leftarrow W - \eta \frac{1}{\sqrt{h}} \frac{\partial L}{\partial W}$$  
+
+上述式子中,$W$表示要更新的权重参数,$\frac{\partial L}{\partial W}$表示损失函数关于$W$的梯度,$\eta$表示学习率,$h$它保存了以前的所有梯度值的平方和,$\odot$是点乘不是矩阵相乘,是<font color="#00FF00">两个矩阵对应的元素相乘</font>,且形状必须一致  
+在更新参数的时候,通过乘以$\frac{1}{\sqrt{h}}$就可以调整学习的尺度,那么参数的元素中变动较大的元素的学习率将变小,正好符合学习率衰减的描述,但它是参数级定制的  
+*注意:这不意味着元素变动较小的学习率会变大,否则会导致学习发散无法收敛*  
+*补充:AdaGrad会记录过去所有梯度的平方和,因此学习越深入,更新的幅度就越小;实际上,如果无止境地学习,更新量就会变为0,完全不再更新.为了改善这个问题,可以使用RMSProp 方法,RMSProp方法并不是将过去所有的梯度一视同仁地相加,而是逐渐地遗忘过去的梯度,在做加法运算时将新梯度的信息更多地反映出来.这种操作从专业上讲,称为"指数移动平均",呈指数函数式地减小过去的梯度的尺度*  
+
+3.代码实现  
+```python
+class AdaGrad:
+
+    def __init__(self, lr=0.01):
+        self.lr = lr
+        self.h = None
+        
+    def update(self, params, grads):
+        if self.h is None:
+            self.h = {}
+            for key, val in params.items():
+                self.h[key] = np.zeros_like(val)
+            
+        for key in params.keys():
+            self.h[key] += grads[key] * grads[key]
+            params[key] -= self.lr * grads[key] / (np.sqrt(self.h[key]) + 1e-7)
+```
+*提示:代码在最后一行加上了微小值`1e-7`为了防止除零异常*  
+
+4.梯度下降  
+最终该代码的梯度下降效果为  
+![梯度下降](resources/DeepLearing/58.png)  
+可以发现,函数的取值高效地向着最小值移动,由于$y$轴方向上的梯度较大,因此刚开始变动较大,但是后面会根据这个较大的变动按比例进行调整,减小更新的步伐,所以Z字形的变动程度有所衰减  
+
+### 5.1.5 Adam  
+1.Adam概述  
+Momentum参照小球在碗中滚动的物理规则进行移动,AdaGrad为参数的每个元素适当地调整更新步伐,Adam算法的思路就是同时应用两者
+
+2.实现代码  
+```python
+class Adam:
+    def __init__(self, lr=0.001, beta1=0.9, beta2=0.999):
+        self.lr = lr
+        self.beta1 = beta1
+        self.beta2 = beta2
+        self.iter = 0
+        self.m = None
+        self.v = None
+        
+    def update(self, params, grads):
+        if self.m is None:
+            self.m, self.v = {}, {}
+            for key, val in params.items():
+                self.m[key] = np.zeros_like(val)
+                self.v[key] = np.zeros_like(val)
+        
+        self.iter += 1
+        lr_t  = self.lr * np.sqrt(1.0 - self.beta2**self.iter) / (1.0 - self.beta1**self.iter)         
+        
+        for key in params.keys():
+            #self.m[key] = self.beta1*self.m[key] + (1-self.beta1)*grads[key]
+            #self.v[key] = self.beta2*self.v[key] + (1-self.beta2)*(grads[key]**2)
+            self.m[key] += (1 - self.beta1) * (grads[key] - self.m[key])
+            self.v[key] += (1 - self.beta2) * (grads[key]**2 - self.v[key])
+            
+            params[key] -= lr_t * self.m[key] / (np.sqrt(self.v[key]) + 1e-7)
+            
+            #unbias_m += (1 - self.beta1) * (grads[key] - self.m[key]) # correct bias
+            #unbisa_b += (1 - self.beta2) * (grads[key]*grads[key] - self.v[key]) # correct bias
+            #params[key] += self.lr * unbias_m / (np.sqrt(unbisa_b) + 1e-7)
+```
+*提示:Adam会设置3个超参数,分别是学习率$\alpha$、一次Momentum系数$\beta_1$、二次Momentum系数$\beta_2$,根据论文标准的设定值是$\beta_1=0.9 \quad \beta_2=0.999$*  
+
+3.梯度下降  
+![梯度下降](resources/DeepLearing/59.png)  
+Adam的学习过程和Momentum十分类似,但是相比之下,Adam小球左右摇晃的程度有所减轻  
+
+
+### 5.1.6 使用何种更新方法  
+1.指正  
+实际上上述一共介绍的4种方法,各有自已的优缺点,在不同的问题中它们的表现都不相同,所以不存在谁比谁好的问题  
+
+2.MINIST数据集更新方法的比较  
+以之前的手写数字识别为例,比较这4种算法,最终的结果如下图所示,这个实验以一个5层神经网络为对象,其中每层有100个神经元,激活函数使用的是ReLU,一般而言其它三种方法会比SGD学习地更快,识别精度也更高  
+![MINIST](resources/DeepLearing/60.png)  
+
+## 5.2 权重的初始值  
+**目录:**  
+5.2.1 设置权值初始值为0  
+5.2.2 隐藏层的激活值的分布  
+5.2.3 ReLU的权重初始值  
+5.2.4 基于MINIST数据集的权重初始值的比较  
+
+
+
+### 5.2.1 设置权值初始值为0  
+1.概述  
+神经网络的学习中,权值的初始值特别重要,甚至关系到神经网络的学习能否成功  
+
+2.权重初始值设为0  
+不能将权重初始值设为0,或者说不能将权重初始值设为一样的值;是因为在误差反向传播中,会导致所有的权重值进行相同的更新,假设权重和偏移量初始值全为0,在进行正向传播的时候每个神经元的输入都为0,也就导致了<font color="#00FF00">所有神经元输出完全一模一样</font>,在进行反向传播的时候,根据公式$W \leftarrow W - \eta \frac{\partial L}{\partial W}$因为所有的梯度都相同,会导致所有权重在更新时全部加上或减去一模一样的值  
+因此权重被更新为相同的值,并拥有了对称的值,这使得神经网络拥有许多不同的权重的意义丧失了,所以为了打破这种均一化(<font color="#FF00FF">对称性</font>)<font color="#00FF00">必须随机生成初始值</font>  
+
+### 5.2.2 隐藏层的激活值的分布  
+1.激活值  
+本节关注隐藏层的激活值即激活函数的输出数据,观察权重初始值如何影响隐藏层的激活值的分布的,现在向一个5层神经网络传入随机生成的输入数据,用直方图绘制各层激活值的数据分布,代码如下  
+
+2.标准差为1的激活值分布  
+假设神经网络有5层,每层有100个神经元,然后使用标准差为1的高斯分布,随机生成1000个数据作为输入数据,并将其传给5层神经网络,激活函数使用sigmoid  
+```python
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+
+def ReLU(x):
+    return np.maximum(0, x)
+
+
+def tanh(x):
+    return np.tanh(x)
+    
+input_data = np.random.randn(1000, 100)  # 1000个数据
+node_num = 100  # 各隐藏层的节点（神经元）数
+hidden_layer_size = 5  # 隐藏层有5层
+activations = {}  # 激活值的结果保存在这里
+
+x = input_data
+
+for i in range(hidden_layer_size):
+    if i != 0:
+        x = activations[i-1]
+
+    # 改变初始值进行实验！
+    w = np.random.randn(node_num, node_num) * 1
+    # w = np.random.randn(node_num, node_num) * 0.01
+    # w = np.random.randn(node_num, node_num) * np.sqrt(1.0 / node_num)
+    # w = np.random.randn(node_num, node_num) * np.sqrt(2.0 / node_num)
+    a = np.dot(x, w)
+    # 将激活函数的种类也改变，来进行实验！
+    z = sigmoid(a)
+    # z = ReLU(a)
+    # z = tanh(a)
+    activations[i] = z
+```
+![标准差为1](resources/DeepLearing/61.png)  
+由上图可知,因为使用的是sigmoid函数是S形的,各层的激活值会逐渐偏向0和1分布,最终使得反向传播的导数逐渐接近0(sigmoid函数的导数是$\frac{\partial L}{\partial y} y(1-y)$,其中y是神经元的输出),当输出为0或1时整个梯度的值都趋向0,最终导致所谓的<font color="#00FF00">梯度消失</font>  
+
+3.标准差为0.01的激活值分布  
+现在使用`w = np.random.randn(node_num, node_num) * 0.01`生成初始权重,各层的神经网络的激活值分布如下所示  
+这次集中在0.5附近,此时不会发生梯度消失问题,但是激活值有所偏向又会导致[[DeepLearing#521-设置权值初始值为0]]时提到的对称性问题,这会导致神经网络权重变得没有意义  
+所以各层激活值的分布要求有适当的广度,因为通过在各层间传递多样性的数据,神经网络可以进行高效学习,反之就会出现梯度消失或对称性问题  
+![标准差0.01](resources/DeepLearing/62.png)  
+
+4.Xavier初始值  
+Xavier推导出的初始值为,如果前一层的节点数为n,则初始值使用标准差为$\frac{1}{\sqrt{n}}$的分布,使用Xavier初始值之后,前一层的节点数越多,要设定为目标节点的初始值的权重标准差就越小  
+现在使用`w = np.random.randn(node_num, node_num) * np.sqrt(1.0 / node_num)`生成初始权重,各层的神经网络的激活值分布如下所示  
+从图中看出,越是后面的层图像变得越歪斜,但是呈现了比之前更有广度的分布,因为各层间传递的数据有适当的广度,所以sigmoid函数的表现力不受限制,有望进行高效的学习  
+![Xavier](resources/DeepLearing/63.png)  
+*补充:在上图中,后面的层的分布呈稍微歪斜的形状,如果用tanh函数代替sigmoid函数,这个稍微歪斜的问题就能得到改善,实际上使用tanh函数后,会呈漂亮的吊钟形分布,tanh函数和sigmoid函数同是S型曲线函数,但tanh函数是关于原点 $(0, 0)$ 对称的S型曲线,而sigmoid函数是关于 $(x, y)=(0, 0.5)$ 对称的S型曲线,众所周知,<font color="#00FF00">用作激活函数的函数最好具有关于原点对称的性质</font>*  
+
+### 5.2.3 ReLU的权重初始值  
+1.ReLU的权重初始值  
+Xavier初始值是以激活函数是线性函数为前提推导得出的,当激活函数使用ReLU时,一般推荐使用ReLU函数的专属初始值HE  
+当前一层的节点数为$n$时,HE初始值使用标准差为$\sqrt{\frac{2}{n}}$的高斯分布  
+
+2.激活值分布  
+![激活值分布](resources/DeepLearing/64.png)  
+如果对ReLU函数使用标准差为0.01的高斯分布,最终表现为各层的激活值非常小(往0靠拢)会导致反向传播的梯度下降不明显基本没有学习进展;使用Xavier时,一开始表现良好,但随着层的加深,激活值偏向会一点点变大,学习出现梯度消失问题  
+当初始值为HE时,各层中分布的广度相同,即便层加深,数据的广度也能保持不变,因此反向传播时也会传递合适的值  
+
+### 5.2.4 基于MINIST数据集的权重初始值的比较  
+1.不同初始权重对MINIST的影响  
+现在准备三种权重初始值(标准差=0.01、Xavier初始值、HE初始值)进行试验
+
+2.核心代码  
+```python
+# 0:读入MNIST数据==========
+(x_train, t_train), (x_test, t_test) = load_mnist(normalize=True)
+
+train_size = x_train.shape[0]
+batch_size = 128
+max_iterations = 2000
+
+
+# 1:进行实验的设置==========
+weight_init_types = {'std=0.01': 0.01, 'Xavier': 'sigmoid', 'He': 'relu'}
+optimizer = SGD(lr=0.01)
+
+networks = {}
+train_loss = {}
+for key, weight_type in weight_init_types.items():
+    networks[key] = MultiLayerNet(input_size=784, hidden_size_list=[100, 100, 100, 100],
+                                  output_size=10, weight_init_std=weight_type)
+    train_loss[key] = []
+
+# 2:开始训练==========
+for i in range(max_iterations):
+    batch_mask = np.random.choice(train_size, batch_size)
+    x_batch = x_train[batch_mask]
+    t_batch = t_train[batch_mask]
+    
+    for key in weight_init_types.keys():
+        grads = networks[key].gradient(x_batch, t_batch)
+        optimizer.update(networks[key].params, grads)
+    
+        loss = networks[key].loss(x_batch, t_batch)
+        train_loss[key].append(loss)
+    
+    if i % 100 == 0:
+        print("===========" + "iteration:" + str(i) + "===========")
+        for key in weight_init_types.keys():
+            loss = networks[key].loss(x_batch, t_batch)
+            print(key + ":" + str(loss))
+```
+
+3.试验结果  
+该试验中,神经网络有5层,每层有100个神经元,激活函数使用ReLU,一共学习2000次,从图中的结果可知,标准差为0.01时完全无法进行学习,这是因为正向传播中传递的值很小,所以反向传播时的梯度也很小,权重几乎不更新导致的  
+当权重初始值为Xavier和HE时,可以正常学习并且HE初始值的学习进度更快一些
+![三种不同初始值](resources/DeepLearing/65.png)  
+
+## 5.3 Batch Normalization  
+**目录:**  
+5.3.1 Batch Normalization算法  
+5.3.2 Batch Normalization的评估  
+
+### 5.3.1 Batch Normalization算法  
+1.目的  
+为了使各层拥有适当的广度,<font color="#00FF00">强制性</font>地调整激活值的分布就,Batch Normalization就是基于这个想法产生的  
+
+2.概述  
+Batch Norm有以下优点:(1)可以使学习快速进行、(2)不那么依赖初始值、(3)抑制过拟合  
+Batch Norm的思路是调整各层的激活值使其拥有适当的广度,为此要向神经网络中插入对数据分布进行正规化的层,如下图所示  
+![Batch Norm](resources/DeepLearing/66.png)  
+Batch Norm会按学习时的mini-batch为单位,按mini-batch进行正规化,即进行使数据分布的均值为0、方差为1的正规化,用数学式表示如下  
+$$\begin{aligned}
+    \mu_B &= \frac{1}{m} \sum_{i=1}^m x_i \\ 
+    \sigma_B^2 &= \frac{1}{m} \sum_{i=1}^m (x_i - \mu_B)^2 \\
+    \hat{x}_i &= \frac{x_i - \mu_B}{\sqrt{\sigma_B^2 + \epsilon}}
+\end{aligned}$$
+
+这里对mini-batch的m个输入数据的集合$B=\left\{ x_1,x_2,...,x_m \right\}$求均值$\mu B$和方差$\sigma_B^2$,然后对输入数据进行均值为0、方差为1的正规化,式子中的$\epsilon$是一个微小值(防止除0异常)  
+这个公式做的就是将mini-batch的输入数据$\left\{ x_1,x_2,...,x_m \right\}$变换为均值为0、方差为1的数据$\left\{ \hat{x_1},\hat{x_2},...,\hat{x_m} \right\}$,通过将这个处理插入到激活函数的前面/后面,可以减小数据分布的偏向  
+
+接着Batch Norm层会对正规化后的数据进行缩放和平移变换,用数学式可以表示为$y_i = \gamma \hat{x}_i + \beta$,这里$\gamma$和$\beta$是参数,一开始$\gamma=1,\beta=0$然后再通过学习调整到合适的值  
+
+上述就是Batch Norm的算法,这个算法是神经网络上的正向传播,计算图表示如下,Batch Norm的反向传播推导有些复杂,这里不介绍  
+![计算图](resources/DeepLearing/67.png)  
+
+### 5.3.2 Batch Normalization的评估  
+1.Batch Norm的试验效果  
+现在对MINIST数据集使用Batch Norm层和不使用Batch Norm层时学习过程的变化,结果如下图所示,从图中可以发现使用Batch Norm时学习速度变快了  
+![Batch Norm](resources/DeepLearing/68.png)
+
+2.不同初始值的学习过程  
+现在使用标准差为不同的各种权重初始值进行学习,如下图所示,几乎所有的情况下都是使用 Batch Norm时学习进行得更快,同时也可以发现,在不使用Batch Norm的情况下,如果不赋予一个尺度好的初始值,学习将完全无法进行  
+![Batch Norm](resources/DeepLearing/69.png)  
+
+## 5.4 正则化  
+**目录:**  
+5.4.1 过拟合  
+5.4.2 权值衰减   
+
+
+
+### 5.4.1 过拟合  
+1.过拟合  
+过拟合指的是只能拟合训练数据,但不能很好地拟合不包含在训练数据中的其他数据的状态,机器学习的最终目标是提升模型的泛化能力,所以抑制过拟合很重要  
+过拟合发生的原因通常有两个(1)模型拥有大量参数、表现力强,(2)训练数据少  
+
+2.模拟过拟合  
+现在强制满足这两个条件,模拟过拟合现象,为此准备从MINIST数据集原本的60000个训练数据中只选定300个,并且为了增加网络复杂度,使用7层网路(每层有100个神经元,激活函数为ReLU),试验代码如下  
+```python
+(x_train, t_train), (x_test, t_test) = load_mnist(normalize=True)
+
+# 为了再现过拟合，减少学习数据
+x_train = x_train[:300]
+t_train = t_train[:300]
+
+# weight decay（权值衰减）的设定 =======================
+#weight_decay_lambda = 0 # 不使用权值衰减的情况
+weight_decay_lambda = 0.1
+# ====================================================
+
+network = MultiLayerNet(input_size=784, hidden_size_list=[100, 100, 100, 100, 100, 100], output_size=10,
+                        weight_decay_lambda=weight_decay_lambda)
+optimizer = SGD(lr=0.01)
+
+# 最大epochs次数
+max_epochs = 201
+train_size = x_train.shape[0]
+batch_size = 100
+
+train_loss_list = []
+train_acc_list = []
+test_acc_list = []
+
+# 因为总数据量为300,batch_size为100,所以这里的epoch为3次,每3个batch就记录一次
+iter_per_epoch = max(train_size / batch_size, 1)
+epoch_cnt = 0
+
+for i in range(1000000000):
+    batch_mask = np.random.choice(train_size, batch_size)
+    x_batch = x_train[batch_mask]
+    t_batch = t_train[batch_mask]
+
+    grads = network.gradient(x_batch, t_batch)
+    optimizer.update(network.params, grads)
+
+    if i % iter_per_epoch == 0:
+        train_acc = network.accuracy(x_train, t_train)
+        test_acc = network.accuracy(x_test, t_test)
+        train_acc_list.append(train_acc)
+        test_acc_list.append(test_acc)
+
+        print("epoch:" + str(epoch_cnt) + ", train acc:" + str(train_acc) + ", test acc:" + str(test_acc))
+
+        epoch_cnt += 1
+        if epoch_cnt >= max_epochs:
+            break
+```
+
+3.训练结果  
+![过拟合](resources/DeepLearing/70.png)  
+可以发现,过了100个epoch后,用训练数据测量到的识别精度几乎都为100%,但是对于测试数据离100%的识别精度还有较大差距,这是因为模型只拟合了训练数据的结果,从图中看出模型对训练时没有使用的一般数据(测试数据)拟合得不是很好  
+
+
+### 5.4.2 权值衰减   
 
 
 
