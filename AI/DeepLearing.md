@@ -4,9 +4,8 @@
 3.神经网络的学习  
 4.误差反向传播法  
 5.与学习相关的技巧  
-6.卷积神经网络  
+6.卷积神经网络(CNN)  
 7.深度学习  
-
 
 # 1.感知机  
 **目录:**  
@@ -17,7 +16,7 @@
 
 ## 1.1 感知机概述  
 1.感知机是什么  
-感知机<font color="#00FF00">接收多个输入信号,输出一个信号</font>,下图是接收两个输入信号的感知机的例子,x1和x2是输入信号,y是输出信号,w1和w2是权重,图中的⭕称为<font color="#FF00FF">神经元</font>,输入信号被送往神经元时,会被分别乘以固定的权重(w1x1、w2x2)  
+感知机<font color="#00FF00">接收多个输入信号,输出一个信号</font>,下图是接收两个输入信号的感知机的例子,x1和x2是输入信号,y是输出信号,w1和w2是权重,图中的○称为<font color="#FF00FF">神经元</font>,输入信号被送往神经元时,会被分别乘以固定的权重(w1x1、w2x2)  
 ```mermaid
 flowchart LR
     X1((X1))--->|w1|Y((Y))
@@ -148,15 +147,15 @@ $$Y = \begin{cases}
 
 ![或门](resources/DeepLearing/01.png)  
 
-*提示:图中只有当x1和x2在(0,0)时输出0,其余的三种情况都是输出1,如果想用感知机实现或门就需要用一条直线将图中的⭕和🔺分开,⭕代表0,🔺代表1*  
+*提示:图中只有当x1和x2在(0,0)时输出0,其余的三种情况都是输出1,如果想用感知机实现或门就需要用一条直线将图中的○和△分开,○代表0,△代表1*  
 
 3.为什么感知机无法实现异或门  
-看下图,要想用感知机实现异或门,就需要用一条直线作出分割图中⭕和🔺,但事实上无法用一条直线将⭕和🔺分开,所以感知机无法实现异或门  
+看下图,要想用感知机实现异或门,就需要用一条直线作出分割图中○和△,但事实上无法用一条直线将○和△分开,所以感知机无法实现异或门  
 ![感知机](resources/DeepLearing/02.png)  
 
 ### 1.3.2 线性和非线性  
 ![感知机](resources/DeepLearing/02.png)  
-上图中的⭕和🔺无法用一条直线分开,但如果将"直线"的限制去除,就可以实现了,如下图所示  
+上图中的○和△无法用一条直线分开,但如果将"直线"的限制去除,就可以实现了,如下图所示  
 ![非线性](resources/DeepLearing/03.png)  
 <font color="#00FF00">感知机的局限于在于它只能表示由一条直线分割的空间</font>,而上图这种弯曲的曲线是无法用感知机表示的  
 所以由曲线分割而成的空间称为<font color="#FFC800">非线性空间</font>,由直线分割而成的空间称为<font color="#FFC800">线性空间</font>
@@ -260,7 +259,7 @@ $$a = b + w_1x_1 + w_2x_2$$
 $$y = h(a)$$  
 
 3.激活函数的计算过程  
-下图表示了上述改写后公式的样貌,图中的⭕明确显示了激活函数的计算过程,即信号的加权总和为节点a,然后节点a被激活函数h(x)转换为节点y  
+下图表示了上述改写后公式的样貌,图中的○明确显示了激活函数的计算过程,即信号的加权总和为节点a,然后节点a被激活函数h(x)转换为节点y  
 ![激活函数计算过程](resources/DeepLearing/08.png)  
 
 ## 2.2 激活函数  
@@ -2123,6 +2122,7 @@ def backward(self, dout=1):
     return dx
 ```
 为什么除以batch_size?在Softmax层确实是($y_n-t_n$),但是来到Cross Entropy Error层的反向传播时,因为L是全部损失函数的平均值,根据数学上的计算这一层的导数是$\frac{1}{N}$,但图中未标出  
+*注意:SoftmaxWithLoss的意思就是包含损失函数,所以在`forward`方法中会计算经过Softmax层后的损失函数,调用`cross_entropy_error`函数*  
 
 ## 4.7 误差反向传播法的实现  
 **目录:**  
@@ -2202,7 +2202,8 @@ grad = network.gradient(x_batch, t_batch)
 5.2 权重的初始值  
 5.3 Batch Normalization  
 5.4 正则化  
-
+5.5 超参数的验证  
+5.6 CNN的可视化  
 
 
 ## 5.1 参数的更新  
@@ -2432,7 +2433,7 @@ for i in range(hidden_layer_size):
     # w = np.random.randn(node_num, node_num) * np.sqrt(1.0 / node_num)
     # w = np.random.randn(node_num, node_num) * np.sqrt(2.0 / node_num)
     a = np.dot(x, w)
-    # 将激活函数的种类也改变，来进行实验！
+    # 将激活函数的种类也改变,来进行实验！
     z = sigmoid(a)
     # z = ReLU(a)
     # z = tanh(a)
@@ -2554,7 +2555,8 @@ $$\begin{aligned}
 ## 5.4 正则化  
 **目录:**  
 5.4.1 过拟合  
-5.4.2 权值衰减   
+5.4.2 权值衰减  
+5.4.3 Dropout  
 
 
 
@@ -2568,13 +2570,13 @@ $$\begin{aligned}
 ```python
 (x_train, t_train), (x_test, t_test) = load_mnist(normalize=True)
 
-# 为了再现过拟合，减少学习数据
+# 为了再现过拟合,减少学习数据
 x_train = x_train[:300]
 t_train = t_train[:300]
 
 # weight decay（权值衰减）的设定 =======================
-#weight_decay_lambda = 0 # 不使用权值衰减的情况
-weight_decay_lambda = 0.1
+weight_decay_lambda = 0 # 不使用权值衰减的情况
+# weight_decay_lambda = 0.1
 # ====================================================
 
 network = MultiLayerNet(input_size=784, hidden_size_list=[100, 100, 100, 100, 100, 100], output_size=10,
@@ -2621,7 +2623,756 @@ for i in range(1000000000):
 
 
 ### 5.4.2 权值衰减   
+1.权值衰减  
+权值衰退是一种被用来抑制过拟合的方法,改方法通过在学习的过程中对大的权重进行惩罚来抑制过拟合  
+例如为损失函数加上权重的平方范数(L2范数),就可以抑制权重变大,如果将权重记为$W$,L2范数的权值衰减就是$\frac{1}{2} \lambda W^2$,然后将$\frac{1}{2} \lambda W^2$加到损失函数上;这里<font color="#00FF00">$\lambda$是控制正则化强度的超参数</font>,$\lambda$设置地越大对大的权重施加的惩罚就越重,此外开头的$\frac{1}{2}$是用于将$\frac{1}{2} \lambda W^2$的求导结果变成$\lambda W$的调整用常量  
 
+对于所有权重,权值衰减方法都会为损失函数加上$\frac{1}{2} \lambda W^2$,因此在求权重梯度的计算中,要为之前的误差反向传播法的结果加上正则化项的导数$\lambda W$
+
+2.代码调整  
+把[[DeepLearing#541-过拟合]]中的`weight_decay_lambda = 0`代码切换为`weight_decay_lambda = 0.1`
+
+2.实验结果  
+现在选用$\lambda = 0.1$的权值衰减来进行试验,结果如下,虽然训练数据的识别精度和测试数据的识别精度之间有了差距,但是与之前没有使用权值衰减的结果相比,差距减小了,这说明过拟合受到了抑制,此外训练数据的识别精度没有达到100%(之前是100%)  
+![权值衰减](resources/DeepLearing/71.png)  
+
+### 5.4.3 Dropout  
+1.背景  
+作为抑制过拟合的方法,[[DeepLearing#542-权值衰减]]的方法是为损失函数加上权重的L2范数的权值衰减的方法,但是如果网络的模型变得很复杂,只用权值衰减较难以应付了,所以为了解决这一问题提出了Dropout方法  
+
+2.Droupout方法概述  
+Droupout是一种<font color="#00FF00">在学习的过程中随机删除神经元的方法 </font>,训练时随机选出隐藏层的神经元然后将其删除,被删除的神经元不再进行信号的传递,效果如下图所示  
+训练时,每传递一次数据就会随机选择要删除的神经元,测试时虽然会传递所有的神经元信号,但是对于各个神经元的输出,要乘上训练时的删除比例后再输出  
+![Droupout](resources/DeepLearing/72.png)  
+
+3.Dropout的实现  
+```python
+class Dropout:
+    def __init__(self, dropout_ratio=0.5):
+        self.dropout_ratio = dropout_ratio
+        # mask是一个布尔数组
+        self.mask = None
+
+    def forward(self, x, train_flg=True):
+        if train_flg:
+            self.mask = np.random.rand(*x.shape) > self.dropout_ratio
+            return x * self.mask
+        else:
+            return x * (1.0 - self.dropout_ratio)
+
+    def backward(self, dout):
+        return dout * self.mask
+```
+
+4.代码解释  
+每次正向传播时,`self.mask`东中都会以False的形式保存要删除的神经元,self.mask会随机生成和x形状相同的数组,并将值比dropout_ratio大的元素设置为True,反向传播时的行为和ReLU相同,即正向传播时传递了信号的神经元,反向传播时按原样传递信号,正向传播没有传递信号的,反向传播将停在那里  
+
+5.Dropout测试效果  
+*提示:代码参考ch06/overfit_dropout.py*  
+Dropout的实验和前面一样,使用7层网络(每层100个神经元,激活函数为ReLU),下面第一个结果不使用Dropout(和之前一样)、第二个结果使用的是Dropout  
+通过使用Dropout,训练数据和测试数据的识别精度的差距变小了,并且训练数据没有达到100%的识别精度,像这样,通过使用Dropout,即便是表现力强的网络,也可以抑制过拟合  
+![过拟合](resources/DeepLearing/70.png)  
+![Dropout](resources/DeepLearing/73.png)  
+
+6.集成学习  
+机器学习中经常使用集成学习,就是让多个模型单独进行学习,推理时再取多个模型的输出平均值,比如准备5个结构相同(或相似)的神经网络,分别进行学习,测试时以这5个网络的输出平均值作为答案,一般通过集成学习神经网络的识别精度可以提高好几个百分点  
+集成学习和Dropout有密切的关系,因为可以将Dropout理解为,通过在学习过程中随机删除神经元,从而每一次都让不同的模型进行学习,且推理时,通过对神经元的输出乘以删除比例(比如0.5),可以取得模型的平均值,可以简单理解为<font color="#00FF00">Dropout将集成学习的效果(模拟地)通过一个网络实现了</font>  
+
+## 5.5 超参数的验证  
+**目录:**  
+5.5.1 验证数据  
+5.5.2 超参数的最优化  
+5.5.3 超参数最优化的实现  
+
+### 5.5.1 验证数据  
+1.超参数  
+之前已经提到过,类似权重、偏移量这种神经网络可以自已学习的参数就是普通参数,而类似学习率、神经元数量、batch大小等就是<font color="#FF00FF">超参数</font>,超参数需要人工设定合适的值,否则模型的性能就会很差,所以章节将介绍高效寻找超参数值的方法  
+
+2.验证数据  
+之前讲到过,数据集分为训练数据和测试数据,分别用于学习和测试网络的泛化能力,但是在调整超参数的时候不能使用测试数据评估超参数的性能,因为如果使用测试数据评估超参数性能,就会导致<font color="#00FF00">超参数与测试数据发生过拟合</font>,这样一旦换一个新的数据集时模型的效果依旧不会好,实际上并没有提升模型的泛化能力(就好比不能用测试数据来训练模型一样,超参数的评估也不能用测试数据)  
+于是乎,在调整超参数的时候,必须使用超参数专门的确认数据,也称为<font color="#FF00FF">验证数据</font>,用该数据集来评估超参数的好坏  
+
+3.代码实现  
+根据不同的数据集(是数据集自已分或不分),有时候会分为训练数据、验证数据、测试数据三部分,有时候只分为训练数据和测试数据两部分,有的则不进行分割,比如MINIST数据集只分为训练数据和测试数据,在这种情况下,可以从训练数据中事先分割20%的数据作为验证数据  
+```python
+(x_train, t_train), (x_test, t_test) = load_mnist(normalize=True)
+# 打乱训练数据
+x_train, t_train = shuffle_dataset(x_train, t_train)
+# 分割验证数据
+validation_rate = 0.20
+validation_num = x_train.shape[0] * validation_rate
+
+x_val = x_train[:validation_num]
+t_val = t_train[:validation_num]
+x_train = x_train[validation_num:]
+t_train = t_train[validation_num:]
+```
+*提示:这里之所以大乱是因为,数据集可能存在偏向,比如数据集本身按从0-9的顺序编排了*  
+
+### 5.5.2 超参数的最优化  
+1.超参数范围  
+进行超参数优化时,逐渐缩小优质超参数的存在范围非常重要,逐渐缩小范围的原理就是,一开始指定一个大范围,从这个范围中随机选出一个超参数(采样),用这个采样到的值进行识别精度的评估,然后多次重复该操作,观察识别精度的结果,根据结果缩小优质超参数的范围,最终便可确定超参数的合适范围  
+
+2.大致范围  
+超参数的范围只需要大致地指定就可以了,比如像0.001($10^{-3}$)到1000($10^3$)这种以10的阶乘的尺度制定范围,在超参数优化中,因为深度学习的时间很长,所以在超参数的搜索时要尽早放弃那些不符合逻辑的超参数,所以在超参数优化中,需要减少学习的epoch  
+
+
+3.实现步骤归纳  
+设定超参数范围->从设定的超参数范围中随机采样->使用采样到的超参数进行学习,通过验证数据评估识别精度(但是epoch设置地要小,也就是学习的轮次要尽可能少)->重复上述两步,根据识别精度的结果缩小超参数的范围  
+
+4.贝叶斯最优化  
+上述这种寻找超参数的方法,其实本质上是工程方法没有多大的科学性,如果需要更精炼的方法,可以使用<font color="#FF00FF">贝叶斯最优化</font>,贝叶斯最优化运用以<font color="#00FF00">贝叶斯定理</font>为中心的数学理论,能更加严密、高效地进行最优化  
+
+### 5.5.3 超参数最优化的实现  
+1.随机采样  
+*提示:关于权值衰减详情见[[DeepLearing#542-权值衰减]]*
+现在使用MINIST数据集进行超参数的最优化,我们将学习率和控制权值衰减强度的系数这两个超参数的搜索问题作为对象  
+根据[[DeepLearing#552-超参数的最优化]]的内容,现在从0.001($10^{-3}$)到1000($10^3$)这样的对数尺度的范围中随机采样进行超参数的验证,在该实验中,权值衰减系数的初始范围为$10^{-8}$到$10^{-4}$,学习率的初始范围为$10^{-6}$到$10^{-2}$  
+
+2.超参数的随机采样代码  
+```python
+weight_decay = 10 ** np.random.uniform(-8, -4)
+lr = 10 ** np.random.uniform(-6, -2)
+```
+*提示:\*\*在Python中是幂运算,比如2\*\*3=8*  
+像这样进行随机采样后,再使用那些值进行学习,多次使用各种超参数的值重复进行学习,观察合乎逻辑的超参数在什么范围,下面就以权值衰减系数为$10^{-8}$到$10^{-4}$、学习率为$10^{-6}$到$10^{-2}$的范围进行试验  
+
+3.实验结果  
+![超参数](resources/DeepLearing/74.png)  
+实验结果如图所示,按识别精度从高到低的顺序排列了验证数据的学习的变化,从图中可知直到"Best-5"左右,学习都进行地很顺利,因此观察"Best-5"之前的超参数的值,结果如下所示  
+从结果来看,学习率在0.001到0.01、权值衰减系数在$10^{-8}$到$10^{-6}$之间时,学习可以顺利进行,如此便观察到可以使学习顺利进行的超参数范围,那么<font color="#00FF00">在此基础之上可以进行重复的操作,进一步缩小超参数的值</font>,这样就能缩小到合适的超参数的存在范围,然后在某个阶段,<font color="#00FF00">选择一个最终的超参数的值</font>  
+```python
+Best-1(val acc:0.79) | lr:0.009662653061015838, weight decay:1.9071741719714195e-08
+Best-2(val acc:0.79) | lr:0.008204172425270467, weight decay:1.3486674326995804e-08
+Best-3(val acc:0.74) | lr:0.009048394671139963, weight decay:3.419287278786253e-07
+Best-4(val acc:0.73) | lr:0.008538611047937045, weight decay:3.578823904270029e-07
+Best-5(val acc:0.7) | lr:0.007586869161292217, weight decay:3.606124337235959e-07
+```
+
+# 6.卷积神经网络(CNN)  
+**目录:**  
+6.1 整体结构  
+6.2 卷积层  
+6.3 池化层  
+6.4 卷积层和池化层的实现  
+6.5 CNN的实现  
+6.6 CNN的可视化  
+6.7 具有代表性的CNN  
+
+
+## 6.1 整体结构  
+1.概述  
+CNN和之前的神经网络一样,可以像乐高积木一样通过组装层来构建,不过CNN中新出现了卷积层和池化层  
+
+2.全连接  
+*复习:Affine参考[[DeepLearing#46-affinesoftmax层的实现]]*  
+在之前的神经网络中,相邻层的所有神经元之间都有连接,这称为<font color="#FF00FF">全连接</font>,当时用Affine层实现了全连接层,如果使用Affine层,一个5层的全连接神经网络就可以通过下图来表示  
+如下图所示,全连接的神经网络中,Affine层后面跟着激活函数ReLU层(或者sigmoid层),这里堆叠了4层"Affine-ReLU"组合,然后第5层是Affine层,最有由softmax层输出最终结果(概率)  
+![5层神经网络](resources/DeepLearing/75.png)  
+
+3.CNN结构  
+如图所示,CNN中新增了Convolution层和Pooling层(卷积层和池化层),CNN层的连接顺序是"Convolution->ReLU->(Pooling)",Pooling层有时会被省略,还需要注意的是靠近输出的层中使用了"Affine-ReLU"组合,此外最后输出层中使用了之前的"Affine-Softmax"组合  
+![CNN结构](resources/DeepLearing/76.png)
+
+
+## 6.2 卷积层(Convolution)  
+**目录:**  
+6.2.1 全连接层存在的问题  
+6.2.2 卷积运算  
+6.2.3 填充  
+6.2.4 步幅  
+6.2.5 3维数据的卷积运算  
+6.2.6 结合方块思考  
+6.2.7 批处理  
+
+### 6.2.1 全连接层存在的问题  
+1.形状的忽视  
+全连接的神经网络使用了全连接层(Affine层),在全连接层中,相邻层的神经元全部连接在一起,输出的数量可以任意决定  
+全连接层存在的问题就是,数据的形状被<font color="#00FF00">忽视</font>,比如输入数据是图像时,图像通常是高、长、通道方向上的3维形状,但是向全连接层输入时,需要将3维数据拉平为1维数据,就比如之前的MINIST数据集的例子,输入图像就是1通道、高28像素、长28像素的形状(1,28,28),但是却被强行排列成1列(拉平为1维数据),以784个数据的形式输入到最开始的Affine层  
+图像是3维图像,这个形状应含有重要的空间信息,例如空间上相邻的像素会有相似的值、RGB的各个通道之间分别有密切的关联性、相距较远的像素之间则没有什么关联性等,所以3维形状中可能隐藏有值得提取的本质模式,<font color="#00FF00">但是全连接层会忽视形状,将全部的输入数据作为相同的神经元(同一维度的神经元)处理</font>,所以无法利用与形状相关的信息  
+
+2.卷积层  
+卷积层可以保持形状不变,当输入数据是图像时,卷积层会以3维数据的形式接收输入数据,并同样以3维数据的形式输出至下一层;因此在CNN中,有可能可以正确理解图像等具有形状的数据  
+此外在CNN中,有时将卷积层的输入输出数据称为<font color="#FF00FF">特征图</font>,其中卷积层的输入数据称为<font color="#00FF00">输入特征图</font>,输出数据称为<font color="#00FF00">输出特征图</font>
+
+### 6.2.2 卷积运算  
+1.概述  
+卷积层进行的处理就是卷积运算,卷积运算相当于图像处理中的<font color="#00FF00">滤波器运算</font>,下面看一个具体的例子  
+
+2.卷积的例子  
+![卷句](resources/DeepLearing/77.png)
+如上图所示,卷积运算对输入数据应用滤波器,输入数据是有高长方向的形状的数据,滤波器也有高长方向上的维度,假设用(height,width)表示数据和滤波器的形状,则输入大小是(4,4),滤波器大小是(3,3),输出大小是(2,2)  
+
+3.卷积例子中的计算  
+现在来解释一下这个例子该如何计算,对于输入数据,卷积运算以一定间隔滑动滤波器的窗口并应用,这个窗口就是图中3x3的灰色部分,将各个位置上滤波器的元素和输入的对应元素相乘,然后再求和,最终将结果保存到输出的对应位置,将这个过程在所有位置都进行一遍就得到卷积运算的输出  
+![卷积运算](resources/DeepLearing/78.png)  
+
+4.偏移量  
+在全连接的神经网络中,除了权重参数还有偏移量,在CNN中滤波器及对应之前的权重,同样CNN中也存在偏移量,包含偏移量的卷积运算的处理流程如下图所示  
+偏移量通常只有一个(1x1),这个值会被加到应用了滤波器的所有元素上  
+![偏移量](resources/DeepLearing/79.png)  
+
+### 6.2.3 填充 
+1.概述  
+在进行卷积层的处理之前,有时要向输入数据的周围填入固定的数据(比如0等),这称为填充,比如在[[DeepLearing#622-卷积运算]]中的卷积的例子那张图中,对大小为(4,4)的输入数据应用了<font color="#00FF00">幅度</font>为1的填充(即指用幅度为1像素的0填充周围,填充的值一定是0,主要就是改变填充的幅度),填充后的效果如下  
+![填充](resources/DeepLearing/80.png)  
+如上图所示,通过填充大小为(4,4)的输入数据变成了(6,6)的形状,然后应用大小为(3,3)的滤波器,生成了带笑傲为(4,4)的输出数据  
+本例中将填充幅度设定为1,当然也可以设定为2、3等任意的整数,如果将填充设定为2,则输入数据的大小变为(8,8),如果将填充设定为3,则大小变为(10,10)  
+
+2.填充的目的  
+使用填充的主要目的是<font color="#FF00FF">调整输出的大小</font>,例如对于大小为(4,4)的输入数据使用(3,3)的滤波器时,输出大小变为(2,2),相当于输出大小比输入大小缩减了2个元素,如此在反复进行多次卷积运算的神经网络中,<font color="#00FF00">如果每次进行卷积都会缩小空间,那么在某个时刻输出大小就可能变为1</font>,导致无法再应用卷积运算,为了避免这种情况就需要使用填充,在刚才的例子中,将填充的幅度设置为1,此时相对于输入大小为(4,4)的数据,其输出大小也保持为(4,4),这样就可以保证卷积运算在保持空间大小不变的情况下传递给下一层  
+
+### 6.2.4 步幅  
+1.概述  
+应用滤波器的位置间隔称为步幅,之前例子中的步幅都为1,下图展示步幅为2的情况,可以看到应用滤波器的窗口间隔变为2个像素  
+在下图所示的例子中,对输入大小为(7,7)的数据,以步幅为2应用了滤波器,通过将步幅设定为2,输出大小变为(3,3)  
+![步幅2](resources/DeepLearing/81.png)  
+
+2.计算输出大小  
+根据[[DeepLearing#623-填充]]和[[DeepLearing#624-步幅]]的知识可以知道,填充增大后输出变大,步幅增大后输出变小,下面将用数学公式表示这一关系  
+假设输入大小为(H,W),滤波器(<font color="#FFC800">Filter</font>)大小为(FH,FW),输出大小为(OH,OW),填充为P,步幅为S,此时输出大小可由下面公式计算  
+$$\begin{aligned}
+OH &= \frac{H + 2P - FH}{S} + 1 \\
+OW &= \frac{W + 2P - FW}{S} + 1
+\end{aligned}$$
+*提示:这个公式的检验步骤这里就暂且跳过了*  
+
+3.注意事项  
+上述公式所设定的值必须可以被两个公式分别除尽,当输出大小无法除尽时,需要采取报错等对策,另外根据深度学习框架的不同,当值无法除尽的时候,有时会向最接近的整数四舍五入,不进行报错而继续运行  
+
+### 6.2.5 3维数据的卷积运算  
+1.图像的通道  
+之前的卷积运算都是以高、长方向的2维形状为对象的,但是图像是3维数据,还需要处理图像的通道方向(通道本意是<font color="#00FF00">同一空间位置上、描述图像不同属性的多层二维数据</font>,这里就可以理解为像素的颜色信息),按照下面这个图片的例子,看如何进行3维数据进行卷积运算  
+![图像通道](resources/DeepLearing/82.png)  
+
+2.计算过程  
+这里以3通道数据为例,展示卷积运算的结果,和2维数据相比,可以发现纵深方向(通道方向)上的特征图增加了,通道方向上有多个特征图时,会按通道进行输入数据和滤波器的卷积运算,并将结果相加从而得到输出  
+*提示:这里的输出还是一个通道(1个特征图)*  
+![计算过程](resources/DeepLearing/83.png)  
+
+3.注意事项  
+在3维数据的卷积运算中,输入数据和滤波器的通道数要设为相同值(也就是2维纵深方向上的通道数),比如这里设置为3,滤波器的大小(大小≠通道数)可以设定为任意值(不过每个通道的滤波器大小要全部相同),比如这里每个通道都是(3x3),但也可以设定为(2x2)、(1x1),只要<font color="#00FF00">保证滤波器的通道数和输入数据的通道数相同即可</font>  
+
+
+### 6.2.6 结合方块思考  
+1.概述  
+将数据和滤波器结合成长方体进行理解,如下图所示3维长方体,把3维数据表示为多维数据时,书写顺序为(channel,height,width),比如通道数为C、高度为H、长度为W的数据的形状可以写成(C,H,W),滤波器也一样,可以写成(C,FH,FW)  
+![长方体](resources/DeepLearing/84.png)
+在这个例子中,数据输出是1张特征图(1个通道),如果要在通道方向上也拥有多个卷积运算的输出,此时就需要用多个滤波器(权重)
+
+2.多输出数据  
+下图中,通过应用FN个滤波器,输出特征图也生成了FN个,如果将这FN个特征图汇聚在一起,就得到了形状为(FN,OH,OW)的方块,将这个方块传递给下一层,就是CNN的处理流  
+关于卷积运算的滤波器,也必须考虑滤波器的数量,作为四维数据(滤波器),滤波器的权重数据要按(output_channel,input_channel,height,width)的顺序书写,比如通道数为3、大小为5x5的滤波器有20个时,可以写成(20,3,5,5)和下图中是对应一样的  
+*提示:output_channel顾名思义就是输出通道数,它是滤波器的数量跟滤波器的输入通道数不是一个概念,output_channel指出输出数据的通道数量*  
+![多输出数据](resources/DeepLearing/85.png)
+
+3.CNN偏移量  
+之前在[[DeepLearing#622-卷积运算]]中介绍过CNN的偏移量,如果在上述的例子中进一步追加偏移量的加法运算处理,则结果如下  
+图中,每个通道只有一个偏移量,所以偏移量的形状是(FN,1,1),滤波器的输出结果的形状是(FN,OH,OW),这两个方块相加时,要对滤波器的输出结果(FN,OH,OW)<font color="#00FF00">按通道加上相同的偏移量</font>(每个通道的所有元素加同一个值),不同形状的方块相加时,可以基于NumPy的广播功能轻松实现[[../Python/Python#6543-广播]]
+![偏移量](resources/DeepLearing/86.png)  
+
+### 6.2.7 批处理  
+1.批处理  
+在之前的全连接神经网络中已经实现了批处理[[DeepLearing#263-批处理]],同理也希望卷积运算也能够实现批处理,具体来讲就是按照(batch_num,channel,height,width)的顺序保存数据  
+
+2.示例  
+将上述的例子改为对N个数据进行批处理时,数据的形状如下图所示  
+在下图所示的批处理数据流中,各个数据的开头添加了批的维度(图中表示为<font color="#FFC800">N</font>),如此数据作为4维的形状在各层间传递,神经网络传递的是4维数据,对这N个数据进行了卷积运算,也即批处理将N次的处理汇总成了一次进行
+![批处理](resources/DeepLearing/87.png)  
+
+## 6.3 池化层  
+1.概述  
+池化是缩小高、长方向上的空间的运算,如下图所示,将2x2的区域集约成1个元素的处理,缩小空间大小  
+![池化层](resources/DeepLearing/88.png)  
+
+2.Max池化  
+上图是按步幅2进行2x2的<font color="#00FF00">Max池化</font>时的处理顺序,Max池化就是从目标区域获取最大值的运算,例如从图中灰色的2x2区域每次获取一个最大值,且这个例子将步幅设置为2,所以2x2的窗口的移动间隔为2个元素,一般来说<font color="#00FF00">池化窗口的大小会和步幅设定为相同的值</font>  
+
+*补充:除了Max池化之外,还有Average池化等,相对于Max池化是从目标区域中选出最大值,Average池化则是计算目标区域的平均值,在图像识别领域主要使用Max池化*  
+
+3.池化层的特征  
+3.1 没有要学习的参数  
+池化层和卷积层不同,没有要学习的参数,池化只是从目标区域中取最大值,所以不存在要学习的参数  
+
+3.2 通道数不发生变化  
+经过池化运算,输入数据和输出数据的通道数不会发生变化,所以池化运算是<font color="#00FF00">按通道独立进行的</font>  
+
+3.3 对微小的位置变化具有鲁棒性  
+输入数据发生微小偏差时(比如训练集存在错误数据),池化仍会返回相同的结果,因此池化对输入数据的微小偏差具有鲁棒性  
+
+## 6.4 卷积层和池化层的实现  
+**目录:**  
+6.4.1 4维数据  
+6.4.2 基于im2col的展开  
+6.4.3 卷积层的实现  
+6.4.4 池化层的实现  
+
+
+### 6.4.1 4维数据  
+1.4维数据  
+如前所述,根据[[DeepLearing#627-批处理]]的内容,CNN中各层间传递的数据是4维数据,比如数据的形状是(10,1,28,28)就对应高为28、长为28、通道数为1的10个数据,用python代码实现如下,访问的方式和正常数组访问没有区别,比如`x[0]`就是第一个数据,`x[1]`就是第二个数据,`x[0][0]`的含义和数组访问类似  
+```python
+>>> x = np.random.rand(10, 1, 28, 28) # 随机生成数据
+>>> x.shape
+(10, 1, 28, 28)
+>>> x[0].shape # (1, 28, 28)
+>>> x[1].shape # (1, 28, 28)
+# 访问第1个数据的第1个通道的空间数据,可以写成下面这样
+>>> x[0, 0] # 或者 x[0][0]
+```
+
+### 6.4.2 基于im2col的展开  
+1.概述  
+一般能立马想到实现卷积运算的算法就是for循环嵌套,但这样的实现麻烦且效率低,所以可以使用im2col这个函数进行简单实现  
+im2col是一个函数,将输入数据展开以适合滤波器,如下图所示,对3维的输入数据应用im2col后,数据转换为2维矩阵(正确地讲,是把包含批数量的4维数据转换成了2维数据)  
+![im2col](resources/DeepLearing/89.png)  
+
+2.im2col  
+im2col会把输入数据展开以适合滤波器,如下图所示,对于输入数据将应用滤波器的区域(3维方块)横向展开为1列,im2col会在所有应用滤波器的地方进行这个展开处理  
+下图为了便于观察,将步幅设置得很大,以使滤波器的应用区域不重叠,而在实际的卷积运算中,滤波器的应用区域几乎都是重叠的,在滤波器的应用区域重叠的情况下,使用im2col展开后,展开后的元素个数会多于原方块的元素个数.因此,使用im2col的实现存在比普通的实现消耗更多内存的缺点,但是矩阵运算可以更加高效(说白了就是空间换时间)  
+![im2col](resources/DeepLearing/90.png)  
+![im2col](resources/DeepLearing/91.png)  
+使用im2col展开输入数据后,之后就只需将卷积层的滤波器(权重)纵向展开为1列,并计算2个矩阵的乘积即可(参考上图)  
+*注意:<font color="#FF00FF">上图中一个滤波器(包含通道、高、长)就是一列</font>,直接把它展开为1列,可以见[[DeepLearing#643-卷积层的实现]],同理输入数据一个也是被横向展开为一列(一个输入数据包含通道、高、长)*  
+这和全连接层的Affine层进行的处理基本相同.如上图所示,基于im2col方式的输出结果是2维矩阵,因为CNN中数据会保存为4维数组,所以要将2维输出数据转换为合适的形状,以上就是卷积层的实现流程  
+
+### 6.4.3 卷积层的实现  
+1.im2col实现代码  
+```python
+def im2col(input_data, filter_h, filter_w, stride=1, pad=0):
+    """
+    Parameters
+    ----------
+    input_data : 由(数据量, 通道, 高, 长)的4维数组构成的输入数据
+    filter_h : 滤波器的高
+    filter_w : 滤波器的长
+    stride : 步幅
+    pad : 填充
+
+    Returns
+    -------
+    col : 2维数组
+    """
+    N, C, H, W = input_data.shape
+    out_h = (H + 2*pad - filter_h)//stride + 1
+    out_w = (W + 2*pad - filter_w)//stride + 1
+
+    img = np.pad(input_data, [(0,0), (0,0), (pad, pad), (pad, pad)], 'constant')
+    col = np.zeros((N, C, filter_h, filter_w, out_h, out_w))
+
+    for y in range(filter_h):
+        y_max = y + stride*out_h
+        for x in range(filter_w):
+            x_max = x + stride*out_w
+            col[:, :, y, x, :, :] = img[:, :, y:y_max:stride, x:x_max:stride]
+
+    col = col.transpose(0, 4, 5, 1, 2, 3).reshape(N*out_h*out_w, -1)
+    return col
+```
+这里暂且不关系im2col的内部实现,im2col函数提供如下参数  
+* input_data:由(数据量,通道,高,长)的4维数组构成的输入数据
+* filter_h:滤波器的高
+* filter_w:滤波器的长
+* stride:步幅
+* pad:填充
+
+2.代码测试
+im2col会考虑滤波器大小、步幅、填充将输入数据展开为2维数组,现在来实际使用im2col函数,如下所示这里举了两个例子,第一个是批大小为1、通道为3的7x7数据,第二个的批大小为10,数据形状和第一个相同,分别对其应用im2col函数,在这两种情形下,第2维的元素个数均为75(是滤波器,通道为3、大小为5x5的元素个数总和)  
+批大小为1时,im2col的结果是(9,75),而第2个例子中批大小为10,所以保存了10倍的数据即(90,75)  
+```python
+import sys, os
+sys.path.append(os.pardir)
+from common.util import im2col
+
+x1 = np.random.rand(1, 3, 7, 7)
+col1 = im2col(x1, 5, 5, stride=1, pad=0)
+print(col1.shape) # (9, 75)
+
+x2 = np.random.rand(10, 3, 7, 7) # 10 个数据
+col2 = im2col(x2, 5, 5, stride=1, pad=0)
+print(col2.shape) # (90, 75)
+```
+
+3.卷积层代码使用  
+现在使用`im2col`函数来实现卷积层,这里将卷积层实现命名为Convolution类  
+```python
+class Convolution:
+    def __init__(self, W, b, stride=1, pad=0):
+        self.W = W
+        self.b = b
+        self.stride = stride
+        self.pad = pad
+
+def forward(self, x):
+    FN, C, FH, FW = self.W.shape
+    N, C, H, W = x.shape
+    out_h = int(1 + (H + 2*self.pad - FH) / self.stride)
+    out_w = int(1 + (W + 2*self.pad - FW) / self.stride)
+
+    # 使用im2col展开输入数据(输入数据本身就是4维的)
+    col = im2col(x, FH, FW, self.stride, self.pad)
+    col_W = self.W.reshape(FN, -1).T # 滤波器的展开
+    out = np.dot(col, col_W) + self.b # 计算展开后的乘积
+    # 转换输出大小为合适的形状
+    out = out.reshape(N, out_h, out_w, -1).transpose(0, 3, 1, 2)
+    return out
+```
+卷积层的初始化方法将滤波器、偏移量、步幅、填充作为参数接收,滤波器是(FN,C,FH,FW)的4维形状,展开滤波器的部分,如下图所示将各个滤波器的方块纵向展开为1列,这里使用`reshapde(FN,-1)`的技巧会自动计算-1维度上的元素个数,以使多维数据的元素个数前后一致,比如(10,3,5,5)形状的数组元素个数共有750个,制定reshape(10,-1)后就会转换为(10,75)形状的数组  
+![滤波器](resources/DeepLearing/91.png)
+`forward`的实现中,最后会将输出大小转为合适的形状,转换时使用了NumPy的 transpose函数,transpose会更改多维数组的轴的顺序,如下图所示  
+![transpose](resources/DeepLearing/92.png)  
+*总结:以上就是卷积层的forwar处理的实现,通过使用im2col进行展开,实现思路类似Affine层一样*  
+
+4.反向传播
+因为和Affine层的实现有很多共通的地方,所以就不再介绍了,但有一点需要注意,在进行卷积层的反向传播时,必须进行im2col的逆处理,可以使用`col2im`函数来处理  
+```python
+def col2im(col, input_shape, filter_h, filter_w, stride=1, pad=0):
+    """
+    Parameters
+    ----------
+    col :
+    input_shape : 输入数据的形状（例：(10, 1, 28, 28)）
+    filter_h :
+    filter_w
+    stride
+    pad
+
+    Returns
+    -------
+
+    """
+    N, C, H, W = input_shape
+    out_h = (H + 2*pad - filter_h)//stride + 1
+    out_w = (W + 2*pad - filter_w)//stride + 1
+    col = col.reshape(N, out_h, out_w, C, filter_h, filter_w).transpose(0, 3, 4, 5, 1, 2)
+
+    img = np.zeros((N, C, H + 2*pad + stride - 1, W + 2*pad + stride - 1))
+    for y in range(filter_h):
+        y_max = y + stride*out_h
+        for x in range(filter_w):
+            x_max = x + stride*out_w
+            img[:, :, y:y_max:stride, x:x_max:stride] += col[:, :, y, x, :, :]
+
+    return img[:, :, pad:H + pad, pad:W + pad]
+```
+反向传播的实现方式如下所示,基本上Affine层的实现方式都一样  
+```python
+def backward(self, dout):
+    FN, C, FH, FW = self.W.shape
+    dout = dout.transpose(0,2,3,1).reshape(-1, FN)
+    self.db = np.sum(dout, axis=0)
+    self.dW = np.dot(self.col.T, dout)
+    self.dW = self.dW.transpose(1, 0).reshape(FN, C, FH, FW)
+    dcol = np.dot(dout, self.col_W.T)
+    dx = col2im(dcol, self.x.shape, FH, FW, self.stride, self.pad)
+    return dx
+```
+
+### 6.4.4 池化层的实现  
+1.概述  
+池化层的实现和卷积层相同,都使用im2col展开输入数据,不过池化层在通道方向上是独立的,如下图所示,池化的应用区域按通道单独展开  
+![池化层实现](resources/DeepLearing/93.png)  
+像上述这样展开后,只需要对展开的矩阵求各行的最大值,并转换为合适的形状即可,如下图所示  
+![池化层](resources/DeepLearing/94.png)  
+
+2.代码实现  
+```python
+class Pooling:
+    def __init__(self, pool_h, pool_w, stride=1, pad=0):
+    self.pool_h = pool_h
+    self.pool_w = pool_w
+    self.stride = stride
+    self.pad = pad
+def forward(self, x):
+    N, C, H, W = x.shape
+    out_h = int(1 + (H - self.pool_h) / self.stride)
+    out_w = int(1 + (W - self.pool_w) / self.stride)
+    # 展开 (1)
+    col = im2col(x, self.pool_h, self.pool_w, self.stride, self.pad)
+    col = col.reshape(-1, self.pool_h*self.pool_w)
+    # 最大值 (2),指定axis=1,按照行方向求最大值,axis=0则按照行求
+    out = np.max(col, axis=1)
+    # 转换 (3)
+    out = out.reshape(N, out_h, out_w, C).transpose(0, 3, 1, 2)
+    return out
+```
+*提示:执行流程为,展开输入数据->求各行的最大值->转换为合适的输出大小*
+
+3.反向传播  
+池化层的backward处理可以参考ReLU层的实现中使用的max的反向传播,可以参考[[DeepLearing#451-relu层]]  
+```python
+def backward(self, dout):
+    dout = dout.transpose(0, 2, 3, 1)
+    
+    pool_size = self.pool_h * self.pool_w
+    dmax = np.zeros((dout.size, pool_size))
+    dmax[np.arange(self.arg_max.size), self.arg_max.flatten()] = dout.flatten()
+    dmax = dmax.reshape(dout.shape + (pool_size,)) 
+    
+    dcol = dmax.reshape(dmax.shape[0] * dmax.shape[1] * dmax.shape[2], -1)
+    dx = col2im(dcol, self.x.shape, self.pool_h, self.pool_w, self.stride, self.pad)
+    
+    return dx
+```
+
+## 6.5 CNN的实现  
+1.手写识别CNN  
+现在已经实现了卷积层和池化层,现在组合这些层搭建进行手写识别的CNN,实现如下图所示的CNN,网络的构成是"ConVolution-ReLU-Pooling-Affine-ReLU-Affine-Softmax"将其实现命名为SimpleConvNet类  
+![手写CNN](resources/DeepLearing/95.png)  
+
+2.SimpleConvNet的初始化函数  
+初始化函数`__init__`取下面这些参数,卷积层的超参数通过conv_param的字典传入,传入的格式类似`{'filter_num':30,'filter_size':5, 'pad':0, 'stride':1}`
+* `input_dim`―输入数据的维度:(通道,高,长)
+* `conv_param`―卷积层的超参数(通过字典传入),字典的关键字如下:
+  * `filter_num`―滤波器的数量
+  * `filter_size`―滤波器的大小(filter_size✖️filter_size的大小)
+  * `stride`―步幅
+  * `pad`―填充
+* `hidden_size`―隐藏层(全连接)的神经元数量
+* `output_size`―输出层(全连接)的神经元数量
+* `weitght_int_std`―初始化时权重的标准差
+
+2.1 初始化函数的最开始部分  
+SimpleConvNet的初始化分为三部分来介绍说明,首先是初始化最开始的部分,这里将由初始化参数传入的卷积层的超参数从字典中取了出来(以方便后面使用),然后计算卷积层的输出大小,公式参考[[DeepLearing#624-步幅]]  
+```python
+def __init__(self, input_dim=(1, 28, 28), 
+                conv_param={'filter_num':30, 'filter_size':5, 'pad':0, 'stride':1},
+                hidden_size=100, output_size=10, weight_init_std=0.01):
+    filter_num = conv_param['filter_num']
+    filter_size = conv_param['filter_size']
+    filter_pad = conv_param['pad']
+    filter_stride = conv_param['stride']
+    input_size = input_dim[1]
+    # 根据之前的公式计算大小
+    conv_output_size = (input_size - filter_size + 2*filter_pad) / filter_stride + 1
+    pool_output_size = int(filter_num * (conv_output_size/2) * (conv_output_size/2))
+```
+
+2.2 权重参数初始化  
+神经网络学习需要的参数是,第1层的卷积层和剩余两个全连接层的权重和偏置,将这些参数保存在params的字典中,将第一层的卷积层的权重设置为关键字W1,偏移量设置为B1,分别用关键字W2、B2和关键字W3、B3来保存第2个和第3个全连接层的权重和偏移量  
+```python
+self.params = {}
+self.params['W1'] = weight_init_std * \
+                    np.random.randn(filter_num, input_dim[0], filter_size, filter_size)
+self.params['b1'] = np.zeros(filter_num)
+self.params['W2'] = weight_init_std * \
+                    np.random.randn(pool_output_size, hidden_size)
+self.params['b2'] = np.zeros(hidden_size)
+self.params['W3'] = weight_init_std * \
+                    np.random.randn(hidden_size, output_size)
+self.params['b3'] = np.zeros(output_size)
+```
+
+2.3 生成必要的层  
+从最前面开始按顺序向有序字典(OrderedDict)的layers中添加层,只有最后的 SoftmaxWithLoss层被添加到别的变量lastLayer中  
+```python
+self.layers = OrderedDict()                                                               
+self.layers['Conv1'] = Convolution(self.params['W1'], self.params['b1'],conv_param['stride'], conv_param['pad'])               
+self.layers['Relu1'] = Relu()                                                             
+self.layers['Pool1'] = Pooling(pool_h=2, pool_w=2, stride=2)                              
+self.layers['Affine1'] = Affine(self.params['W2'], self.params['b2'])                     
+self.layers['Relu2'] = Relu()                                                             
+self.layers['Affine2'] = Affine(self.params['W3'], self.params['b3'])                     
+self.last_layer = SoftmaxWithLoss()                                                       
+```
+
+3.推理函数和损失函数  
+上述第2点就是SimpleConvNet的初始化中进行的处理,像这样初始化后,进行推理的predict方法和求损失函数值的loss方法就可以像下面这样实现  
+用于推理的predict方法从头开始依次调用已添加的层,并将结果传递给下一层;在求损失函数的loss方法中,除了使用predict方法进行的forward处理之外,还会继续进行forward 处理,直到到达最后的SoftmaxWithLoss层(在SoftmaxWithLoss中进行损失函数计算,参考[[DeepLearing#463-softmax-with-loss层]])  
+```python
+def predict(self, x):
+    for layer in self.layers.values():
+        x = layer.forward(x)
+    return x
+
+def loss(self, x, t):
+    """
+    求损失函数
+    参数x是输入数据、t是教师标签(结果标签)
+    """
+    y = self.predict(x)
+    return self.last_layer.forward(y, t)
+```
+
+4.求梯度  
+基于误差反向传播求梯度的代码,参数的梯度通过误差反向传播法(反向传播)求出,通过把正向传播和反向传播组装在一起来完成;因为已经在各层正确实现了正向传播和反向传播的功能,所以这里只需要以合适的顺序调用即可;最后,把各个权重参数的梯度保存到grads字典中,这就是SimpleConvNet的实现  
+```python
+def gradient(self, x, t):
+    """
+    Parameters
+    ----------
+    x : 输入数据
+    t : 教师标签
+
+    Returns
+    -------
+    具有各层的梯度的字典变量
+        grads['W1']、grads['W2']、...是各层的权重
+        grads['b1']、grads['b2']、...是各层的偏置
+    """
+    # forward
+    self.loss(x, t)
+
+    # backward
+    dout = 1
+    dout = self.last_layer.backward(dout)
+
+    layers = list(self.layers.values())
+    layers.reverse()
+    for layer in layers:
+        dout = layer.backward(dout)
+
+    # 设定
+    grads = {}
+    grads['W1'], grads['b1'] = self.layers['Conv1'].dW, self.layers['Conv1'].db
+    grads['W2'], grads['b2'] = self.layers['Affine1'].dW, self.layers['Affine1'].db
+    grads['W3'], grads['b3'] = self.layers['Affine2'].dW, self.layers['Affine2'].db
+
+    return grads
+```
+
+5.使用CNN学习MINIST  
+现在使用这个CNN来学习MINIST数据集,用于学习的代码和[[DeepLearing#35-学习算法的实现]]基本相同,最终使用SimpleConvNet训练出来的网络,训练数据的识别率为99.82%,测试数据的识别率为98.96%  
+![CNN](resources/DeepLearing/96.png)  
+
+## 6.6 CNN的可视化  
+**目录:**  
+6.6.1 第一层权重的可视化  
+6.6.2 基于分层结构的信息提取  
+
+### 6.6.1 第一层权重的可视化  
+1.滤波器可视化
+[[DeepLearing#65-cnn的实现]]中的参数初始化中,第一层卷积层的权重形状是(30,1,5,5),滤波器的通道数为1,这表示滤波器可以可视化为1通道的灰度图像,现在将卷积层的滤波器显示为图像,来比较学习前后的权重,如下图所示  
+学习前的滤波器是随机进行初始化的,所以在黑白的浓淡上没有规律可循,但学习后的滤波器变成了有规律的图像,通过学习,滤波器被更新成了有规律的滤波器,比如从白到黑渐变的滤波器,含有块状区域(称为blob)的滤波器等  
+![滤波器](resources/DeepLearing/97.png)
+![滤波器](resources/DeepLearing/98.png)
+
+2.滤波器在观察什么  
+滤波器在观察边缘(颜色变化的分界线)和斑块(局部的块状区域),比如左半部分为白色、右半部分为黑色的滤波器的情况下,会对垂直方向上的边缘有响应  
+输出图像1中,垂直方向的边缘上出现白色像素,输出图像2中,水平方向的边缘上出现很多白色像素,由此可知,<font color="#00FF00">卷积层的滤波器会提取边缘或斑块等原始信息</font>,而刚才实现的CNN会将这些原始信息传递给后面的层  
+![滤波器](resources/DeepLearing/99.png)  
+
+
+### 6.6.2 基于分层结构的信息提取  
+1.多层CNN  
+之前[[DeepLearing#561-第一层权重的可视化]]是1层卷积层的结果,在第1层的卷积层中提取了边缘或斑块等低级信息,那么在堆叠了多层的CNN中,随着层次加深,各层提取的信息也越来越抽象  
+
+2.一般物体识别的8层CNN  
+下图展示了进行一般物体识别(动物或车)的8层CNN,这个网络的结构是AlexNet,ALexNet网络结构堆叠了多层卷积层和池化层,最后经过全连接层输出  
+第1层的神经元对边缘或斑块有响应,第3层对纹理有响应,第5层对物体部件有响应,最后的全连接层对物体的类别(狗或车)有响应,也就是说随着层次加深,神经元从简单的形状向"高级"信息变化  
+![8层CNN](resources/DeepLearing/100.png)  
+
+## 6.7 具有代表性的CNN  
+**目录:**  
+6.7.1 LeNet  
+6.7.2 AletNet  
+
+### 6.7.1 LeNet  
+
+### 6.7.2 AletNet  
+
+
+# 7.深度学习  
+**目录:**  
+7.1 加深网络  
+7.2 深度学习的历史  
+7.3 深度学习的高速化  
+7.4 深度学习的应用案例  
+7.5 深度学习的未来  
+
+
+## 7.1 加深网络  
+**目录:**  
+7.1.1 向更深的网络出发  
+7.1.2 数据扩充  
+7.1.3 加深层的好处  
+
+### 7.1.1 向更深的网络出发  
+1.深度网络  
+根据之前的网络只需要叠加更多层,就可以创建深度网络,本节将汇总已学的知识,创建一个深度网络,挑战MINIST数据集的手写识别  
+
+2.创建深度网路  
+创建一个如下图所示的深度网络,这个网络参考了下一节要介绍的VGG  
+这个网络的层比之前实现的网络都更深,这里使用的卷积层全都是3×3的小型滤波器,特点是<font color="#00FF00">随着层的加深通道数变大</font>(卷积层的通道数从前面的层开始按顺序以16,16,32,32,64,64的方式增加);此外如下图所示,还插入了池化层,以逐渐减小中间数据的空间大小,并且后面的<font color="#FFC800">全连接层</font>中使用了Dropout层  
+![深度网络](resources/DeepLearing/101.png)  
+这个网络使用He初始值作为权重的初始值,使用Adam更新权重参数,这个网络有如下特点  
+* 基于3×3的小型滤波器的卷积层
+* 激活函数是ReLU
+* 全连接层的后面使用Dropout层
+* 基于Adam的最优化
+* 使用He初始值作为权重初始值
+
+3.运行网络  
+实际上深度网络的学习需要花费很多时间,可能需要半天,最终深度网络的手写识别率达到了99.38%,其错误识别率只有0.62%,这里看一下什么样的图像上发生了识别错误  
+![识别错误的图像](resources/DeepLearing/102.png)  
+观察上图可知,这些图片哪怕是对于人类而言也很难判断,所以通过这个例子可以理解在什么时候神经网络会发生错误  
+
+### 7.1.2 数据扩充  
+1.进一步提高识别精度的方法  
+比如,集成学习、学习率衰减、Data Augmentation(数据扩充)等都有助于提高识别精度,尤其是Data Augmentation  
+
+2.Data Augmentation  
+Data Augmentation算法思想是<font color="#00FF00">人为扩充输入图像</font>,比如对于输入图像通过施加旋转、垂直或水平方向上的移动等微小变化,增加图像的数量,这种方法在数据集图像数量有限时尤其有效;除了变形的方法之外,还可以通过剪裁图像、图像左右翻转、亮度变化、放大缩小等方法来改变图像  
+
+
+### 7.1.3 加深层的好处  
+1.减少网络的参数  
+与没有加深层的网络相比,加深了层的网络可以用更少的参数达到同等水平的表现力,下面结合卷积运算的滤波器大小来思考,如下图所示展示了由5x5的滤波器构成的卷积层,每个输出节点都是从输入数据的5x5区域算出来的  
+![滤波器](resources/DeepLearing/103.png)  
+
+2.增加网络层  
+如下图所示,现在增加网络层数量,用两个3x3的卷积进行运算,此时每个输出节点将由中间数据的某个3x3区域计算出来,而中间数据的3x3又是由前一个输入数据的5x5区域计算出来的,也就是说输出数据是<font color="#00FF00">观察</font>了输入数据的某个5x5区域计算出来的  
+所以一次5x5的卷积运算的区域可以由两次3x3的卷积运算抵充,并且相对于5x5有25个参数数量,3x3只有18个参数数量(2x3x3),所以<font color="#00FF00">通过叠加卷积层,参数数量减少了</font>,<font color="#FF00FF">并且随着层数的加深参数数量只差会变大</font>  
+![增加网络参](resources/DeepLearing/104.png)  
+
+3.感受野  
+叠加小型滤波器来加深网络,其优势在于能够减少参数数量并扩大<font color="#FFC800">感受野</font>(即给神经元施加变化的某个局部空间区域);此外,通过叠加层并在卷积层之间插入ReLU等激活函数,可进一步提升网络的<font color="#FFC800">表现力</font>,这是因为激活函数为网络引入了"非线性"表达能力,而通过非线性函数的叠加,网络能够表征更加复杂的内容  
+
+4.减少学习数据  
+加深层还可以减少学习数据,比如在[[DeepLearing#66-cnn的可视化]]介绍过CNN的卷积层会分层次地提取信息,具体来说就是处在一开始的卷积层,神经元会对边缘等简单的形状有响应,随着层的加深,开始对纹理、物体部件等更加复杂的东西有响应  
+回顾之前识别"狗"的问题,如果使用浅层网络解决这个问题,卷积层需要一下子理解很多狗的特征,而狗的特征很复杂,因此要理解狗的特征,需要大量富有差异性的学习数据,这会导致学习需要花费很多时间  
+通过加深网络,就可以分层次地分解需要学习的问题,因此各层需要学习的问题就变成了更简单的问题,最开始的层只要专注于学习边缘,这样只需要用较少的学习数据就可以高效地学习,因为和"狗"照片相比,包含边缘的图像数量众多,并且边缘的模式比狗的模式结构更简单  
+
+5.分层次传递信息  
+提取了边缘的层的下一层能够使用边缘的信息,所以应该能够高效地学习更加高级的模式,即通过加深层,可以将各层要学习的问题分解成容易解决的简单问题,从而可以进行高效的学习  
+
+## 7.2 深度学习的历史  
+**目录:**  
+7.2.4 ResNet  
+
+
+
+### 8.2.4 ResNet  
+1.迁移学习  
+实践中经常会将在其它数据集中学习到的权重数据应到用其它神经网络再进行学习,称为<font color="#FF00FF">迁移学习</font>  
+
+## 7.4 深度学习的应用案例  
+
+
+## 7.5 深度学习的未来  
+**目录:**  
+7.5.2 图像生成  
+7.5.4 强化学习  
+
+### 7.5.2 图像生成  
+1.监督学习和无监督学习  
+之前遇到的所有机器学习问题都是监督学习,这类问题使用的数据集必须是成对给出数据和结果标签(T标签)  
+而没有给出结果标签的,只给出大量图像数据(比如做图像训练的,只给出数据不给结果),这种问题就称为无监督学习  
+
+### 7.5.4 强化学习  
+1.概述  
+就像人类通过摸索试验来学习一样(比如骑自行车),让计算机也在摸索试验的过程中自主学习,这称为强化学习  
+强化学习的基本框架是,代理根据环境选择行动,然后通过这个行动改变环境,根据环境的变化,代理获得某种报酬,强化学习的目的是决定代理的行动方针,从而获得更好的报酬  
+
+2.马里奥  
+在强化学习中,报酬并不是确定的,比如在马里奥中,让马里奥向右移动能获得多少报酬不一定是明确的,这时就需要从游戏得分(获得的硬币、消灭的敌人等)或者游戏结束等明确的指标来反向计算,而如果是监督学习的话,每个行动都可以从结果标签那里获得正确的评价
+
+3.DQN  
+<font color="#00FF00">在使用了深度学习的强化学习中</font>(深度学习和强化学习不冲突,强化学习只是一个概念,两者可以结合),有一种称为Deep Q-Network的基于Q学习的强化学习算法,在Q学习中为了确定最合适的行动,需要确定一个被称为<font color="#00FF00">最优行动价值函数</font>的函数,为了近似这个函数,DQN使用了深度学习  
+在DQN的研究中,有让电子游戏自动学习,比如打砖块游戏DQN使用CNN把游戏图像的帧(连续4帧)作为输入,最终输出游戏手柄的各个动作的价值  
+[DQN的nature论文:只看像素自学打砖块](https://www.bilibili.com/video/BV1YsH363E3w/?)  
+[AlphaGo打砖块](https://www.bilibili.com/video/BV1rt411x7tU/?)
+[知乎的回答](https://www.zhihu.com/question/41176911)  
 
 
 
